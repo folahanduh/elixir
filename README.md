@@ -31,20 +31,27 @@ Spots memecoin plays the moment they happen, on X and on live streams, then chec
 
 From a terminal it's the same thing: `npm start`, or `npm run demo`.
 
-### Keys (all optional)
-It runs with **no keys at all**. Tweets then come from the free X browser bridge or from pasting, and coin checks, rug checks and the demo all work.
+### What works out of the box (no keys)
+- **Coin checks, deploy ranking, rug and bundle checks:** these use DexScreener, RugCheck and Solana's free public RPC.
+- **KOL wallets:** they run on Solana's free public RPC. It's slower and rate-limited, so for big lists add a free Helius key.
+- **Tweets:** come from the free X browser bridge, or paste them in.
+- **Stream tools:** ffmpeg installs with the packages, and yt-dlp downloads itself on first start, so stream capture needs no manual installs.
+- **Your mic and browser-tab streams:** transcribed free in the browser.
 
+### Keys (optional extras)
 **To add keys:** click **API keys** in the sidebar, or go to **Settings → API keys**. Paste a key and press **Save keys**. Each key is tested straight away, with a green **works** or the provider's error. No restart is needed. Keys are saved in a `.env` file in the Elixir folder on your computer. That file is never uploaded, never sent to the page, and git ignores it. (You can also edit `.env` by hand; `.env.example` shows the format.)
+
+Never put keys in the repo or in an issue. Public keys get scraped by bots within minutes.
 
 | Key | Unlocks | Cost |
 |---|---|---|
-| `SOLANA_WS_URL` | KOL wallet tracking, deeper rug/bundle checks | Free ([Helius](https://helius.dev)) |
-| `DEEPGRAM_API_KEY` | Live stream transcription from a link | Free credit ([Deepgram](https://deepgram.com)) |
-| `ANTHROPIC_API_KEY` | Claude rates funny or meme-worthy moments, and gives ticker, image and vamp ideas | Pay per use ([Anthropic](https://console.anthropic.com)) |
+| `SOLANA_WS_URL` | Faster KOL wallets and rug checks than the public RPC; needed for big wallet lists | Free ([Helius](https://helius.dev)) |
+| `DEEPGRAM_API_KEY` | Live transcription from a stream **link** (Twitch, YouTube, X, Kick…) | Free credit ([Deepgram](https://deepgram.com)) |
+| `ANTHROPIC_API_KEY` | Claude rates funny or meme-worthy moments, and gives ticker, image and vamp ideas (rule-based ideas work without it) | Pay per use ([Anthropic](https://console.anthropic.com)) |
 | `TWITTERAPI_IO_KEY` or `X_BEARER_TOKEN` | Tweets pulled by API instead of the browser bridge | Paid |
 | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Pings on your phone | Free |
+| `DISCORD_WEBHOOK_URL` | Pings in a Discord channel | Free |
 
-Stream capture from a link also needs **ffmpeg** and **yt-dlp** installed (see [Live streams](#3-live-streams-pinpoint-transcription)). Without them, use **Share tab audio** on the Streams page.
 
 ---
 
@@ -142,7 +149,7 @@ The panel sits at the top-left of the main column on both pages. Click **KOLs** 
 
 **Setup:**
 1. Get a free RPC key with websockets, e.g. Helius (helius.dev).
-2. Put `SOLANA_WS_URL=wss://mainnet.helius-rpc.com/?api-key=YOUR_KEY` in `.env` (the HTTP URL is worked out from it).
+2. Paste the Helius **websocket** URL (`wss://mainnet.helius-rpc.com/?api-key=…`) under **API keys**. Without one, the free public Solana RPC is used, which is fine for a few dozen wallets.
 3. Restart, then load your wallets in one of two ways:
    - **Import (Axiom export):** click **Import** in the panel or sidebar. Paste the whole export, all batches at once with the `===== BATCH` lines left in, or drop the `.json` / `.txt` file on the box. Each wallet keeps its name, emoji, highlight colour, groups and toast setting. Toast off means no pop-up for that wallet's single buys, though it still counts toward clusters. Addresses are taken exactly as exported. Leave **replace list** unticked to merge with the wallets you already have.
    - **Edit:** one per line, `emoji  name  address` (the emoji is optional). Get addresses from the GMGN, Kolscan or Cielo KOL leaderboards.
@@ -186,11 +193,11 @@ Full transcripts are saved in `data/streams/` as both `.txt` (easy to read) and 
 | | What for | Get it |
 |---|---|---|
 | **Deepgram API key** (`DEEPGRAM_API_KEY`) | Real-time speech-to-text with word-level timing. Words show within about a second. | https://deepgram.com. New accounts get free credit; after that it's roughly $0.50 per hour of stream (check their pricing page) |
-| **yt-dlp + ffmpeg** | Pulls audio straight from a stream link, so you don't need the stream open | Windows: `winget install yt-dlp.yt-dlp` and `winget install Gyan.FFmpeg` · Mac: `brew install yt-dlp ffmpeg` |
+| **yt-dlp + ffmpeg** | Pulls audio straight from a stream link, so you don't need the stream open | **Installed automatically:** ffmpeg comes with the packages and yt-dlp downloads itself on first start (into `bin/`, updated weekly). Copies you already have are used first. |
 | **streamlink** (optional) | Lower-delay audio for Twitch | Windows: `winget install Streamlink.Streamlink` · Mac: `brew install streamlink` |
 | **Anthropic API key** (optional, `ANTHROPIC_API_KEY`) | Claude reads each batch of lines and rates how funny, meme-worthy and crypto-related they are, with ticker ideas. Keyword rules can't really tell a joke apart from someone just saying "haha". | https://console.anthropic.com |
 
-The top of the Streams page shows a ✓ or "missing" for each of these.
+The header on the Streams page shows whether these are ready.
 
 **Claude cost:** the judge uses `claude-opus-5-5` at low effort, with a call every ~8 seconds while someone is talking. Expect a few dollars per stream-hour. To make it much cheaper, set `"model": "claude-haiku-5-5"` under `streams.judge` in `config.json`. Raising `everySeconds` also cuts cost. Server-side fallback is switched on, so if a request is ever declined by a safety filter, the API retries it on a fallback model automatically.
 

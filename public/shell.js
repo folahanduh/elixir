@@ -90,8 +90,8 @@
   sb.querySelector('[data-k="keys"]').addEventListener('click', e => { if (typeof window.openKeys === 'function') { e.preventDefault(); window.openKeys(); } });
   const paintKeyCount = c => {
     const ks = c?.keys; if (!ks) return;
-    const n = ['SOLANA_WS_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY'].filter(k => ks[k]?.set).length;
-    sb.querySelector('[data-n="keys"]').textContent = n + '/3';
+    const n = ['DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY'].filter(k => ks[k]?.set).length;
+    sb.querySelector('[data-n="keys"]').textContent = n + '/2';
   };
   sb.querySelector('[data-k="plays"]').addEventListener('click', e => {
     const t = document.querySelector('#tabs [data-f="plays"]'); if (t) { e.preventDefault(); t.click(); }
@@ -155,7 +155,7 @@
     if (st) items.push(`Bridge <b class="${st.bridgeLastSeen && Date.now() - st.bridgeLastSeen < 90000 ? 'ok' : ''}">${st.bridgeLastSeen && Date.now() - st.bridgeLastSeen < 90000 ? 'on' : 'off'}</b>`);
     if (ss) items.push(`Speech <b>${h(ss.stt === 'deepgram' ? 'Deepgram' : ss.stt === 'demo' ? 'Demo' : 'mic only')}</b>`, `Claude <b>${h(String(ss.judge || 'off').replace(/ \(.*/, ''))}</b>`);
     bar.querySelector('.sbar-items').innerHTML = items.map(x => `<span>${x}</span>`).join('');
-    bar.querySelector('.sbar-tg').innerHTML = cfg?.telegram ? '<span class="sbar-l">Telegram on</span>' : '';
+    bar.querySelector('.sbar-tg').innerHTML = (cfg?.telegram ? '<span class="sbar-l">Telegram on</span>' : '') + (cfg?.discord ? '<span class="sbar-l">Discord on</span>' : '');
   };
   let C = null, ST = null, SS = null;
 

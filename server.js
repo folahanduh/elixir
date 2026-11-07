@@ -52,8 +52,13 @@ function readConfig() {
   c.keys.deepgram = process.env.DEEPGRAM_API_KEY || c.keys.deepgram || '';
   c.keys.anthropic = process.env.ANTHROPIC_API_KEY || c.keys.anthropic || '';
   c.keys.solanaWs = process.env.SOLANA_WS_URL || c.keys.solanaWs || '';
+  // No key: Solana's free public RPC, so KOL wallets and rug checks work out of the box
+  // (rate-limited; a free Helius key is faster and copes with big wallet lists).
+  c.keys.solanaPublic = !c.keys.solanaWs && !process.env.SOLANA_RPC_URL && !c.keys.solanaRpc;
+  if (c.keys.solanaPublic) c.keys.solanaWs = 'wss://api.mainnet-beta.solana.com';
   // The HTTP RPC defaults to the same provider as the websocket (wss:// → https://).
   c.keys.solanaRpc = process.env.SOLANA_RPC_URL || c.keys.solanaRpc || c.keys.solanaWs.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
+  c.discordWebhook = process.env.DISCORD_WEBHOOK_URL || c.discordWebhook || '';
   c.port = Number(process.env.PORT || c.port || 8787);
   // Fill in settings added in newer versions so older config.json files keep working.
   const defaults = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.example.json'), 'utf8'));
@@ -71,7 +76,7 @@ function publicConfig() {
     provider: DEMO ? 'demo' : activeProvider(),
     accounts: cfg.accounts, vip: cfg.vip, watchlist: cfg.watchlist, ignore: cfg.ignore,
     pollSeconds: cfg.pollSeconds, chains: cfg.chains, includeReplies: cfg.includeReplies,
-    trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId),
+    trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId), discord: Boolean(cfg.discordWebhook),
     streams: { highlightScore: cfg.streams.highlightScore, pingScore: cfg.streams.pingScore, watch: cfg.streams.watch, language: cfg.streams.language },
     filter: activePreset(cfg),
     keys: keyStatus(),
@@ -79,13 +84,14 @@ function publicConfig() {
 }
 
 // ---------- API keys (Settings → API keys writes .env; values never go back to the page) ----------
-const KEY_ENVS = ['SOLANA_WS_URL', 'SOLANA_RPC_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY', 'TWITTERAPI_IO_KEY', 'X_BEARER_TOKEN', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
+const KEY_ENVS = ['SOLANA_WS_URL', 'SOLANA_RPC_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY', 'TWITTERAPI_IO_KEY', 'X_BEARER_TOKEN', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'DISCORD_WEBHOOK_URL'];
 function keyStatus() {
   const out = {};
   for (const k of KEY_ENVS) {
     const v = process.env[k] || '';
     out[k] = { set: Boolean(v), hint: v ? '…' + v.slice(-4) : '' };
   }
+  if (cfg?.keys?.solanaPublic) out.SOLANA_WS_URL.fallback = 'using free public RPC';
   return out;
 }
 function writeEnv(changes) {
@@ -116,6 +122,10 @@ async function testKey(k) {
     if (k === 'ANTHROPIC_API_KEY') { const r = await fetch('https://api.anthropic.com/v1/models?limit=1', { ...T, headers: { 'x-api-key': v, 'anthropic-version': '2023-06-01' } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
     if (k === 'TWITTERAPI_IO_KEY') { const r = await fetch('https://api.twitterapi.io/twitter/user/info?userName=x', { ...T, headers: { 'X-API-Key': v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
     if (k === 'X_BEARER_TOKEN') { const r = await fetch('https://api.x.com/2/users/by/username/x', { ...T, headers: { authorization: 'Bearer ' + v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
+    if (k === 'DISCORD_WEBHOOK_URL') {
+      if (!DISCORD_RE.test(v)) return { ok: false, msg: 'should start with https://discord.com/api/webhooks/' };
+      const r = await fetch(v, T); const j = await r.json().catch(() => ({})); return r.ok ? { ok: true, msg: 'posts as ' + (j.name || 'webhook') } : fail(r);
+    }
     if (k === 'TELEGRAM_BOT_TOKEN') { const r = await fetch(`https://api.telegram.org/bot${v}/getMe`, T); const j = await r.json().catch(() => ({})); return j.ok ? { ok: true, msg: '@' + j.result.username } : { ok: false, msg: j.description || `HTTP ${r.status}` }; }
     return { ok: null, msg: 'saved' };
   } catch (e) { return { ok: false, msg: e.name === 'TimeoutError' ? 'no answer in 8 s' : e.message === 'fetch failed' ? "couldn't reach the provider (internet, VPN or firewall?)" : e.message }; }
@@ -324,6 +334,24 @@ function alert(a) {
   payload.url = a.item.url;
   send('alert', payload);
   telegram(a).catch(e => console.error('[telegram]', e.message));
+  discord(a).catch(e => console.error('[discord]', e.message));
+}
+
+const DISCORD_RE = /^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//;
+async function discord(a) {
+  const url = cfg.discordWebhook;
+  if (!url || !DISCORD_RE.test(url)) return;
+  const top = a.dex?.top?.[0];
+  const src = a.item.source === 'stream' ? 'Stream' : a.item.source === 'kol' ? 'Wallet' : 'X';
+  const lines = [`**${a.title}**`, `${src} @${a.item.author}: ${a.item.text.slice(0, 300)}`];
+  if (a.item.url) lines.push(a.item.url);
+  if (top) lines.push(`${top.symbol} · mcap $${Math.round(top.marketCap || 0).toLocaleString()} · ${top.links.gmgn || top.links.dexscreener}`);
+  await fetch(url, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    // flags 4 = no link previews; no @mentions ever
+    body: JSON.stringify({ username: 'Elixir', content: lines.join('\n').slice(0, 1900), allowed_mentions: { parse: [] }, flags: 4 }),
+    signal: AbortSignal.timeout(5000),
+  });
 }
 
 async function telegram(a) {
@@ -658,6 +686,7 @@ server.listen(cfg.port, '127.0.0.1', () => {
     const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]] : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
     try { require('child_process').spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref(); } catch {}
   }
+  if (!DEMO && !process.env.CI) require('./lib/bin').ensureTools();
   if (DEMO) {
     if (process.env.DEMO_TWEETS !== '0') sources.startDemo(t => ingest({ ...t, via: 'demo' }));
     streams.start({ label: 'Demo streamer', kind: 'demo', url: 'https://www.twitch.tv/demo_streamer' });

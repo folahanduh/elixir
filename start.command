@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
+# Elixir: double-click (Mac: start.command) or run ./start.sh  ·  ./start.sh demo for fake data
 cd "$(dirname "$0")"
-command -v node >/dev/null || { echo "Node.js is not installed. Get it from https://nodejs.org (LTS)"; exit 1; }
-[ -d node_modules/@anthropic-ai/sdk ] || npm install --no-audit --no-fund || echo "(npm install failed: the Claude judge stays off, everything else works)"
-if [ "$1" = "demo" ]; then node server.js --demo; else node server.js; fi
+command -v node >/dev/null || { echo "Node.js is not installed. Get the LTS from https://nodejs.org, then run this again."; read -r -p "Press Enter to close"; exit 1; }
+if [ "$1" = "demo" ]; then npm run demo --silent; else npm start --silent; fi

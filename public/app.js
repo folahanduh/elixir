@@ -579,20 +579,21 @@ $('#settingsForm').addEventListener('submit', async e => {
 
 // ---------- API keys ----------
 const KEY_ROWS = [
-  ['SOLANA_WS_URL', 'Solana RPC websocket', 'KOL wallets, deeper rug & bundle checks', 'https://dashboard.helius.dev', 'Free at Helius → copy the "Websocket" URL (wss://…)', 'wss://mainnet.helius-rpc.com/?api-key=…'],
+  ['SOLANA_WS_URL', 'Solana RPC websocket', 'Optional: works on the free public RPC; Helius is faster for big wallet lists', 'https://dashboard.helius.dev', 'Free at Helius → copy the "Websocket" URL (wss://…)', 'wss://mainnet.helius-rpc.com/?api-key=…'],
   ['DEEPGRAM_API_KEY', 'Deepgram', 'Live stream transcription from a link', 'https://console.deepgram.com', 'Free credit → API Keys → Create', ''],
   ['ANTHROPIC_API_KEY', 'Anthropic (Claude)', 'Funny / meme-worthy judging, ticker & image ideas', 'https://console.anthropic.com/settings/keys', 'Pay per use → API Keys → Create', 'sk-ant-…'],
   ['TWITTERAPI_IO_KEY', 'twitterapi.io', 'Pull tweets by API (instead of the free browser bridge)', 'https://twitterapi.io', 'Paid · Dashboard → API key', ''],
   ['X_BEARER_TOKEN', 'X API bearer token', 'Official X API instead of twitterapi.io', 'https://developer.x.com/en/portal/dashboard', 'Paid tier needed for search', ''],
   ['TELEGRAM_BOT_TOKEN', 'Telegram bot token', 'Pings on your phone', 'https://t.me/BotFather', 'Message @BotFather → /newbot', '123456:ABC…'],
   ['TELEGRAM_CHAT_ID', 'Telegram chat ID', 'Where the pings go', 'https://t.me/userinfobot', 'Message @userinfobot → copy your Id', ''],
+  ['DISCORD_WEBHOOK_URL', 'Discord webhook', 'Pings in a Discord channel', 'https://support.discord.com/hc/en-us/articles/228383668', 'Channel settings → Integrations → Webhooks → New → Copy URL', 'https://discord.com/api/webhooks/…'],
 ];
 function paintKeys(tests = {}) {
   const ks = state.config?.keys || {};
   $('#keyRows').innerHTML = KEY_ROWS.map(([env, name, what, link, how, ph]) => {
     const st = ks[env] || {}, t = tests[env];
     const badge = t && t.ok === false ? `<span class="kb bad" title="${esc(t.msg)}">error</span>`
-      : t && t.ok ? `<span class="kb ok">${esc(t.msg)}</span>` : st.set ? `<span class="kb ok">saved ${esc(st.hint)}</span>` : '<span class="kb">not set</span>';
+      : t && t.ok ? `<span class="kb ok">${esc(t.msg)}</span>` : st.set ? `<span class="kb ok">saved ${esc(st.hint)}</span>` : st.fallback ? `<span class="kb ok">${esc(st.fallback)}</span>` : '<span class="kb">not set</span>';
     return `<div class="krow">
       <div class="kname"><b>${esc(name)}</b> ${badge}<small>${esc(what)}</small></div>
       <input type="password" autocomplete="off" spellcheck="false" data-key="${env}" placeholder="${esc(st.set ? 'saved · paste to replace' : ph || 'paste key')}">

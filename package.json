@@ -8,12 +8,19 @@
   "repository": "github:folahanduh/elixir",
   "homepage": "https://github.com/folahanduh/elixir#readme",
   "scripts": {
+    "prestart": "node scripts/setup.js",
     "start": "node server.js",
+    "predemo": "node scripts/setup.js",
     "demo": "node server.js --demo",
     "check": "node scripts/check.js"
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0"
+  },
+  "optionalDependencies": {
+    "ffmpeg-static": "^5.2.0"
   }
 }
