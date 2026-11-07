@@ -181,3 +181,7 @@ mark.k.name { border-color: var(--line); }
 .sess-head .lk.open { color: #c9cbd3; background: var(--panel-2); border: 1px solid var(--line-2); }
 .sess-head .lk.open:hover { color: var(--text); border-color: #3a3e48; }
 .sess-head .more-btn { padding: 0 !important; width: 32px; justify-content: center; }
+
+.transcript { scroll-behavior: auto; }
+.transcript > .ln:first-child { animation: lnIn .25s ease-out; }
+@keyframes lnIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }

@@ -92,7 +92,7 @@ function upsertSession(m) {
       <div class="live-line"><span class="muted">waiting for speech…</span></div>
       <div class="sess-tools">
         <label><input type="checkbox" class="hlonly"> highlights only</label>
-        <label><input type="checkbox" class="follow" checked> follow live</label>
+        <label title="Keep the newest line in view at the top"><input type="checkbox" class="follow" checked> follow live</label>
         <span class="counts"></span><span class="judge"></span>
       </div>
       <div class="transcript"></div>`;
@@ -239,15 +239,17 @@ function upsertSeg(seg, quiet) {
   if (!el) {
     el = document.createElement('div');
     el.dataset.id = seg.id;
-    box.appendChild(el);
-    while (box.children.length > 600) box.firstElementChild.remove();
+    // Newest line on top: what's being said now is always in view, no scrolling.
+    box.prepend(el);
+    while (box.children.length > 600) box.lastElementChild.remove();
     if (isNew) s.el.querySelector('.live-line').innerHTML = '<span class="cursor"></span>';
   }
   const mainTag = ['WATCH', 'COINABLE', 'FUNNY', 'CRYPTO'].find(t => seg.tags?.includes(t)) || '';
   el.className = `ln ${seg.highlight ? 'hl' : ''} ${mainTag} ${seg.pinged ? 'pinged' : ''}`;
   el.innerHTML = lineHTML(seg);
   if (!quiet && seg.highlight && isNew) el.classList.add('flash');
-  if (s.el.querySelector('.follow').checked) box.scrollTop = box.scrollHeight;
+  if (s.el.querySelector('.follow').checked) box.scrollTop = 0;
+  else if (isNew && box.scrollTop > 0) box.scrollTop += el.offsetHeight; // reading older lines: don't let them jump
   if (seg.highlight) upsertMoment(seg, s);
   const hl = [...s.segs.values()].filter(x => x.highlight).length;
   s.el.querySelector('.counts').textContent = `${s.segs.size} lines · ${hl} highlights`;
