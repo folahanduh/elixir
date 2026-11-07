@@ -22,6 +22,16 @@ const { padsFrom, classify } = require('./lib/launchpads');
 const { KolWatcher, isWallet, parseWalletList } = require('./lib/kols');
 const { RiskEngine } = require('./lib/risk');
 const updater = require('./lib/update');
+const limit = require('./lib/limit');
+
+// Never die silently: log crashes to data/elixir.log and keep running.
+const crashLog = (kind, e) => {
+  const line = `[${new Date().toISOString()}] ${kind}: ${e && e.stack || e}\n`;
+  console.error(line.trim());
+  try { fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true }); fs.appendFileSync(path.join(__dirname, 'data', 'elixir.log'), line); } catch {}
+};
+process.on('uncaughtException', e => crashLog('crash', e));
+process.on('unhandledRejection', e => crashLog('unhandled', e));
 
 const ROOT = __dirname;
 const DEMO = process.argv.includes('--demo') || process.env.DEMO === '1';
@@ -50,6 +60,19 @@ function seedPresets() {
     if (!has(seeded.accounts, h)) { seeded.accounts.push(h); if (!has(disk.accounts, h)) { disk.accounts.push(h); added++; } }
     if (g.vip && !has(seeded.vip, h)) { seeded.vip.push(h); if (!has(disk.vip, h)) disk.vip.push(h); }
   }
+  // Presets taken out in later versions (noisy accounts): remove them once from lists they were added to.
+  seeded.removed = seeded.removed || [];
+  for (const h of acc?.removed || []) {
+    if (has(seeded.removed, h) || !has(seeded.accounts, h)) continue;
+    seeded.removed.push(h);
+    disk.accounts = disk.accounts.filter(a => a.toLowerCase() !== h.toLowerCase());
+    disk.vip = disk.vip.filter(a => a.toLowerCase() !== h.toLowerCase());
+  }
+  // The first versions shipped a demo watchlist of generic words (cat, frog, grok…) that pinged constantly.
+  // If it's still exactly that list, clear it: your watchlist should only hold words you care about.
+  const OLD_DEMO = ['doge', 'pepe', 'frog', 'cat', 'hamster', 'penguin', 'grok', 'x money'];
+  if (!seeded.watchlistCleared && Array.isArray(disk.watchlist) && disk.watchlist.length === OLD_DEMO.length && OLD_DEMO.every(w => disk.watchlist.includes(w))) disk.watchlist = [];
+  seeded.watchlistCleared = true;
   disk.streams = disk.streams || {}; disk.streams.watch = disk.streams.watch || [];
   for (const w of st?.watch || []) {
     if (seeded.streams.includes(w.url)) continue;
@@ -109,7 +132,7 @@ function publicConfig() {
     provider: DEMO ? 'demo' : activeProvider(),
     accounts: cfg.accounts, vip: cfg.vip, watchlist: cfg.watchlist, ignore: cfg.ignore,
     pollSeconds: cfg.pollSeconds, chains: cfg.chains, includeReplies: cfg.includeReplies,
-    trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId), discord: Boolean(cfg.discordWebhook),
+    notify: cfg.notify === 'all' ? 'all' : 'important', trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId), discord: Boolean(cfg.discordWebhook),
     streams: { highlightScore: cfg.streams.highlightScore, pingScore: cfg.streams.pingScore, watch: cfg.streams.watch, language: cfg.streams.language },
     filter: activePreset(cfg),
     keys: keyStatus(),
@@ -186,6 +209,40 @@ const status = { lastPollAt: null, lastPollError: null, polls: 0, bridgeLastSeen
 function send(event, data) {
   const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const res of clients) res.write(msg);
+}
+
+// Same word looked up again within a minute: reuse the answer. Max 4 lookups at a time.
+const lookupCache = new Map();
+function cachedLookup(word) {
+  const k = word.toLowerCase();
+  const hit = lookupCache.get(k);
+  if (hit && Date.now() - hit.t < 60000) return hit.p;
+  const p = limit.dex(() => dex.lookup(word, { chains: cfg.chains, demo: DEMO }));
+  lookupCache.set(k, { t: Date.now(), p });
+  p.catch(() => lookupCache.delete(k));
+  if (lookupCache.size > 2000) lookupCache.delete(lookupCache.keys().next().value);
+  return p;
+}
+
+const lastItemForWord = new Map();
+let trendsTimer = null, trendsAt = 0;
+function scheduleTrends() {
+  if (trendsTimer) return;
+  trendsTimer = setTimeout(() => {
+    trendsTimer = null; trendsAt = Date.now();
+    const snap = trendsSnapshot();
+    const now = Date.now();
+    for (const t of snap) {
+      if (t.last5 < cfg.trend.minMentions || t.authors < cfg.trend.minAuthors) continue;
+      const prev = lastTrendAlert.get(t.word) || 0;
+      const item = lastItemForWord.get(t.word);
+      if (item && !item.stale && now - prev > cfg.trend.cooldownMinutes * 60000) {
+        lastTrendAlert.set(t.word, now);
+        alert({ kind: 'trend', title: `“${t.word}” spiking — ${t.last5} mentions / 5m`, item, word: t.word });
+      }
+    }
+    send('trends', snap);
+  }, Math.max(0, 2000 - (Date.now() - trendsAt)));
 }
 
 function trendsSnapshot() {
@@ -266,25 +323,17 @@ async function ingest(raw) {
     alert({ kind: vip ? 'vip' : 'watch', title: why, item });
   }
 
-  // Trend spikes.
-  const now = Date.now();
-  for (const t of trendsSnapshot()) {
-    if (t.last5 >= cfg.trend.minMentions && t.authors >= cfg.trend.minAuthors) {
-      const prev = lastTrendAlert.get(t.word) || 0;
-      if (!quiet && now - prev > cfg.trend.cooldownMinutes * 60000 && candidates.some(c => c.word === t.word)) {
-        lastTrendAlert.set(t.word, now);
-        alert({ kind: 'trend', title: `“${t.word}” spiking — ${t.last5} mentions / 5m`, item, word: t.word });
-      }
-    }
-  }
-  send('trends', trendsSnapshot());
+  // Trend spikes: recomputed at most every 2 s (a burst of tweets used to recompute it for each one).
+  if (!quiet) for (const c of candidates) lastItemForWord.set(c.word, item);
+  scheduleTrends();
 
-  // Market check for the strongest candidates.
-  const toCheck = candidates.filter(c => c.watch || c.score >= (source === 'stream' ? 3 : 2)).slice(0, 3);
+  // Market check for the strongest candidates. Backfilled/old tweets are shown but not looked up
+  // (hundreds at once on start-up used to flood DexScreener and freeze everything).
+  const toCheck = item.stale ? [] : candidates.filter(c => c.watch || c.score >= (source === 'stream' ? 3 : 2)).slice(0, 3);
   const dexResults = {};
   await Promise.all(toCheck.map(async c => {
     try {
-      const r = await dex.lookup(c.display.replace(/^[$#]/, ''), { chains: cfg.chains, demo: DEMO });
+      const r = await cachedLookup(c.display.replace(/^[$#]/, ''));
       dexResults[c.word] = r;
       item.dex = item.dex || {};
       item.dex[c.word] = r;
@@ -312,7 +361,7 @@ const streams = new StreamManager({
   getConfig: () => cfg,
   send,
   demo: DEMO,
-  lookup: word => dex.lookup(word, { chains: cfg.chains, demo: DEMO }),
+  lookup: word => cachedLookup(word),
   onSegment(seg, session) {
     // Every spoken line feeds Hot words; highlighted lines also go into the main feed.
     for (const k of seg.keywords) {
@@ -367,7 +416,29 @@ const kols = new KolWatcher({
   },
 });
 
+/**
+ * Which alerts are worth a ping (sound, pop-up, phone). Everything else is listed silently in Alerts.
+ * Important = your watchlist words, coins actually launching or running, KOL clusters, streams going live.
+ */
+function isImportant(a) {
+  if (cfg.notify === 'all') return true;
+  const t = String(a.title || '');
+  if (/^Test alert/.test(t)) return true;
+  if (/^(LIVE|SOON|KOL CLUSTER|BACK ONLINE|FILTER PASS) ·/.test(t)) return true;
+  if (/^DEPLOY · 1st /.test(t)) return true;                       // the first coin for a play
+  if (/^\d+(K|M) · /.test(t)) return !/^20K/.test(t) || /stream/.test(t); // mcap milestones (20K only for stream coins)
+  if (a.streamId) return (a.tags || []).includes('WATCH');          // stream lines: only your watchlist words
+  if (a.kind === 'watch') return true;                              // a tweet hit your watchlist
+  if (a.kind === 'fresh') {                                         // a coin launched *because of* this tweet
+    const tweetAge = a.item?.createdAt ? (Date.now() - a.item.createdAt) / 60000 : 0;
+    return a.dex?.newestAgeMin != null && a.dex.newestAgeMin <= tweetAge + 1;
+  }
+  if (a.kind === 'vip' && /watchlist/.test(t)) return true;
+  return false;                                                     // plain VIP tweets, single KOL buys, trends, risk notes
+}
+
 function alert(a) {
+  a.important = a.important ?? isImportant(a);
   const payload = { ...a, at: Date.now(), itemId: a.item.id };
   delete payload.item;
   payload.author = a.item.author;
@@ -375,11 +446,21 @@ function alert(a) {
   payload.text = a.item.text.slice(0, 280);
   payload.url = a.item.url;
   send('alert', payload);
+  if (!a.important || !phoneBudget()) return; // phone/Discord: important only, at most 6 a minute
   telegram(a).catch(e => console.error('[telegram]', e.message));
   discord(a).catch(e => console.error('[discord]', e.message));
 }
 
 const DISCORD_RE = /^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//;
+const phoneTimes = [];
+function phoneBudget() {
+  const now = Date.now();
+  while (phoneTimes.length && now - phoneTimes[0] > 60000) phoneTimes.shift();
+  if (phoneTimes.length >= 6) return false;
+  phoneTimes.push(now);
+  return true;
+}
+
 async function discord(a) {
   const url = cfg.discordWebhook;
   if (!url || !DISCORD_RE.test(url)) return;
@@ -586,6 +667,7 @@ const server = http.createServer(async (req, res) => {
         }
         if ('pollSeconds' in body) disk.pollSeconds = Math.max(2, Math.min(300, Number(body.pollSeconds) || 10));
         if ('includeReplies' in body) disk.includeReplies = Boolean(body.includeReplies);
+        if ('notify' in body) disk.notify = body.notify === 'all' ? 'all' : 'important';
         if ('chains' in body) disk.chains = clean(body.chains);
         if (body.filter && typeof body.filter === 'object') {
           const n = (v, d) => (v !== '' && v != null && Number.isFinite(Number(v)) ? Number(v) : d);

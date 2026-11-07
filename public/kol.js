@@ -132,7 +132,9 @@
     </div>`;
   }
 
-  function render() {
+  let frame = 0;
+  function render() { if (!frame) frame = setTimeout(() => { frame = 0; draw(); }, 250); } // at most 4 redraws a second
+  function draw() {
     const list = [...events.values()].sort((a, b) => b.seenAt - a.seenAt).filter(e => !buysOnly || e.side === 'buy').slice(0, 30);
     panel.querySelector('.kolp-list').innerHTML = list.length ? list.map(row).join('') : '<div class="kolp-empty">Waiting for KOL trades…</div>';
   }

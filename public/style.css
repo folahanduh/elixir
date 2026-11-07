@@ -558,3 +558,13 @@ details.fold[open] > summary { margin-bottom: 8px; }
 .sbar-ub:hover { background: rgba(167, 177, 255, .1); }
 
 .notice { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin-bottom: 10px; padding: 10px 14px; border-radius: 10px; background: rgba(242, 71, 95, .07); border: 1px solid rgba(242, 71, 95, .3); color: #ffb3bf; font-size: 13px; }
+
+.al.quiet { opacity: .62; }
+
+.krow.compact { grid-template-columns: minmax(0, 1fr) auto; padding: 7px 0; }
+.krow.compact input { grid-column: 1 / -1; }
+.kact { display: flex; gap: 6px; }
+.kmore { margin-top: 6px; }
+.kmore > summary { cursor: pointer; padding: 8px 0; font-size: 13px; color: var(--primary); list-style: none; }
+.kmore > summary::-webkit-details-marker { display: none; }
+.kmore[open] > summary { color: var(--text); }

@@ -1,5 +1,5 @@
 {
-  "about": "Elixir's built-in X accounts. Added to your list once (on first start, and new ones after updates); remove any you don't want in Settings and they stay removed. 'fast' groups are polled every cycle, 'slow' groups every 4th cycle to save API credit. Groups marked vip alert on every tweet.",
+  "about": "Elixir's built-in X accounts. Added to your list once (on first start, and new ones after updates); remove any you don't want in Settings and they stay removed. 'fast' groups are polled every cycle, 'slow' groups every 4th cycle to save API credit. Groups marked vip alert on every tweet. 'removed' lists presets taken out in later versions: they're removed from your list too, unless you re-add them after that.",
   "groups": [
     {
       "id": "movers",
@@ -25,9 +25,7 @@
         "justinsuntron",
         "davidsacks",
         "DOGE",
-        "cb_doge",
-        "xai",
-        "grok"
+        "cb_doge"
       ]
     },
     {
@@ -244,5 +242,9 @@
         "teslaownersSV"
       ]
     }
+  ],
+  "removed": [
+    "grok",
+    "xai"
   ]
 }

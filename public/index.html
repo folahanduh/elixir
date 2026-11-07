@@ -109,6 +109,12 @@
       <label>Chains <input name="chains" placeholder="solana, bsc, base"></label>
       <label class="check"><input name="includeReplies" type="checkbox"> Include replies</label>
     </div>
+    <div class="row">
+      <label>Pings <select name="notify">
+        <option value="important">Important only: watchlist words, coins launching or running, KOL clusters, streams going live</option>
+        <option value="all">Everything (every VIP tweet, every KOL buy, every stream moment)</option>
+      </select></label>
+    </div>
     <fieldset class="filterset">
       <legend>Coin filter <span class="muted">(Axiom Pulse style, default = DVCES's)</span></legend>
       <div class="row"><label>Name <input name="fLabel" maxlength="20"></label></div>

@@ -44,6 +44,7 @@ function paintPills() {
   const st = S.status || {};
   const t = st.tools || {};
   const nt = $('#sttNotice'); if (nt) nt.hidden = st.stt !== 'browser-only';
+  const fn = $('#ffNotice'); if (fn) { fn.hidden = !st.ffmpegHelp || st.stt === 'demo'; fn.textContent = st.ffmpegHelp ? 'Stream links can\'t be captured: ' + st.ffmpegHelp + '.' : ''; }
   const stat = (value, label, cls = '') => `<div class="stat ${cls}"><b>${value}</b><span>${label}</span></div>`;
   const live = [...S.sessions.values()].filter(s => !s.endedAt);
   const lines = live.reduce((n, s) => n + (s.count || 0), 0), hl = live.reduce((n, s) => n + (s.highlights || 0), 0);
@@ -342,7 +343,8 @@ function onAlert(a) {
   const key = a.title;
   if (Date.now() - (seenAlerts.get(key) || 0) < 15000) return;
   seenAlerts.set(key, Date.now());
-  beep(a.kind);
+  if (a.important === false) return; // quiet alerts are listed on the Feed page only
+  if (Date.now() - (window.__lastBeep || 0) > 8000) { window.__lastBeep = Date.now(); beep(a.kind); }
   toast(a);
   desktopNotify(a);
 }

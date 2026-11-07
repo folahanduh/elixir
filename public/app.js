@@ -45,7 +45,7 @@ function connect() {
     $('#liveDot').classList.add('live');
     if (location.hash === '#keys' && !$('#settings').open) openKeys();
   });
-  es.addEventListener('item', e => { const it = JSON.parse(e.data); addItem(it); const p = state.plays.get(it.id); if (p) renderPlay(p); });
+  es.addEventListener('item', e => addItem(JSON.parse(e.data))); // its play panel is drawn when the card lands
   es.addEventListener('play', e => { const p = JSON.parse(e.data); renderPlay(p); if (state.filter === 'plays') applyFilter(); });
   es.addEventListener('play-removed', e => removePlay(JSON.parse(e.data).id));
   es.addEventListener('risk-memory', e => { state.riskMemory = JSON.parse(e.data); renderPlaybook(); });
@@ -335,22 +335,40 @@ document.addEventListener('click', async e => {
   }
 });
 
+// Cards are inserted in batches (one layout per frame) instead of one at a time.
+const pendingCards = [];
+let cardFrame = 0;
 function addItem(it, quiet) {
   it.dex = it.dex || {};
   state.items.set(it.id, it);
+  pendingCards.push([it, quiet]);
+  if (!cardFrame) cardFrame = requestAnimationFrame(flushCards);
+}
+function flushCards() {
+  cardFrame = 0;
+  const batch = pendingCards.splice(0);
+  if (!batch.length) return;
+  const feed = $('#feed');
+  const keepY = $('#pauseFeed').checked && window.scrollY > 120 ? window.scrollY : null;
+  const before = keepY != null ? feed.scrollHeight : 0;
+  const frag = document.createDocumentFragment();
+  for (let i = batch.length - 1; i >= 0; i--) { const el = buildCard(...batch[i]); if (el) frag.appendChild(el); }
+  feed.prepend(frag);
+  if (keepY != null) window.scrollTo(0, keepY + (feed.scrollHeight - before));
+  while (feed.children.length > 150) { const last = feed.lastElementChild; state.items.delete(last.id.slice(3)); last.remove(); }
+  $('#feedEmpty').hidden = state.items.size > 0;
+  for (const [it] of batch) { const p = state.plays.get(it.id); if (p && document.getElementById('it-' + it.id)) renderPlay(p); }
+}
+function buildCard(it, quiet) {
+  if (!state.items.has(it.id)) return null;
+  document.getElementById('it-' + it.id)?.remove();
   const el = document.createElement('article');
   el.className = `card ${it.source} ${it.vip ? 'vip' : ''} ${it.watch?.length ? 'watch' : ''} ${it.stale ? 'stale' : ''}`;
   el.id = 'it-' + it.id;
   el.innerHTML = cardHTML(it);
   el.hidden = !visible(it);
   if (quiet) el.style.animation = 'none';
-  const feed = $('#feed');
-  const keepY = $('#pauseFeed').checked ? window.scrollY + 0 : null;
-  const before = feed.scrollHeight;
-  feed.prepend(el);
-  if (keepY != null && window.scrollY > 120) window.scrollTo(0, keepY + (feed.scrollHeight - before));
-  while (feed.children.length > 300) { const last = feed.lastElementChild; state.items.delete(last.id.slice(3)); last.remove(); }
-  $('#feedEmpty').hidden = state.items.size > 0;
+  return el;
 }
 
 function onDex(d) {
@@ -488,18 +506,19 @@ function onAlert(a) {
   if (recentAlerts.has(key) && Date.now() - recentAlerts.get(key) < 15000) return;
   recentAlerts.set(key, Date.now());
   const it = state.items.get(a.itemId); if (it) it.hot = true;
-  beep(a.kind);
-  if (a.kind !== 'trend') toast(a);
-  state.alertCount++; state.alertTotal = (state.alertTotal || 0) + 1;
+  const loud = a.important !== false;
+  if (loud && Date.now() - (state.lastBeep || 0) > 8000) { state.lastBeep = Date.now(); beep(a.kind); }
+  if (loud) toast(a);
+  if (a.important !== false) { state.alertCount++; } state.alertTotal = (state.alertTotal || 0) + 1;
   document.title = `(${state.alertCount}) Elixir`;
-  if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+  if (loud && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     const n = new Notification(a.title, { body: (a.author ? '@' + a.author + ': ' : '') + (a.text || ''), tag: key });
     n.onclick = () => { window.focus(); if (a.url) window.open(a.url, '_blank'); };
   }
   const box = $('#alerts');
   box.querySelector('.placeholder')?.remove();
   const row = document.createElement('div');
-  row.className = 'al k-' + a.kind;
+  row.className = 'al k-' + a.kind + (loud ? '' : ' quiet');
   row.innerHTML = `<time>${clock(a.at)}</time><b>${esc(a.title)}</b><div class="muted">${a.author ? '@' + esc(a.author) + ': ' : ''}${esc((a.text || '').slice(0, 120))}</div>`;
   row.onclick = () => { const el = document.getElementById('it-' + a.itemId); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); if (a.word) runLookup(a.word); };
   box.prepend(row);
@@ -562,6 +581,7 @@ $('#settingsBtn').onclick = () => {
   f.pollSeconds.value = c.pollSeconds || 8;
   f.chains.value = (c.chains || []).join(', ');
   f.includeReplies.checked = !!c.includeReplies;
+  f.notify.value = c.notify || 'important';
   const fp = c.filter || {};
   f.fLabel.value = fp.label || '';
   f.npAge.value = fp.newPairs?.maxAgeMin ?? ''; f.npVol.value = fp.newPairs?.minVolume ?? '';
@@ -581,7 +601,7 @@ $('#settingsForm').addEventListener('submit', async e => {
   const f = e.target;
   state.config = await api('/api/config', {
     accounts: f.accounts.value, vip: f.vip.value, watchlist: f.watchlist.value, ignore: f.ignore.value,
-    pollSeconds: f.pollSeconds.value, chains: f.chains.value, includeReplies: f.includeReplies.checked,
+    pollSeconds: f.pollSeconds.value, chains: f.chains.value, includeReplies: f.includeReplies.checked, notify: f.notify.value,
     ...(state.resetFilter ? { filterReset: true } : { filter: { label: f.fLabel.value, npAge: f.npAge.value, npVol: f.npVol.value, fsMcap: f.fsMcap.value, fsVol: f.fsVol.value, fsAge: f.fsAge.value, grFees: f.grFees.value } }),
   });
   state.resetFilter = false;
@@ -603,17 +623,28 @@ const KEY_ROWS = [
 ];
 function paintKeys(tests = {}) {
   const ks = state.config?.keys || {};
-  $('#keyRows').innerHTML = KEY_ROWS.map(([env, name, what, link, how, ph]) => {
+  const row = ([env, name, what, link, how, ph], compact) => {
     const st = ks[env] || {}, t = tests[env];
     const badge = t && t.ok === false ? `<span class="kb bad" title="${esc(t.msg)}">error</span>`
-      : t && t.ok ? `<span class="kb ok">${esc(t.msg)}</span>` : st.set ? `<span class="kb ok">saved ${esc(st.hint)}</span>` : st.fallback ? `<span class="kb ok">${esc(st.fallback)}</span>` : '<span class="kb">not set</span>';
-    return `<div class="krow">
-      <div class="kname"><b>${esc(name)}</b> ${badge}<small>${esc(what)}</small></div>
-      <input type="password" autocomplete="off" spellcheck="false" data-key="${env}" placeholder="${esc(st.set ? 'saved · paste to replace' : ph || 'paste key')}">
-      <div class="khow"><a href="${link}" target="_blank" rel="noopener">Get key ↗</a><small>${esc(how)}</small>${st.set ? `<button type="button" class="ghost small" data-clear="${env}">Remove</button>` : ''}</div>
+      : t && t.ok ? `<span class="kb ok">${esc(t.msg)}</span>` : st.set ? `<span class="kb ok">saved ${esc(st.hint)}</span>` : st.fallback ? `<span class="kb ok">${esc(st.fallback)}</span>` : '';
+    if (compact) return `<div class="krow compact">
+      <div class="kname"><b>${esc(name)}</b> ${badge}</div>
+      <div class="kact"><button type="button" class="ghost small" data-change="${env}">Change</button><button type="button" class="ghost small" data-clear="${env}">Remove</button></div>
+      <input type="password" autocomplete="off" spellcheck="false" data-key="${env}" placeholder="paste a new key to replace it" hidden>
       ${t && t.ok === false ? `<div class="kerr">${esc(t.msg)}</div>` : ''}
     </div>`;
-  }).join('');
+    return `<div class="krow">
+      <div class="kname"><b>${esc(name)}</b> ${badge}<small>${esc(what)}</small></div>
+      <input type="password" autocomplete="off" spellcheck="false" data-key="${env}" placeholder="${esc(ph || 'paste key')}">
+      <div class="khow"><a href="${link}" target="_blank" rel="noopener">Get key ↗</a><small>${esc(how)}</small></div>
+      ${t && t.ok === false ? `<div class="kerr">${esc(t.msg)}</div>` : ''}
+    </div>`;
+  };
+  const saved = KEY_ROWS.filter(r => ks[r[0]]?.set);
+  const missing = KEY_ROWS.filter(r => !ks[r[0]]?.set);
+  $('#keyRows').innerHTML =
+    (saved.length ? `<div class="ksaved">${saved.map(r => row(r, true)).join('')}</div>` : '') +
+    (missing.length ? `<details class="kmore"${saved.length ? '' : ' open'}><summary>${saved.length ? `Add another key <span class="muted">(${missing.length} optional)</span>` : 'Add your keys'}</summary>${missing.map(r => row(r, false)).join('')}</details>` : '');
 }
 async function keyCall(body, label) {
   $('#keyMsg').textContent = label;
@@ -642,6 +673,8 @@ $('#testTweets').onclick = async () => {
 };
 $('#testKeys').onclick = () => keyCall({ test: Object.entries(state.config?.keys || {}).filter(([, v]) => v.set).map(([k]) => k) }, 'Testing…');
 $('#keyRows').addEventListener('click', e => {
+  const ch = e.target.closest('[data-change]');
+  if (ch) { const i = ch.closest('.krow').querySelector('input'); i.hidden = false; i.focus(); return; }
   const b = e.target.closest('[data-clear]');
   if (b && confirm('Remove this key from .env?')) keyCall({ clear: [b.dataset.clear] }, 'Removing…');
 });
