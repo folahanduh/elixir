@@ -608,3 +608,16 @@ html.pop-view .kolp { position: static !important; }
 html.pop-view .toasts { bottom: 12px; }
 
 html.pop-view .kolp-close { display: none !important; }
+
+/* compact cards in a popped-out feed */
+html.pop-view .feed-col .panel-head { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 6px 2px 8px; }
+html.pop-view .feed-col .tabs { gap: 10px; }
+html.pop-view .feed-col .tabs button { font-size: 12.5px; }
+html.pop-view .feed { gap: 6px; }
+html.pop-view .card { padding: 9px 11px; }
+html.pop-view .card .text { font-size: 13.5px; margin: 4px 0 6px; line-height: 1.45; }
+html.pop-view .card .media img { max-height: 90px; }
+html.pop-view .card .chips { gap: 4px; }
+html.pop-view .card .cand { font-size: 12px; padding: 2px 3px 2px 7px; }
+html.pop-view .card .meta { font-size: 11.5px; }
+html.pop-view .card.has-play { grid-template-columns: 1fr; }

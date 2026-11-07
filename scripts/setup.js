@@ -16,7 +16,7 @@ function wantsUpdate() {
 if (wantsUpdate()) {
   try {
     const up = require('../lib/update');
-    const st = await up.check({ fresh: true });
+    const st = await up.check({ fresh: true, timeoutMs: 6000 }); // don't hold up the start on a slow connection
     if (st.behind) {
       console.log('  Updating Elixir before starting…');
       const r = await up.apply();
@@ -31,10 +31,18 @@ let have = '';
 try { have = fs.readFileSync(stamp, 'utf8').trim(); } catch {}
 const missing = !fs.existsSync(path.join(root, 'node_modules', '@anthropic-ai', 'sdk'));
 if (missing || have !== want) {
-  console.log(missing ? '  First run: installing packages (about a minute)…' : '  Updating packages…');
+  // Elixir doesn't need these packages to open (Claude features and the bundled ffmpeg load when ready),
+  // so install them in the background and let the page open straight away.
+  console.log(missing ? '  First run: installing extra packages in the background…' : '  Updating packages in the background…');
   try {
-    execSync('npm install --no-audit --no-fund --loglevel=error', { cwd: root, stdio: 'inherit' });
-    fs.writeFileSync(stamp, want);
-  } catch { console.log('  npm install had a problem. Elixir still starts; the Claude features or bundled ffmpeg may be missing.'); }
+    fs.mkdirSync(path.join(root, 'data'), { recursive: true });
+    const log = fs.openSync(path.join(root, 'data', 'npm-install.log'), 'w');
+    const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    const child = require('child_process').spawn(npm, ['install', '--no-audit', '--no-fund', '--loglevel=error'], { cwd: root, stdio: ['ignore', log, log], detached: true, shell: process.platform === 'win32' });
+    child.on('exit', code => { if (code === 0) { try { fs.writeFileSync(stamp, want); } catch {} } });
+    child.unref();
+  } catch {
+    try { execSync('npm install --no-audit --no-fund --loglevel=error', { cwd: root, stdio: 'inherit' }); fs.writeFileSync(stamp, want); } catch {}
+  }
 }
 })();

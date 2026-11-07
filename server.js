@@ -1004,7 +1004,8 @@ server.listen(cfg.port, '127.0.0.1', () => {
     const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]] : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
     try { require('child_process').spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref(); } catch {}
   }
-  if (!DEMO && !process.env.CI) require('./lib/bin').ensureTools();
+  require('./lib/stream/capture').refreshTools();
+  if (!DEMO && !process.env.CI) require('./lib/bin').ensureTools().then(() => require('./lib/stream/capture').refreshTools());
   setTimeout(() => autoUpdate('start').catch(() => {}), 3000);
   if (DEMO) {
     if (process.env.DEMO_TWEETS !== '0') sources.startDemo(t => ingest({ ...t, via: 'demo' }));

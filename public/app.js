@@ -148,7 +148,9 @@ function chipsHTML(it) {
 function cardHTML(it) {
   const initial = esc((it.author || '?')[0].toUpperCase());
   const av = it.avatar ? `<img src="${esc(it.avatar)}" alt="" loading="lazy">` : initial;
-  const lat = it.latencyMs != null ? `<span class="lat ${it.latencyMs < 15000 ? 'fast' : it.latencyMs > 60000 ? 'slow' : ''}" title="Delay between the tweet being posted and reaching you">+${(it.latencyMs / 1000).toFixed(1)}s</span>` : '';
+  const ms = it.latencyMs;
+  const latTxt = ms == null ? '' : ms < 120000 ? `+${(ms / 1000).toFixed(1)}s` : ms < 3600000 ? `${Math.round(ms / 60000)}m ago` : `${Math.floor(ms / 3600000)}h ${Math.round((ms % 3600000) / 60000)}m ago`;
+  const lat = ms != null ? `<span class="lat ${ms < 15000 ? 'fast' : ms > 60000 ? 'slow' : ''}" title="${ms < 120000 ? 'Delay between the tweet being posted and reaching you' : 'Loaded from the last 2 hours when Elixir started'}">${latTxt}</span>` : '';
   const who = it.source === 'stream'
     ? `<span class="handle">${esc(it.author)}</span><span class="badge stream">STREAM</span>`
     : `<a class="handle" href="https://x.com/${esc(it.author)}" target="_blank" rel="noopener">@${esc(it.author)}</a>`;
@@ -362,6 +364,8 @@ function flushCards() {
   for (let i = batch.length - 1; i >= 0; i--) { const el = buildCard(...batch[i]); if (el) frag.appendChild(el); }
   feed.prepend(frag);
   if (keepY != null) window.scrollTo(0, keepY + (feed.scrollHeight - before));
+  // Not paused: follow the newest tweet (matters most in a small pop-out window).
+  else if (!$('#pauseFeed').checked && !batch.every(([, q]) => q) && window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' });
   while (feed.children.length > 150) { const last = feed.lastElementChild; state.items.delete(last.id.slice(3)); last.remove(); }
   $('#feedEmpty').hidden = state.items.size > 0;
   for (const [it] of batch) { const p = state.plays.get(it.id); if (p && document.getElementById('it-' + it.id)) renderPlay(p); }
