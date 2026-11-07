@@ -43,6 +43,7 @@ function connect() {
     for (const ss of d.streams?.sessions || []) { streamState.set(ss.id, ss); (ss.segs || []).filter(x => x.highlight).slice(-15).forEach(addStreamMoment); }
     renderLiveStreams();
     $('#liveDot').classList.add('live');
+    if (location.hash === '#keys' && !$('#settings').open) openKeys();
   });
   es.addEventListener('item', e => { const it = JSON.parse(e.data); addItem(it); const p = state.plays.get(it.id); if (p) renderPlay(p); });
   es.addEventListener('play', e => { const p = JSON.parse(e.data); renderPlay(p); if (state.filter === 'plays') applyFilter(); });
@@ -557,9 +558,10 @@ $('#settingsBtn').onclick = () => {
   $('#providerLine').textContent = {
     'twitterapi.io': 'Tweets: polling twitterapi.io.',
     'x-api': 'Tweets: polling the official X API.',
-    'bridge-only': 'No API key set, so tweets come only from the X browser bridge or the paste box. Add a key in .env to poll.',
+    'bridge-only': 'No API key set, so tweets come only from the X browser bridge or the paste box. Add a twitterapi.io or X key below to poll.',
     demo: 'Demo mode: tweets and market data are fake.',
   }[c.provider] || '';
+  paintKeys();
   $('#settings').showModal();
 };
 $('#settingsForm').addEventListener('submit', async e => {
@@ -574,6 +576,58 @@ $('#settingsForm').addEventListener('submit', async e => {
   renderPills();
   toast({ kind: 'fresh', title: 'Settings saved' }, 2000);
 });
+
+// ---------- API keys ----------
+const KEY_ROWS = [
+  ['SOLANA_WS_URL', 'Solana RPC websocket', 'KOL wallets, deeper rug & bundle checks', 'https://dashboard.helius.dev', 'Free at Helius → copy the "Websocket" URL (wss://…)', 'wss://mainnet.helius-rpc.com/?api-key=…'],
+  ['DEEPGRAM_API_KEY', 'Deepgram', 'Live stream transcription from a link', 'https://console.deepgram.com', 'Free credit → API Keys → Create', ''],
+  ['ANTHROPIC_API_KEY', 'Anthropic (Claude)', 'Funny / meme-worthy judging, ticker & image ideas', 'https://console.anthropic.com/settings/keys', 'Pay per use → API Keys → Create', 'sk-ant-…'],
+  ['TWITTERAPI_IO_KEY', 'twitterapi.io', 'Pull tweets by API (instead of the free browser bridge)', 'https://twitterapi.io', 'Paid · Dashboard → API key', ''],
+  ['X_BEARER_TOKEN', 'X API bearer token', 'Official X API instead of twitterapi.io', 'https://developer.x.com/en/portal/dashboard', 'Paid tier needed for search', ''],
+  ['TELEGRAM_BOT_TOKEN', 'Telegram bot token', 'Pings on your phone', 'https://t.me/BotFather', 'Message @BotFather → /newbot', '123456:ABC…'],
+  ['TELEGRAM_CHAT_ID', 'Telegram chat ID', 'Where the pings go', 'https://t.me/userinfobot', 'Message @userinfobot → copy your Id', ''],
+];
+function paintKeys(tests = {}) {
+  const ks = state.config?.keys || {};
+  $('#keyRows').innerHTML = KEY_ROWS.map(([env, name, what, link, how, ph]) => {
+    const st = ks[env] || {}, t = tests[env];
+    const badge = t && t.ok === false ? `<span class="kb bad" title="${esc(t.msg)}">error</span>`
+      : t && t.ok ? `<span class="kb ok">${esc(t.msg)}</span>` : st.set ? `<span class="kb ok">saved ${esc(st.hint)}</span>` : '<span class="kb">not set</span>';
+    return `<div class="krow">
+      <div class="kname"><b>${esc(name)}</b> ${badge}<small>${esc(what)}</small></div>
+      <input type="password" autocomplete="off" spellcheck="false" data-key="${env}" placeholder="${esc(st.set ? 'saved · paste to replace' : ph || 'paste key')}">
+      <div class="khow"><a href="${link}" target="_blank" rel="noopener">Get key ↗</a><small>${esc(how)}</small>${st.set ? `<button type="button" class="ghost small" data-clear="${env}">Remove</button>` : ''}</div>
+      ${t && t.ok === false ? `<div class="kerr">${esc(t.msg)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+async function keyCall(body, label) {
+  $('#keyMsg').textContent = label;
+  try {
+    const r = await api('/api/keys', body);
+    state.config = { ...state.config, keys: r.keys };
+    paintKeys(r.tests);
+    const bad = Object.entries(r.tests).filter(([, t]) => t.ok === false).length;
+    $('#keyMsg').textContent = bad ? `${bad} key(s) didn't work: see the red line under them.` : Object.keys(r.tests).length ? 'Saved and working. No restart needed.' : 'Saved.';
+    renderPills();
+  } catch (err) { $('#keyMsg').textContent = err.message; }
+}
+$('#saveKeys').onclick = () => {
+  const values = {};
+  for (const i of document.querySelectorAll('#keyRows [data-key]')) if (i.value.trim()) values[i.dataset.key] = i.value.trim();
+  if (!Object.keys(values).length) { $('#keyMsg').textContent = 'Paste at least one key first.'; return; }
+  keyCall({ values }, 'Saving and testing…');
+};
+$('#keyRows').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#saveKeys').click(); } }); // Enter must not submit the settings form
+$('#testKeys').onclick = () => keyCall({ test: Object.entries(state.config?.keys || {}).filter(([, v]) => v.set).map(([k]) => k) }, 'Testing…');
+$('#keyRows').addEventListener('click', e => {
+  const b = e.target.closest('[data-clear]');
+  if (b && confirm('Remove this key from .env?')) keyCall({ clear: [b.dataset.clear] }, 'Removing…');
+});
+// Sidebar "API keys" link and first run: /#keys opens straight to it.
+function openKeys() { $('#settingsBtn').click(); setTimeout(() => $('#keyset').scrollIntoView({ block: 'start' }), 50); }
+window.openKeys = openKeys;
+window.addEventListener('hashchange', () => { if (location.hash === '#keys') openKeys(); });
 
 // keep relative times fresh
 connect();

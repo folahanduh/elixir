@@ -32,9 +32,11 @@ Spots memecoin plays the moment they happen, on X and on live streams, then chec
 From a terminal it's the same thing: `npm start`, or `npm run demo`.
 
 ### Keys (all optional)
-It runs with **no keys at all**. Tweets then come from the free X browser bridge or from pasting, and coin checks, rug checks and the demo all work. Add keys to unlock more: copy `.env.example` to `.env`, paste them in, and restart.
+It runs with **no keys at all**. Tweets then come from the free X browser bridge or from pasting, and coin checks, rug checks and the demo all work.
 
-| Key in `.env` | Unlocks | Cost |
+**To add keys:** click **API keys** in the sidebar, or go to **Settings → API keys**. Paste a key and press **Save keys**. Each key is tested straight away, with a green **works** or the provider's error. No restart is needed. Keys are saved in a `.env` file in the Elixir folder on your computer. That file is never uploaded, never sent to the page, and git ignores it. (You can also edit `.env` by hand; `.env.example` shows the format.)
+
+| Key | Unlocks | Cost |
 |---|---|---|
 | `SOLANA_WS_URL` | KOL wallet tracking, deeper rug/bundle checks | Free ([Helius](https://helius.dev)) |
 | `DEEPGRAM_API_KEY` | Live stream transcription from a link | Free credit ([Deepgram](https://deepgram.com)) |

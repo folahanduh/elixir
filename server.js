@@ -74,7 +74,51 @@ function publicConfig() {
     trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId),
     streams: { highlightScore: cfg.streams.highlightScore, pingScore: cfg.streams.pingScore, watch: cfg.streams.watch, language: cfg.streams.language },
     filter: activePreset(cfg),
+    keys: keyStatus(),
   };
+}
+
+// ---------- API keys (Settings → API keys writes .env; values never go back to the page) ----------
+const KEY_ENVS = ['SOLANA_WS_URL', 'SOLANA_RPC_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY', 'TWITTERAPI_IO_KEY', 'X_BEARER_TOKEN', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
+function keyStatus() {
+  const out = {};
+  for (const k of KEY_ENVS) {
+    const v = process.env[k] || '';
+    out[k] = { set: Boolean(v), hint: v ? '…' + v.slice(-4) : '' };
+  }
+  return out;
+}
+function writeEnv(changes) {
+  const p = path.join(ROOT, '.env');
+  let lines = fs.existsSync(p) ? fs.readFileSync(p, 'utf8').split(/\r?\n/)
+    : fs.existsSync(path.join(ROOT, '.env.example')) ? fs.readFileSync(path.join(ROOT, '.env.example'), 'utf8').split(/\r?\n/) : [];
+  for (const [k, v] of Object.entries(changes)) {
+    const i = lines.findIndex(l => new RegExp(`^\\s*#?\\s*${k}\\s*=`).test(l));
+    const line = `${k}=${v}`;
+    if (i >= 0) lines[i] = line; else lines.push(line);
+    if (v) process.env[k] = v; else delete process.env[k];
+  }
+  fs.writeFileSync(p, lines.join('\n').replace(/\n*$/, '\n'), { mode: 0o600 });
+}
+/** One cheap request per key to show "works" or the provider's error. */
+async function testKey(k) {
+  const v = process.env[k];
+  if (!v) return { ok: null, msg: 'not set' };
+  const T = { signal: AbortSignal.timeout(8000) };
+  const fail = async r => ({ ok: false, msg: `${r.status} ${(await r.text().catch(() => '')).slice(0, 120)}`.trim() });
+  try {
+    if (k === 'SOLANA_WS_URL' || k === 'SOLANA_RPC_URL') {
+      const r = await fetch(cfg.keys.solanaRpc, { ...T, method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getSlot' }) });
+      const j = await r.json().catch(() => ({}));
+      return j.result ? { ok: true, msg: `connected · slot ${j.result}` } : { ok: false, msg: j.error?.message || `HTTP ${r.status}` };
+    }
+    if (k === 'DEEPGRAM_API_KEY') { const r = await fetch('https://api.deepgram.com/v1/projects', { ...T, headers: { authorization: 'Token ' + v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
+    if (k === 'ANTHROPIC_API_KEY') { const r = await fetch('https://api.anthropic.com/v1/models?limit=1', { ...T, headers: { 'x-api-key': v, 'anthropic-version': '2023-06-01' } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
+    if (k === 'TWITTERAPI_IO_KEY') { const r = await fetch('https://api.twitterapi.io/twitter/user/info?userName=x', { ...T, headers: { 'X-API-Key': v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
+    if (k === 'X_BEARER_TOKEN') { const r = await fetch('https://api.x.com/2/users/by/username/x', { ...T, headers: { authorization: 'Bearer ' + v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
+    if (k === 'TELEGRAM_BOT_TOKEN') { const r = await fetch(`https://api.telegram.org/bot${v}/getMe`, T); const j = await r.json().catch(() => ({})); return j.ok ? { ok: true, msg: '@' + j.result.username } : { ok: false, msg: j.description || `HTTP ${r.status}` }; }
+    return { ok: null, msg: 'saved' };
+  } catch (e) { return { ok: false, msg: e.name === 'TimeoutError' ? 'no answer in 8 s' : e.message === 'fetch failed' ? "couldn't reach the provider (internet, VPN or firewall?)" : e.message }; }
 }
 
 function activeProvider() {
@@ -431,6 +475,28 @@ const server = http.createServer(async (req, res) => {
         send('config', publicConfig());
         pollLoop();
         return json(res, 200, publicConfig());
+      }
+
+      if (url.pathname === '/api/keys') {
+        const changes = {};
+        for (const [k, v] of Object.entries(body.values || {})) {
+          if (!KEY_ENVS.includes(k)) continue;
+          const val = String(v ?? '').trim();
+          if (/[\r\n]/.test(val) || val.length > 600) return json(res, 400, { error: `${k} looks wrong (too long or has line breaks)` });
+          changes[k] = val;
+        }
+        for (const k of body.clear || []) if (KEY_ENVS.includes(k)) changes[k] = '';
+        if (Object.keys(changes).length) {
+          writeEnv(changes);
+          cfg = readConfig();
+          kols.restart();
+          pollLoop();
+          send('config', publicConfig());
+          send('stream-status', streams.status());
+        }
+        const tests = {};
+        await Promise.all((body.test || Object.keys(changes)).filter(k => KEY_ENVS.includes(k) && k !== 'TELEGRAM_CHAT_ID').map(async k => { tests[k] = await testKey(k); }));
+        return json(res, 200, { keys: keyStatus(), tests });
       }
 
       if (url.pathname === '/api/risk') {

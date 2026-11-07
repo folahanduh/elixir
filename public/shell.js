@@ -31,6 +31,7 @@
     bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
     gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
     search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
+    key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M14 9l2 2"/>',
     side: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
   };
   const svg = (k, s = 16) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ico[k]}</svg>`;
@@ -50,6 +51,7 @@
       <a href="#" data-k="kols">${svg('kols')}KOL wallets<span class="sb-n" data-n="kols"></span></a>
       <a href="/#playbook" data-k="book">${svg('book')}Playbook</a>
       <a href="/#alerts" data-k="alerts">${svg('bell')}Alerts<span class="sb-n" data-n="alerts"></span></a>
+      <a href="/#keys" data-k="keys">${svg('key')}API keys<span class="sb-n" data-n="keys"></span></a>
     </nav>
     <div class="sb-foot">
       <div class="sb-wallets"><span>${svg('kols', 15)}</span><div><b class="sb-wa">—</b><small class="sb-wd">KOL wallets</small></div></div>
@@ -85,6 +87,12 @@
   };
   const jump = id => { const el = document.getElementById(id); if (el) { el.closest('.panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return true; } };
   for (const [k, id] of [['book', 'playbook'], ['alerts', 'alerts']]) sb.querySelector(`[data-k="${k}"]`).addEventListener('click', e => { if (jump(id)) e.preventDefault(); });
+  sb.querySelector('[data-k="keys"]').addEventListener('click', e => { if (typeof window.openKeys === 'function') { e.preventDefault(); window.openKeys(); } });
+  const paintKeyCount = c => {
+    const ks = c?.keys; if (!ks) return;
+    const n = ['SOLANA_WS_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY'].filter(k => ks[k]?.set).length;
+    sb.querySelector('[data-n="keys"]').textContent = n + '/3';
+  };
   sb.querySelector('[data-k="plays"]').addEventListener('click', e => {
     const t = document.querySelector('#tabs [data-f="plays"]'); if (t) { e.preventDefault(); t.click(); }
   });
@@ -158,7 +166,7 @@
     streams.clear(); plays.clear();
     for (const s of d.streams?.sessions || []) { const { segs, ...m } = s; streams.set(s.id, m); }
     for (const p of d.plays || []) plays.set(p.id, p);
-    C = d.config; ST = d.status; SS = d.streams?.status;
+    C = d.config; ST = d.status; SS = d.streams?.status; paintKeyCount(C);
     paintLive(); paintKols(d.kols); paintItems(C, ST, SS);
     up = true; paintBar();
   });
@@ -169,7 +177,7 @@
   es.addEventListener('play-removed', e => { plays.delete(JSON.parse(e.data).id); paintLive(); });
   es.addEventListener('kol-status', e => paintKols(JSON.parse(e.data)));
   es.addEventListener('status', e => { ST = JSON.parse(e.data); paintItems(C, ST, SS); });
-  es.addEventListener('config', e => { C = JSON.parse(e.data); paintItems(C, ST, SS); });
+  es.addEventListener('config', e => { C = JSON.parse(e.data); paintItems(C, ST, SS); paintKeyCount(C); });
   es.addEventListener('alert', () => { alerts++; sb.querySelector('[data-n="alerts"]').textContent = alerts; });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { alerts = 0; sb.querySelector('[data-n="alerts"]').textContent = ''; } });
 

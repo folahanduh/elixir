@@ -91,6 +91,11 @@
   <form method="dialog" id="settingsForm">
     <h2>Settings</h2>
     <p class="muted small" id="providerLine"></p>
+    <fieldset class="keyset" id="keyset">
+      <legend>API keys <span class="muted">(all optional · saved to <code>.env</code> on this computer only)</span></legend>
+      <div id="keyRows"></div>
+      <div class="row end"><span class="muted small grow" id="keyMsg">Paste a key and press Save keys. Leave a box empty to keep what's saved.</span><button type="button" class="ghost small" id="testKeys">Test saved keys</button><button type="button" id="saveKeys">Save keys</button></div>
+    </fieldset>
     <label>Accounts to track <span class="muted">(handles, comma or space separated)</span>
       <textarea name="accounts" rows="3"></textarea></label>
     <label>VIP accounts <span class="muted">(every tweet alerts)</span>
