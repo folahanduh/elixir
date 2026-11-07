@@ -63,40 +63,10 @@ function seedPresets() {
 // Accounts in 'slow' preset groups are polled every 4th cycle to save API credit.
 const SLOW = new Set((() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'presets', 'accounts.json'), 'utf8')).groups.filter(g => g.tier === 'slow').flatMap(g => g.accounts.map(a => a.toLowerCase())); } catch { return []; } })());
 
-// Keys typed into .env.example by mistake: move them into .env (which git ignores) and blank them in
-// .env.example, so they work and can't be pushed to GitHub by accident.
-function rescueExampleKeys() {
-  const ex = path.join(ROOT, '.env.example');
-  if (!fs.existsSync(ex)) return;
-  const lines = fs.readFileSync(ex, 'utf8').split(/\r?\n/);
-  const found = {};
-  const blanked = lines.map(l => {
-    const m = l.match(/^\s*(?:export\s+)?([A-Za-z0-9_]+)\s*=\s*(\S.*?)\s*$/);
-    if (!m || m[1].toUpperCase() === 'PORT') return l;
-    m[1] = m[1].toUpperCase();
-    // Same name twice (e.g. two X keys pasted as X_BEARER_TOKEN): keep both as NAME, NAME_2, NAME_3…
-    let name = m[1];
-    for (let n = 2; name in found; n++) name = `${m[1]}_${n}`;
-    found[name] = m[2].replace(/^["']|["']$/g, '');
-    return name === m[1] ? `${m[1]}=` : null; // drop the duplicate line
-  }).filter(l => l !== null);
-  if (!Object.keys(found).length) return;
-  const envPath = path.join(ROOT, '.env');
-  const have = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
-  const add = Object.entries(found).filter(([k]) => !new RegExp(`^\\s*${k}\\s*=\\s*\\S`, 'm').test(have));
-  fs.writeFileSync(envPath, have.replace(/\n*$/, have ? '\n' : '') + add.map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { mode: 0o600 });
-  fs.writeFileSync(ex, blanked.join('\n'));
-  console.log(`  Moved ${Object.keys(found).length} key(s) from .env.example into .env (keys belong in .env, which is never uploaded).`);
-}
-
+// API keys: lib/keys.js finds them in .env (or .env.example / env / .env.txt), under common names too.
+let keyReport = { files: [], loaded: {}, notes: [] };
 function loadDotEnv() {
-  rescueExampleKeys();
-  const p = path.join(ROOT, '.env');
-  if (!fs.existsSync(p)) return;
-  for (const line of fs.readFileSync(p, 'utf8').split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
-  }
+  keyReport = require('./lib/keys').loadKeys(ROOT, m => console.log(m));
 }
 
 function readConfig() {
@@ -147,7 +117,7 @@ function publicConfig() {
 }
 
 // ---------- API keys (Settings → API keys writes .env; values never go back to the page) ----------
-const KEY_ENVS = ['SOLANA_WS_URL', 'SOLANA_RPC_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY', 'TWITTERAPI_IO_KEY', 'X_BEARER_TOKEN', 'X_BEARER_TOKEN_2', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'DISCORD_WEBHOOK_URL'];
+const KEY_ENVS = ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'SOLANA_WS_URL', 'SOLANA_RPC_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY', 'TWITTERAPI_IO_KEY', 'X_BEARER_TOKEN', 'X_BEARER_TOKEN_2', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'DISCORD_WEBHOOK_URL'];
 function keyStatus() {
   const out = {};
   for (const k of KEY_ENVS) {
@@ -155,6 +125,7 @@ function keyStatus() {
     out[k] = { set: Boolean(v), hint: v ? '…' + v.slice(-4) : '' };
   }
   if (cfg?.keys?.solanaPublic) out.SOLANA_WS_URL.fallback = 'using free public RPC';
+  out._report = { files: keyReport.files.map(f => ({ file: f.file, names: f.names.slice(0, 20) })), notes: keyReport.notes };
   return out;
 }
 function writeEnv(changes) {

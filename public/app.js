@@ -72,8 +72,10 @@ function renderPills(disconnected) {
   // Say plainly why tweets aren't arriving.
   const n = $('#feedNotice');
   if (n) {
+    const rep = c.keys?._report;
+    const where = rep ? (rep.files.length ? ` Elixir read ${rep.files.map(f => f.file + (f.names.length ? ' (' + f.names.slice(0, 6).join(', ') + ')' : ' (empty)')).join('; ')}.` : ' No .env file was found in the Elixir folder.') + (rep.notes?.length ? ' ' + rep.notes[0] + '.' : '') : '';
     const msg = c.provider === 'bridge-only' && !bridgeOn
-      ? 'Tweets aren\'t being fetched: no twitterapi.io or X key is loaded.'
+      ? 'Tweets aren\'t being fetched: no twitterapi.io or X key is loaded.' + where + ' Restart Elixir after editing the file, or paste the key under API keys.'
       : s.lastPollError ? 'Tweet fetching is failing: ' + s.lastPollError
       : s.lastPollWarn ? 'Some accounts failed to load: ' + s.lastPollWarn : '';
     n.hidden = !msg || c.provider === 'demo';
