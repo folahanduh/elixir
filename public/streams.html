@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Streams · Elixir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/streams.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%230b0f14' stroke='%23c38bff' stroke-width='2'/><rect x='13' y='8' width='6' height='11' rx='3' fill='%23c38bff'/><path d='M10 16a6 6 0 0 0 12 0M16 22v3' stroke='%23c38bff' stroke-width='2' fill='none'/></svg>">
+</head>
+<body data-page="streams">
+<script src="/shell.js"></script>
+<header class="top">
+  <div class="ptitle"><span class="pt-ico"><span class="dot" id="liveDot"></span></span><div><b>Stream monitor</b><small>Every word, who said it, what's coinable</small></div></div>
+  <div class="pills" id="pills"></div>
+  <div class="actions">
+    <button id="soundBtn" class="ghost">Sound: on</button>
+    <button id="notifBtn" class="ghost">Notifications</button>
+  </div>
+</header>
+
+<section class="addbar">
+  <form id="startForm" class="add-row">
+    <input id="urlIn" type="url" placeholder="Paste a live link: twitch.tv/…, youtube.com/…, x.com/i/broadcasts/…, kick.com/…" required>
+    <input id="labelIn" placeholder="Name (optional)" class="lbl">
+    <button>Transcribe</button>
+  </form>
+  <div class="add-row alt">
+    <button id="tabBtn" class="ghost">Share tab audio</button>
+    <button id="micBtn" class="ghost">Use mic (free)</button>
+    <span class="muted small" id="addHint">The link option runs on the server, so you don't have to keep the stream open. Tab sharing works for anything that plays in Chrome, including pump.fun streams.</span>
+  </div>
+  <div id="addErr" class="err" hidden></div>
+</section>
+
+<main class="sgrid">
+  <section class="col" id="sessions">
+    <div class="empty" id="noSessions">
+      No streams running. Paste a live link above, or add channels to <b>Auto-watch</b> on the right so they start by themselves when the streamer goes live.
+    </div>
+  </section>
+
+  <aside class="col side-col">
+    <div class="panel">
+      <div class="panel-head"><h2>Moments</h2>
+        <label class="pause"><input type="checkbox" id="pingOnly"> pings only</label>
+      </div>
+      <div class="legend">
+        <span class="tg COINABLE">COINABLE</span><span class="tg CRYPTO">CRYPTO</span><span class="tg FUNNY">FUNNY</span>
+        <span class="tg MEME">MEME</span><span class="tg LOUD">LOUD</span><span class="tg REPEAT">REPEAT</span><span class="tg WATCH">WATCH</span>
+      </div>
+      <div id="moments" class="moments"><span class="muted placeholder">Highlights from every stream land here.</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Clips</h2><span class="muted small">auto-made on every ping</span></div>
+      <video id="clipPlayer" controls playsinline hidden></video>
+      <div id="clipTitle" class="small" hidden></div>
+      <div id="clips" class="clips"><span class="muted placeholder small">Clips of pinged moments appear here (link capture only). Use "clip" on any line to clip it yourself.</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Auto-watch</h2><span class="muted small">checked every 60s</span></div>
+      <div id="watchList" class="watch-list"></div>
+      <form id="watchForm" class="row">
+        <input id="watchUrl" placeholder="twitch.tv/name or youtube.com/@name/live" required>
+        <input id="watchLabel" placeholder="Name" class="lbl">
+        <button>Add</button>
+      </form>
+      <p class="hint">When a channel goes live you get a ping and transcription starts on its own. For X, nothing is needed: when a tracked account tweets a live broadcast or Space link, it starts automatically.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Sensitivity</h2></div>
+      <div class="row">
+        <label class="small">Highlight at score <input id="hlScore" type="number" min="1" max="30"></label>
+        <label class="small">Ping at score <input id="pingScore" type="number" min="1" max="30"></label>
+      </div>
+      <div class="row">
+        <label class="small">Language
+          <select id="langSel">
+            <option value="en">English</option><option value="multi">Auto / mixed</option><option value="es">Español</option>
+            <option value="pt">Português</option><option value="fr">Français</option><option value="de">Deutsch</option>
+            <option value="ja">日本語</option><option value="ko">한국어</option><option value="zh">中文</option>
+          </select></label>
+        <button id="saveSens" class="ghost">Save</button>
+      </div>
+      <p class="hint">Lower numbers mean more highlights. Watchlist words always ping.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Quick check</h2><span class="muted small">press <kbd>/</kbd></span></div>
+      <form id="lookupForm" class="row">
+        <input id="lookupInput" placeholder="word or ticker → is there a coin?" autocomplete="off">
+        <button>Check</button>
+      </form>
+      <div id="lookupOut"></div>
+    </div>
+  </aside>
+</main>
+
+<div id="toasts" class="toasts"></div>
+<script src="/common.js"></script>
+<script src="/streams.js"></script>
+<script src="/kol.js"></script>
+</body>
+</html>

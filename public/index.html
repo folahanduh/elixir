@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elixir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/streams.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%230b0f14' stroke='%2333e6a0' stroke-width='2'/><path d='M16 16 L27 9' stroke='%2333e6a0' stroke-width='2.5'/><circle cx='16' cy='16' r='2.5' fill='%2333e6a0'/></svg>">
+</head>
+<body data-page="feed">
+<script src="/shell.js"></script>
+<header class="top">
+  <div class="ptitle"><span class="pt-ico"><span class="dot" id="liveDot"></span></span><div><b>Live feed</b><small>Tweets · plays · deploys</small></div></div>
+  <div class="pills" id="pills"></div>
+  <div class="actions">
+    <button id="soundBtn" class="ghost" title="Toggle alert sound">Sound: on</button>
+    <button id="notifBtn" class="ghost" title="Desktop notifications">Notifications</button>
+    <button id="testBtn" class="ghost" title="Fire a test alert">Test alert</button>
+    <button id="settingsBtn">Settings</button>
+  </div>
+</header>
+
+<main class="grid">
+  <section class="col feed-col">
+    <div class="panel-head">
+      <h2>Live feed</h2>
+      <div class="tabs" id="tabs">
+        <button data-f="all" class="on">All</button>
+        <button data-f="x">Tweets</button>
+        <button data-f="stream">Stream</button>
+        <button data-f="hot">Alerts only</button>
+        <button data-f="plays">Plays</button>
+      </div>
+      <label class="pause"><input type="checkbox" id="pauseFeed"> Pause scroll</label>
+    </div>
+    <div id="feed" class="feed"></div>
+    <div id="feedEmpty" class="empty">Waiting for tweets… Add accounts in <b>Settings</b>, start the <b>X bridge</b>, or paste a tweet on the right.</div>
+  </section>
+
+  <section class="col side-col">
+    <div class="panel" id="streamPanel">
+      <div class="panel-head">
+        <h2>Stream moments</h2>
+        <a href="/streams.html" class="lk">Open monitor ↗</a>
+      </div>
+      <div id="liveStreams" class="small muted" style="margin-top:6px">No streams running.</div>
+      <div id="streamMoments" class="alerts"><span class="muted placeholder">Funny lines, crypto talk and coin-able names from live streams land here.</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Playbook</h2><span class="muted small">learns from your plays</span></div>
+      <div id="playbook"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Hot words</h2><span class="muted small">15‑min window · click to check</span></div>
+      <div id="trends" class="trends"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Quick check</h2><span class="muted small">press <kbd>/</kbd></span></div>
+      <form id="lookupForm" class="row">
+        <input id="lookupInput" placeholder="word or ticker → is there a coin?" autocomplete="off">
+        <button>Check</button>
+      </form>
+      <div id="lookupOut"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Alerts</h2><button id="clearAlerts" class="ghost small">Clear</button></div>
+      <div id="alerts" class="alerts"><span class="muted placeholder">No alerts yet.</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Paste a tweet</h2></div>
+      <form id="pasteForm">
+        <textarea id="pasteText" rows="3" placeholder="Paste tweet text (or anything) to scan it for plays"></textarea>
+        <div class="row"><input id="pasteAuthor" placeholder="@author (optional)"><button>Scan</button></div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<div id="toasts" class="toasts"></div>
+
+<dialog id="settings">
+  <form method="dialog" id="settingsForm">
+    <h2>Settings</h2>
+    <p class="muted small" id="providerLine"></p>
+    <label>Accounts to track <span class="muted">(handles, comma or space separated)</span>
+      <textarea name="accounts" rows="3"></textarea></label>
+    <label>VIP accounts <span class="muted">(every tweet alerts)</span>
+      <textarea name="vip" rows="2"></textarea></label>
+    <label>Watchlist words <span class="muted">(one per line or comma separated; phrases OK)</span>
+      <textarea name="watchlist" rows="4"></textarea></label>
+    <label>Ignore words <span class="muted">(never flagged)</span>
+      <textarea name="ignore" rows="2"></textarea></label>
+    <div class="row">
+      <label>Poll every (sec) <input name="pollSeconds" type="number" min="2" max="300"></label>
+      <label>Chains <input name="chains" placeholder="solana, bsc, base"></label>
+      <label class="check"><input name="includeReplies" type="checkbox"> Include replies</label>
+    </div>
+    <fieldset class="filterset">
+      <legend>Coin filter <span class="muted">(Axiom Pulse style, default = DVCES's)</span></legend>
+      <div class="row"><label>Name <input name="fLabel" maxlength="20"></label></div>
+      <div class="frow"><b>New Pairs</b>
+        <label>max age (min) <input name="npAge" type="number" min="0" step="any"></label>
+        <label>min volume $ <input name="npVol" type="number" min="0" step="any"></label></div>
+      <div class="frow"><b>Final Stretch</b>
+        <label>min mcap $ <input name="fsMcap" type="number" min="0" step="any"></label>
+        <label>min volume $ <input name="fsVol" type="number" min="0" step="any"></label>
+        <label>max age (min) <input name="fsAge" type="number" min="0" step="any"></label></div>
+      <div class="frow"><b>Graduated</b>
+        <label>min fees (SOL) <input name="grFees" type="number" min="0" step="any"></label>
+        <span class="muted small">Fees can't be read from DexScreener, so graduated coins show "fees unchecked". Confirm on Axiom.</span></div>
+      <button type="submit" value="save" class="ghost small" onclick="state.resetFilter = true">Reset to DVCES filter</button>
+    </fieldset>
+    <div class="bridge">
+      <b>X browser bridge (free, no API key):</b> install <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a>, then
+      <a href="/x-bridge.user.js" target="_blank">install the bridge script</a>, and keep an X List of your accounts open in a tab.
+      New tweets stream in here as they appear.
+    </div>
+    <div class="row end">
+      <button value="cancel" class="ghost">Cancel</button>
+      <button id="saveSettings" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/app.js"></script>
+<script src="/kol.js"></script>
+</body>
+</html>

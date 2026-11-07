@@ -1,0 +1,19 @@
+{
+  "name": "elixir",
+  "version": "2.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Spot memecoin plays from tweets and live streams as they happen.",
+  "main": "server.js",
+  "repository": "github:folahanduh/elixir",
+  "homepage": "https://github.com/folahanduh/elixir#readme",
+  "scripts": {
+    "start": "node server.js",
+    "demo": "node server.js --demo",
+    "check": "node scripts/check.js"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0"
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "port": 8787,
+  "provider": "auto",
+  "pollSeconds": 8,
+  "includeReplies": true,
+  "accounts": [
+    "elonmusk",
+    "cb_doge",
+    "WatcherGuru",
+    "DegenerateNews",
+    "Cointelegraph",
+    "realDonaldTrump",
+    "cz_binance",
+    "KanyeWest"
+  ],
+  "vip": [
+    "elonmusk",
+    "realDonaldTrump",
+    "cz_binance"
+  ],
+  "watchlist": [
+    "doge",
+    "pepe",
+    "frog",
+    "cat",
+    "hamster",
+    "penguin",
+    "grok",
+    "x money"
+  ],
+  "ignore": [
+    "breaking",
+    "update",
+    "video",
+    "watch",
+    "live",
+    "thread",
+    "today",
+    "tonight"
+  ],
+  "chains": [
+    "solana"
+  ],
+  "alertMaxAgeSeconds": 180,
+  "trend": {
+    "windowMinutes": 15,
+    "minMentions": 3,
+    "minAuthors": 1,
+    "cooldownMinutes": 10
+  },
+  "keys": {
+    "twitterapiIo": "",
+    "xBearer": "",
+    "deepgram": "",
+    "anthropic": "",
+    "solanaWs": "",
+    "solanaRpc": ""
+  },
+  "streams": {
+    "language": "en",
+    "deepgramModel": "nova-3",
+    "diarize": true,
+    "pauseMs": 700,
+    "mergeGapMs": 2500,
+    "keyterms": [],
+    "highlightScore": 4,
+    "pingScore": 8,
+    "recordAudio": false,
+    "autoFromTweets": true,
+    "ytdlpArgs": [],
+    "watch": [
+      {
+        "url": "https://www.twitch.tv/dvces",
+        "label": "DVCES",
+        "auto": true
+      }
+    ],
+    "judge": {
+      "enabled": true,
+      "model": "claude-opus-5-5",
+      "effort": "low",
+      "everySeconds": 8
+    },
+    "clips": {
+      "enabled": true,
+      "autoClip": true,
+      "before": 25,
+      "after": 8,
+      "quality": "480"
+    }
+  },
+  "plays": {
+    "auto": true,
+    "autoScore": 5,
+    "trackMinutes": 180,
+    "notes": [
+      "Most volume currently comes through Pump and Float.",
+      "Float launches start at ~$20k market cap and frequently vamp Pump coins; traders often fade Float vamps.",
+      "Only Pump, Float, Bags and Raydium deploys count. Ignore OTC-desk style side pairings."
+    ],
+    "launchpads": {
+      "float": {
+        "label": "Float",
+        "suffixes": [],
+        "dexIds": [
+          "float"
+        ],
+        "labels": [
+          "float"
+        ],
+        "startMcap": 20000
+      }
+    },
+    "ai": {
+      "enabled": true,
+      "model": "claude-opus-5-5",
+      "effort": "low"
+    }
+  },
+  "filters": {
+    "active": "dvces",
+    "presets": {
+      "dvces": {
+        "label": "DVCES",
+        "newPairs": {
+          "maxAgeMin": 5,
+          "minVolume": 200
+        },
+        "finalStretch": {
+          "maxAgeMin": 30,
+          "minMcap": 10000,
+          "minVolume": 5000
+        },
+        "graduated": {
+          "minFeesSol": 2
+        }
+      }
+    }
+  },
+  "kols": {
+    "enabled": true,
+    "clusterMin": 2,
+    "clusterMinutes": 15,
+    "dormantDays": 30,
+    "subsPerSocket": 250,
+    "scanRps": 5,
+    "alertOn": [],
+    "wallets": []
+  },
+  "telegram": {
+    "botToken": "",
+    "chatId": ""
+  }
+}
