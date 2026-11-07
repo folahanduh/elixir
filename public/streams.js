@@ -85,6 +85,7 @@ function upsertSession(m) {
         <div class="more">
           <button class="ghost small more-btn" title="More" aria-haspopup="menu">⋯</button>
           <div class="more-menu" role="menu" hidden>
+            <button class="m-pop" role="menuitem" data-popbtn="stream-${esc(m.id)}" data-size="680x820" data-label="${esc(m.label || 'Stream')}">Pop out</button>
             <button class="m-stop" role="menuitem">Stop transcribing</button>
             <button class="m-remove" role="menuitem">Remove from page</button>
           </div>
@@ -184,7 +185,7 @@ function paintLevels(levels) {
 }
 
 // ---------- speakers ----------
-const SPK_COLORS = ['#5aa3e8', '#e8b14a', '#2fd17b', '#e879a6', '#a78bfa', '#f08a3c', '#4cc3d1', '#d1d1d1'];
+const SPK_COLORS = ['#8fb6ff', '#f2c464', '#5fdcaa', '#f39ac0', '#b8a4ff', '#f5a35c', '#6fd3e0', '#c9cbd3']; // soft, readable on black
 const spkName = (s, sp) => sp == null ? '' : (s.speakers?.[sp]?.name || `Speaker ${sp + 1}`);
 function spkChip(s, sp) {
   if (sp == null) return '';

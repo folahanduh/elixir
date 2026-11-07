@@ -328,6 +328,7 @@
     for (const el of root.querySelectorAll('[data-pop]')) {
       if (el.dataset.popReady) continue;
       el.dataset.popReady = '1';
+      if (el.classList.contains('sess')) continue; // stream cards: "Pop out" lives in their ⋯ menu
       const head = el.querySelector(':scope > .panel-head, :scope > .kolp-head, :scope > .sess-head, :scope > .panel-head') || el.querySelector('.panel-head');
       if (!head) continue;
       head.insertAdjacentHTML('beforeend', popBtnHTML(el.dataset.pop, el.dataset.popSize, el.dataset.popLabel));
