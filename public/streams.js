@@ -58,6 +58,9 @@ function paintPills() {
   ].join('');
 }
 
+// Transcript times are your local clock time; 12-hour clocks (with AM/PM) need a wider column.
+if (clock(Date.now()).length > 8) document.documentElement.classList.add('clock12');
+
 // ---------- sessions ----------
 function emptyState() { $('#noSessions').hidden = S.sessions.size > 0; }
 
@@ -228,7 +231,7 @@ function lineHTML(seg) {
   const s = S.sessions.get(seg.sid);
   const tools = `<span class="ln-tools">${s?.canClip ? `<button class="ghost small" data-clipseg="${esc(seg.id)}" title="Clip this moment">clip</button>` : ''}${seg.highlight ? `<button class="ghost small" data-playseg="${esc(seg.id)}" title="Track as a play: deploys, tickers, vamps">track</button>` : ''}</span>`;
   const chip = s ? spkChip(s, seg.speaker) : '';
-  return `<span class="ts" title="${esc(clock(seg.t))}">${hms(seg.offset)}</span><div><div class="tx">${chip}${gaps(markText(seg.text, seg.keywords))}${tools}</div>${extra}</div>`;
+  return `<span class="ts" title="${esc(hms(seg.offset))} into the stream">${esc(clock(seg.t))}</span><div><div class="tx">${chip}${gaps(markText(seg.text, seg.keywords))}${tools}</div>${extra}</div>`;
 }
 
 function upsertSeg(seg, quiet) {
@@ -319,7 +322,7 @@ function upsertMoment(seg, s) {
   el.className = 'mo ' + (seg.pinged ? 'pinged' : '');
   el.hidden = S.pingOnly && !seg.pinged;
   el.innerHTML = `
-    <div class="mo-top">${srcAvatar(s.profile, s.label, 20)}<b>${esc(srcName(s.profile, s.label))}</b>${seg.speaker != null ? spkChip(s, seg.speaker) : ''}<span>${hms(seg.offset)}</span><span>${clock(seg.t)}</span><span class="grow"></span><span class="score">score ${seg.score}${seg.pinged ? ' · pinged' : ''}</span></div>
+    <div class="mo-top">${srcAvatar(s.profile, s.label, 20)}<b>${esc(srcName(s.profile, s.label))}</b>${seg.speaker != null ? spkChip(s, seg.speaker) : ''}<span title="${esc(hms(seg.offset))} into the stream">${clock(seg.t)}</span><span class="grow"></span><span class="score">score ${seg.score}${seg.pinged ? ' · pinged' : ''}</span></div>
     <div class="txt">${gaps(markText(seg.text, seg.keywords))}</div>
     <div class="tags">${tagsHTML(seg)}</div>
     ${seg.ai ? `<div class="meta2" style="margin-top:4px">${aiHTML(seg)}</div>` : seg.reasons?.length ? `<div class="why small muted" style="margin-top:4px">${esc(seg.reasons.slice(0, 2).join(' · '))}</div>` : ''}
