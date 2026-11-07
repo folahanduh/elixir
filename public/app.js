@@ -69,6 +69,16 @@ function renderPills(disconnected) {
   const plays = [...state.plays.values()].filter(p => p.status !== 'done');
   const deploys = plays.reduce((n, p) => n + (p.deploys || []).length, 0);
   const tweets = [...state.items.values()].filter(i => i.source !== 'stream').length;
+  // Say plainly why tweets aren't arriving.
+  const n = $('#feedNotice');
+  if (n) {
+    const msg = c.provider === 'bridge-only' && !bridgeOn
+      ? 'Tweets aren\'t being fetched: no twitterapi.io or X key is loaded.'
+      : s.lastPollError ? 'Tweet fetching is failing: ' + s.lastPollError
+      : s.lastPollWarn ? 'Some accounts failed to load: ' + s.lastPollWarn : '';
+    n.hidden = !msg || c.provider === 'demo';
+    if (msg) n.innerHTML = `<span>${esc(msg)}</span><button class="ghost small" onclick="openKeys()">API keys</button>`;
+  }
   $('#pills').innerHTML = [
     disconnected ? stat('Offline', 'server · retrying', 'bad') : '',
     stat(tweets, 'Tweets in feed'),
@@ -621,6 +631,13 @@ $('#saveKeys').onclick = () => {
   keyCall({ values }, 'Saving and testing…');
 };
 $('#keyRows').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#saveKeys').click(); } }); // Enter must not submit the settings form
+$('#testTweets').onclick = async () => {
+  $('#keyMsg').textContent = 'Fetching the last day of tweets from a few big accounts…';
+  try {
+    const r = await api('/api/tweets/test', {});
+    $('#keyMsg').textContent = r.ok ? `Tweets work via ${r.provider}: got ${r.count} tweet(s)${r.sample?.[0] ? `, e.g. @${r.sample[0].author}: “${r.sample[0].text.slice(0, 60)}…”` : ''}. They're in your feed now.` : `Tweets don't work yet${r.provider ? ' (' + r.provider + ')' : ''}: ${r.error}`;
+  } catch (err) { $('#keyMsg').textContent = err.message; }
+};
 $('#testKeys').onclick = () => keyCall({ test: Object.entries(state.config?.keys || {}).filter(([, v]) => v.set).map(([k]) => k) }, 'Testing…');
 $('#keyRows').addEventListener('click', e => {
   const b = e.target.closest('[data-clear]');

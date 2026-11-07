@@ -43,6 +43,7 @@ function connect() {
 function paintPills() {
   const st = S.status || {};
   const t = st.tools || {};
+  const nt = $('#sttNotice'); if (nt) nt.hidden = st.stt !== 'browser-only';
   const stat = (value, label, cls = '') => `<div class="stat ${cls}"><b>${value}</b><span>${label}</span></div>`;
   const live = [...S.sessions.values()].filter(s => !s.endedAt);
   const lines = live.reduce((n, s) => n + (s.count || 0), 0), hl = live.reduce((n, s) => n + (s.highlights || 0), 0);

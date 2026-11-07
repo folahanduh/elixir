@@ -70,6 +70,14 @@ Every time you open or refresh the page, Elixir checks GitHub for a newer versio
 - **During a stream:** if a stream is being transcribed, the update waits so the capture isn't cut off. An **Update ready · install** button appears in the bottom bar instead.
 - **To turn it off:** set `"autoUpdate": false` in `config.json`.
 
+### No tweets showing?
+The feed shows a red bar saying why. Then go to **API keys → Test tweets**, which fetches a day of tweets from a few big accounts and either fills your feed or shows the exact problem. The usual causes:
+- **No key loaded.** Keys belong in `.env` or the API keys panel. Keys typed into `.env.example` are moved into `.env` automatically on the next start.
+- **An X key from the free tier.** It can't search tweets. Use twitterapi.io (or X Basic/Pro), and paste the **Bearer Token**, not the API key or secret.
+- **Out of credit.** Top up twitterapi.io.
+
+On start, Elixir loads the last 2 hours of tweets, then only fetches new ones.
+
 ### Keys (optional extras)
 **To add keys:** click **API keys** in the sidebar, or go to **Settings → API keys**. Paste a key and press **Save keys**. Each key is tested straight away, with a green **works** or the provider's error. No restart is needed. Keys are saved in a `.env` file in the Elixir folder on your computer. That file is never uploaded, never sent to the page, and git ignores it. (You can also edit `.env` by hand; `.env.example` shows the format.)
 
@@ -86,6 +94,10 @@ Never put keys in the repo or in an issue. Public keys get scraped by bots withi
 
 
 ---
+
+## Website
+
+The landing page lives in `docs/`. To publish it, go to **Settings → Pages → Source: `main` / `/docs`**, and it appears at `https://folahanduh.github.io/elixir/`.
 
 ## Layout
 
@@ -256,6 +268,14 @@ The header on the Streams page shows whether these are ready.
 - **Auto-watch** (right side of the Streams page): add `twitch.tv/dvces`, `youtube.com/@name/live` and so on. Each channel is checked every 60 seconds. When it goes live you get a 🔴 ping and transcription starts on its own.
 - **X live streams and Spaces:** when an account you track on the Feed tweets a live broadcast or Space link, transcription starts automatically. This works through twitterapi.io, the X API or the browser bridge.
 - Some X Spaces need you to be logged in. If one fails, add `"ytdlpArgs": ["--cookies-from-browser", "chrome"]` under `streams` in `config.json`.
+
+### Coins from what streamers say
+When a streamer says something coin-able (DV naming his neighbour's goat), Elixir tracks it like a tweet play:
+- It ranks the 1st, 2nd and 3rd deploys and runs the same risk checks.
+- It pings you at **20K / 50K / 100K / 250K / 1M** market cap.
+- At the first milestone, it **clips the moment it was said**. Stream video is kept for 15 minutes for this (`streams.clips.ringMinutes`).
+
+Without a Deepgram key, stream links are still recorded so you can clip them, but nothing is transcribed. The Streams page says so.
 
 ### Who is streaming: channel pictures
 Every stream shows the channel's real profile picture and name. These appear on the stream card, on each moment, in the Auto-watch list, in the feed page's Stream moments and in the sidebar. A small corner mark shows the platform (TW, YT, X, K, N for news).

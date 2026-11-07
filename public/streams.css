@@ -163,3 +163,5 @@ mark.k.name { border-color: var(--line); }
 .wl button { padding: 3px 9px; font-size: 12px; }
 .mo { background: var(--panel); border-color: var(--line); padding: 10px 12px; }
 .mo-top { gap: 8px; }
+
+#sttNotice { margin-top: 10px; }

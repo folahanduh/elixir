@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elixir · memecoin play radar</title>
+<meta name="description" content="Spot memecoin plays as they happen: tweets and live streams, 1st/2nd/3rd deploys ranked by real volume, rug and bundle checks, KOL wallets. Free and open source, runs on your computer.">
+<meta property="og:title" content="Elixir">
+<meta property="og:description" content="Spot memecoin plays as they happen. Free, open source, runs on your computer.">
+<meta property="og:image" content="https://folahanduh.github.io/elixir/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<style>
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-display: swap; src: url(fonts/ibm-plex-sans-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-display: swap; src: url(fonts/ibm-plex-sans-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-display: swap; src: url(fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2"); }
+:root {
+  --bg: #000; --panel: #0c0d10; --panel-2: #14151a; --line: #1c1e24; --line-2: #2a2d35;
+  --text: #e8e9ed; --muted: #8a8d99; --accent: #32d296; --primary: #a7b1ff; --primary-ink: #0c0f24; --vip: #e7b54a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 "IBM Plex Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: var(--primary); text-decoration: none; }
+code, kbd { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .88em; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: 1px 6px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+nav { display: flex; align-items: center; gap: 10px; padding: 18px 0; }
+nav b { font-size: 17px; }
+nav .sp { flex: 1; }
+nav a.gh { color: var(--muted); font-size: 14px; }
+nav a.gh:hover { color: var(--text); }
+.hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; padding: 56px 0 40px; }
+.hero h1 { font-size: 52px; line-height: 1.05; letter-spacing: -1.5px; margin: 0 0 18px; font-weight: 600; }
+.hero h1 span { color: var(--primary); }
+.hero p { color: var(--muted); font-size: 18px; margin: 0 0 28px; max-width: 520px; }
+.cta { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 10px; font-weight: 600; font-size: 15px; }
+.btn.primary { background: var(--primary); color: var(--primary-ink); }
+.btn.primary:hover { background: #bcc4ff; }
+.btn.ghost { border: 1px solid var(--line-2); color: var(--text); background: var(--panel-2); }
+.btn.ghost:hover { border-color: #3a3e48; }
+.small { color: var(--muted); font-size: 13px; margin-top: 14px; }
+.logo-big { justify-self: center; width: 280px; height: 280px; filter: drop-shadow(0 24px 60px rgba(90, 70, 240, .45)); }
+.shot { border: 1px solid var(--line-2); border-radius: 14px; overflow: hidden; background: var(--panel); }
+.shot img { display: block; width: 100%; height: auto; }
+.shots { display: grid; gap: 18px; margin: 10px 0 70px; }
+h2 { font-size: 28px; letter-spacing: -.5px; margin: 0 0 8px; font-weight: 600; }
+.lead { color: var(--muted); margin: 0 0 28px; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 70px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+.card h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+.card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+.card .k { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent); margin-bottom: 10px; display: block; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+.step b { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line-2); margin-bottom: 10px; font-size: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; margin: 6px 0 70px; }
+th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 400; font-size: 13px; }
+td:first-child { white-space: nowrap; }
+.free { color: var(--accent); }
+.note { border: 1px solid var(--line-2); background: var(--panel); border-radius: 14px; padding: 18px 20px; color: var(--muted); font-size: 14.5px; margin-bottom: 60px; }
+.note b { color: var(--text); }
+footer { border-top: 1px solid var(--line); padding: 26px 0 40px; color: var(--muted); font-size: 13.5px; display: flex; gap: 16px; flex-wrap: wrap; }
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; gap: 24px; padding-top: 24px; }
+  .hero h1 { font-size: 38px; }
+  .logo-big { width: 160px; height: 160px; order: -1; justify-self: start; }
+  .grid, .steps { grid-template-columns: 1fr; }
+  td:first-child { white-space: normal; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <img src="logo.svg" width="26" height="26" alt="">
+    <b>Elixir</b>
+    <span class="sp"></span>
+    <a class="gh" href="https://github.com/folahanduh/elixir">GitHub</a>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <h1>Catch the play <span>before</span> the chart does.</h1>
+      <p>Elixir watches the tweets and live streams that move memecoins, and tells you the moment someone says something coin-able. It ranks the 1st, 2nd and 3rd deploys by real volume and flags rugs and bundles before you buy.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/folahanduh/elixir/archive/refs/heads/main.zip">Download for free</a>
+        <a class="btn ghost" href="https://github.com/folahanduh/elixir">View source</a>
+      </div>
+      <div class="small">Windows, Mac and Linux · runs on your own computer · open source (MIT)</div>
+    </div>
+    <img class="logo-big" src="logo.svg" alt="Elixir logo">
+  </section>
+
+  <div class="shots">
+    <div class="shot"><img src="feed.png" alt="Elixir feed: tweets, plays with 1st/2nd/3rd deploys, risk checks and KOL wallets" loading="lazy"></div>
+    <div class="shot"><img src="streams.png" alt="Elixir stream monitor: live transcript with speakers, coin-able moments and clips" loading="lazy"></div>
+  </div>
+
+  <h2>What it does</h2>
+  <p class="lead">Built for Solana memecoin traders who trade on Axiom, GMGN and pump.fun.</p>
+  <div class="grid">
+    <div class="card"><span class="k">TWEETS</span><h3>Plays as they're posted</h3><p>179 hand-picked accounts, from Elon, Trump and CZ to Ansem, toly, breaking news and race calls. Coin-able words are pulled out and checked instantly.</p></div>
+    <div class="card"><span class="k">DEPLOYS</span><h3>1st, 2nd, 3rd: ranked by real volume</h3><p>Pump, Bags, Raydium and Float only. Fake volume is spotted, vamps are flagged, and you get pings at 20K, 50K and 100K market cap.</p></div>
+    <div class="card"><span class="k">STREAMS</span><h3>Every word, who said it</h3><p>Live transcripts of Twitch, YouTube, X lives and Spaces, with speaker labels. Funny, crypto and coin-able moments get pinged and clipped automatically.</p></div>
+    <div class="card"><span class="k">RISK</span><h3>Rugs and bundles, remembered</h3><p>Bundled launches, dev sells and fake charts are flagged. Rugs are saved to memory, so the same dev's next coin gets flagged.</p></div>
+    <div class="card"><span class="k">WALLETS</span><h3>What KOLs are buying</h3><p>Import your Axiom wallet list. Swaps show about half a second after they land on-chain, and clusters ping you. Quiet wallets are hidden until they come back.</p></div>
+    <div class="card"><span class="k">SCHEDULE</span><h3>Upcoming livestreams</h3><p>Fed press conferences, White House addresses, SpaceX, NVIDIA and more, with a countdown and a ping 15 minutes before.</p></div>
+  </div>
+
+  <h2>Set up in 2 minutes</h2>
+  <p class="lead">No coding. Elixir installs its own tools and updates itself.</p>
+  <div class="steps">
+    <div class="card step"><b>1</b><h3>Install Node.js</h3><p>Get the LTS version from <a href="https://nodejs.org">nodejs.org</a>. You only do this once.</p></div>
+    <div class="card step"><b>2</b><h3>Download Elixir</h3><p><a href="https://github.com/folahanduh/elixir/archive/refs/heads/main.zip">Download the ZIP</a> and unzip it anywhere.</p></div>
+    <div class="card step"><b>3</b><h3>Double-click start</h3><p><code>start.bat</code> on Windows, <code>start.command</code> on Mac, <code>bash start.sh</code> on Linux. The page opens by itself.</p></div>
+  </div>
+  <p class="small" style="margin-bottom:60px">Want to look around first? Use <code>demo.bat</code> / <code>demo.command</code> / <code>bash start.sh demo</code> for fake data.</p>
+
+  <h2>Keys (all optional)</h2>
+  <p class="lead">Elixir works out of the box. Paste these in the app under <b>API keys</b>; they stay on your computer.</p>
+  <table>
+    <tr><th>Key</th><th>Unlocks</th><th>Cost</th></tr>
+    <tr><td>twitterapi.io</td><td>Tweets pulled automatically from all tracked accounts</td><td>Paid, cheap</td></tr>
+    <tr><td>Deepgram</td><td>Live transcription from stream links</td><td class="free">Free credit</td></tr>
+    <tr><td>Helius</td><td>Fast KOL wallet tracking for big lists</td><td class="free">Free</td></tr>
+    <tr><td>Anthropic</td><td>Claude judges funny/meme-worthy moments and suggests tickers and images</td><td>Pay per use</td></tr>
+    <tr><td>Telegram / Discord</td><td>Pings on your phone or in a channel</td><td class="free">Free</td></tr>
+  </table>
+
+  <div class="note"><b>Why isn't this a website?</b> Elixir needs your own keys and a program running on your computer to watch tweets, streams and wallets. It never asks for a wallet private key and never trades. Nothing here is financial advice; most memecoins go to zero.</div>
+
+  <footer>
+    <span>Elixir · MIT licensed</span>
+    <a href="https://github.com/folahanduh/elixir">Source on GitHub</a>
+    <a href="https://github.com/folahanduh/elixir#readme">Full guide</a>
+    <a href="https://github.com/folahanduh/elixir/issues">Report a problem</a>
+  </footer>
+</div>
+</body>
+</html>

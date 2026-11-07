@@ -71,8 +71,9 @@ function rescueExampleKeys() {
   const lines = fs.readFileSync(ex, 'utf8').split(/\r?\n/);
   const found = {};
   const blanked = lines.map(l => {
-    const m = l.match(/^\s*([A-Z0-9_]+)\s*=\s*(\S.*?)\s*$/);
-    if (!m || m[1] === 'PORT') return l;
+    const m = l.match(/^\s*(?:export\s+)?([A-Za-z0-9_]+)\s*=\s*(\S.*?)\s*$/);
+    if (!m || m[1].toUpperCase() === 'PORT') return l;
+    m[1] = m[1].toUpperCase();
     // Same name twice (e.g. two X keys pasted as X_BEARER_TOKEN): keep both as NAME, NAME_2, NAME_3…
     let name = m[1];
     for (let n = 2; name in found; n++) name = `${m[1]}_${n}`;
@@ -351,7 +352,9 @@ const streams = new StreamManager({
       mentions.set(w, arr);
     }
     if (seg.highlight) {
-      ingest({ source: 'stream', id: 'seg-' + seg.id, author: session.label, text: seg.text, url: session.url, createdAt: seg.t, tags: seg.tags, noAlert: true, via: 'stream' });
+      ingest({ source: 'stream', id: 'seg-' + seg.id, author: session.label, text: seg.text, url: session.url, createdAt: seg.t, tags: seg.tags, noAlert: true, via: 'stream' })
+        .then(item => { if (item && session.kind !== 'demo') plays.considerStream(item, seg, session); })
+        .catch(() => {});
     }
   },
   onPing(seg, session, title, kind) {
@@ -375,6 +378,12 @@ plays.risk = risk;
 plays.enrich = makeEnricher({ getConfig: () => cfg, getStats: () => plays.stats() });
 plays.searchImages = q => searchImages(q, { searchPairs: term => dex.searchPairs(term, 60000), demo: DEMO });
 plays.imagePicker = makeImagePicker({ getConfig: () => cfg });
+// A coin from a stream line hit a milestone: clip the moment it was said (if it's still in the 15-min buffer).
+plays.onMilestone = (p, d, mc) => {
+  if (!p.streamRef || p._t.clipped) return;
+  p._t.clipped = true;
+  streams.clip(p.streamRef.sid, { segId: p.streamRef.segId, title: `$${d.symbol} hit ${Math.round(mc / 1000)}K` }).catch(() => {});
+};
 
 // ---------- KOL wallets ----------
 const kols = new KolWatcher({
@@ -451,10 +460,12 @@ async function pollLoop() {
     if (slow.length && pollCycle % 4 === 1) rounds.push(['slow', slow]);
     for (const [tier, accounts] of rounds) {
       if (!accounts.length) continue;
-      const sinceMs = (lastPolled[tier] || Date.now() - 10 * 60000) - 30000; // 30 s overlap; duplicates are dropped
+      // First poll backfills the last 2 hours so the feed isn't empty; after that, since the last poll (30 s overlap).
+      const sinceMs = (lastPolled[tier] || Date.now() - (cfg.backfillMinutes ?? 120) * 60000) - 30000;
       const tierStart = Date.now();
       try {
-        await fn(cfg, accounts, t => ingest({ ...t, via: provider }), { sinceMs });
+        const r = await fn(cfg, accounts, t => ingest({ ...t, via: provider }), { sinceMs });
+        status.lastPollWarn = r?.errors?.length ? r.errors[0] : null;
       } catch (e) {
         // Both kinds of key set: if one provider fails (out of credit, rate limit), use the other this round.
         const other = provider === 'twitterapi.io' ? (cfg.keys.xBearer && 'x-api') : (cfg.keys.twitterapiIo && 'twitterapi.io');
@@ -623,6 +634,18 @@ const server = http.createServer(async (req, res) => {
         send('config', publicConfig());
         pollLoop();
         return json(res, 200, publicConfig());
+      }
+
+      if (url.pathname === '/api/tweets/test') {
+        // One real fetch for a few big accounts over the last day: shows tweets or the exact error.
+        const provider = activeProvider();
+        if (provider === 'bridge-only') return json(res, 200, { ok: false, provider, error: 'No twitterapi.io or X key is loaded. Add one above and press Save keys.' });
+        const fn = provider === 'twitterapi.io' ? sources.pollTwitterApiIo : sources.pollXApi;
+        const got = [];
+        try {
+          await fn(cfg, ['elonmusk', 'WatcherGuru', 'cz_binance'], t => { got.push(t); ingest({ ...t, via: provider }); }, { sinceMs: Date.now() - 86400000 });
+          return json(res, 200, { ok: true, provider, count: got.length, sample: got.slice(0, 3).map(t => ({ author: t.author, text: t.text.slice(0, 120) })) });
+        } catch (e) { return json(res, 200, { ok: false, provider, error: e.message }); }
       }
 
       if (url.pathname === '/api/update') {

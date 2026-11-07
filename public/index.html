@@ -36,6 +36,7 @@
       </div>
       <label class="pause"><input type="checkbox" id="pauseFeed"> Pause scroll</label>
     </div>
+    <div id="feedNotice" class="notice" hidden></div>
     <div id="feed" class="feed"></div>
     <div id="feedEmpty" class="empty">Waiting for tweets… Add accounts in <b>Settings</b>, start the <b>X bridge</b>, or paste a tweet on the right.</div>
   </section>
@@ -93,7 +94,7 @@
     <fieldset class="keyset" id="keyset">
       <legend>API keys <span class="muted">(all optional · saved to <code>.env</code> on this computer only)</span></legend>
       <div id="keyRows"></div>
-      <div class="row end"><span class="muted small grow" id="keyMsg">Paste a key and press Save keys. Leave a box empty to keep what's saved.</span><button type="button" class="ghost small" id="testKeys">Test saved keys</button><button type="button" id="saveKeys">Save keys</button></div>
+      <div class="row end"><span class="muted small grow" id="keyMsg">Paste a key and press Save keys. Leave a box empty to keep what's saved.</span><button type="button" class="ghost small" id="testTweets">Test tweets</button><button type="button" class="ghost small" id="testKeys">Test saved keys</button><button type="button" id="saveKeys">Save keys</button></div>
     </fieldset>
     <label>Accounts to track <span class="muted">(paste anything: handles, @names, x.com links, or a whole copied list)</span>
       <textarea name="accounts" rows="3"></textarea></label>
