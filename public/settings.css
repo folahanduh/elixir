@@ -1,0 +1,85 @@
+/* Settings page: accounts & keywords */
+.stabs { display: flex; gap: 18px; margin-left: 22px; align-self: stretch; align-items: stretch; }
+.stabs button, .stabs a { background: none; border: 0; border-radius: 0; padding: 0; color: var(--muted); font-weight: 500; font-size: 13.5px; display: flex; align-items: center; text-decoration: none; }
+.stabs button:hover, .stabs a:hover { background: none; color: var(--text); }
+.stabs button.on { color: var(--text); box-shadow: inset 0 -2px 0 var(--text); }
+.spage { max-width: 1200px; padding: 22px 28px 60px; }
+
+.ssearch { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 12px; padding: 0 14px; color: var(--muted); }
+.ssearch input { flex: 1; background: transparent; border: 0; padding: 13px 0; font-size: 14px; outline: none !important; }
+.ssearch-count { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500; }
+
+.segtabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 14px 0; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.segtabs button { background: transparent; color: var(--muted); border-radius: 8px; padding: 8px; font-weight: 500; }
+.segtabs button:hover { background: var(--panel-2); color: var(--text); }
+.segtabs button.on { background: var(--panel-3); color: var(--text); }
+.segtabs button span { color: var(--muted); font-weight: 400; margin-left: 4px; font-variant-numeric: tabular-nums; }
+
+.rows { display: flex; flex-direction: column; gap: 6px; }
+.row { display: flex; align-items: center; gap: 14px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; min-height: 58px; }
+.row:hover { border-color: var(--line-2); }
+.row.is-muted .rmain b { color: var(--muted); }
+.rmain { flex: 1; min-width: 0; }
+.rmain b { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; }
+.rmain b a { color: var(--text); text-decoration: none; }
+.rmain b a:hover { text-decoration: underline; }
+.rmain small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+.chip { font-size: 10.5px; font-weight: 500; padding: 1px 6px; border-radius: 5px; background: var(--panel-3); color: var(--muted); border: 1px solid var(--line-2); }
+.chip.vip { color: var(--vip); border-color: rgba(231, 181, 74, .35); background: rgba(231, 181, 74, .08); }
+
+.av { position: relative; width: 34px; height: 34px; flex: none; display: grid; }
+.av > * { grid-area: 1 / 1; width: 100%; height: 100%; border-radius: 50%; }
+.av i { display: grid; place-items: center; font-style: normal; font-size: 12px; font-weight: 600; background: var(--panel-3); color: var(--muted); z-index: 0; }
+.av img { object-fit: cover; z-index: 1; background: var(--panel-2); }
+.av.add { place-items: center; border-radius: 50%; border: 1px dashed var(--line-2); color: var(--primary); font-size: 18px; }
+.addrow { border-style: dashed; border-color: rgba(167, 177, 255, .35); }
+
+.ractions { display: flex; gap: 2px; }
+.ib { background: transparent; color: var(--muted); border: 0; padding: 7px; border-radius: 8px; display: grid; place-items: center; }
+.ib:hover { background: var(--panel-3); color: var(--text); }
+.ib.on { color: var(--text); }
+.ib-vip.on { color: var(--vip); }
+.ib-trash:hover { color: var(--hot); }
+
+.sfoot { display: flex; gap: 10px; padding: 14px 2px 10px; font-size: 13px; border-bottom: 1px solid var(--line); }
+.sactions { display: flex; align-items: center; gap: 8px; padding-top: 12px; }
+.sactions .grow, .sfoot .grow, .kwhead .grow { flex: 1; }
+.importbox { margin-top: 12px; padding: 12px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); }
+.importbox textarea { font-family: var(--mono); font-size: 12.5px; }
+.empty-row { padding: 26px; text-align: center; color: var(--muted); border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+
+.shead { display: flex; align-items: center; gap: 8px; margin: 18px 0 10px; font-size: 12px; font-weight: 600; letter-spacing: .6px; color: var(--muted); }
+.shead:first-child { margin-top: 4px; }
+.sicon { width: 16px; text-align: center; font-family: var(--mono); }
+.kwhead .ghost { font-size: 13px; }
+.minisearch { display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 9px; color: var(--muted); letter-spacing: 0; font-weight: 400; }
+.minisearch input { background: transparent; border: 0; padding: 7px 0; width: 160px; outline: none !important; font-size: 13px; }
+.sw { width: 30px; height: 30px; border-radius: 8px; background: var(--c); flex: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
+.kwform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; margin-bottom: 10px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); }
+.kwform #kwWord { flex: 1 1 260px; }
+.kwform select { width: auto; }
+.swatches { display: flex; gap: 5px; }
+.swb { width: 22px; height: 22px; padding: 0; border-radius: 6px; background: var(--c); border: 2px solid transparent; }
+.swb:hover { background: var(--c); }
+.swb.on { border-color: var(--text); }
+
+/* switch */
+.switch { position: relative; width: 44px; height: 24px; flex: none; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch i { position: absolute; inset: 0; border-radius: 999px; background: var(--panel-3); border: 1px solid var(--line-2); transition: background .15s; }
+.switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #8a8d99; transition: transform .15s, background .15s; }
+.switch input:checked + i { background: rgba(167, 177, 255, .25); border-color: rgba(167, 177, 255, .5); }
+.switch input:checked + i::after { transform: translateX(20px); background: #fff; }
+.switch input:focus-visible + i { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+@media (max-width: 760px) {
+  .spage { padding: 14px 12px 60px; }
+  .segtabs { grid-template-columns: repeat(2, 1fr); }
+  .stabs { margin-left: 8px; gap: 12px; }
+  .stabs a { display: none; }
+  .row { padding: 8px 10px; gap: 10px; }
+  .minisearch input { width: 100px; }
+}
+
+.kwhead { flex-wrap: wrap; row-gap: 8px; }
+@media (max-width: 760px) { .kwhead .grow { flex-basis: 100%; height: 0; } }

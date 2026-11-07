@@ -22,6 +22,7 @@ const { padsFrom, classify } = require('./lib/launchpads');
 const { KolWatcher, isWallet, parseWalletList } = require('./lib/kols');
 const { RiskEngine } = require('./lib/risk');
 const updater = require('./lib/update');
+const kw = require('./lib/keywords');
 const limit = require('./lib/limit');
 
 // Never die silently: log crashes to data/elixir.log and keep running.
@@ -123,6 +124,10 @@ function readConfig() {
   c.plays = { ...defaults.plays, ...(c.plays || {}), ai: { ...defaults.plays.ai, ...((c.plays || {}).ai || {}) } };
   c.kols = { ...defaults.kols, ...(c.kols || {}) };
   c.filters = { ...defaults.filters, ...(c.filters || {}), presets: { ...defaults.filters.presets, ...((c.filters || {}).presets || {}) } };
+  c.keywords = kw.normalizeKeywords(Array.isArray(c.keywords) ? c.keywords : c.watchlist || []);
+  c.watchlist = c.keywords.filter(k => !k.muted).map(k => k.word); // used by stream speech hints and live pings
+  c.builtins = { ...kw.DEFAULT_BUILTINS, ...(c.builtins || {}) };
+  c.accountMeta = c.accountMeta || {};
   if (DEMO) c.vip = [...new Set([...(c.vip || []), 'memelord_daily', 'frogwatcher'])]; // fictional demo accounts, so demo plays fire
   return c;
 }
@@ -132,7 +137,7 @@ function publicConfig() {
     provider: DEMO ? 'demo' : activeProvider(),
     accounts: cfg.accounts, vip: cfg.vip, watchlist: cfg.watchlist, ignore: cfg.ignore,
     pollSeconds: cfg.pollSeconds, chains: cfg.chains, includeReplies: cfg.includeReplies,
-    notify: cfg.notify === 'all' ? 'all' : 'important', trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId), discord: Boolean(cfg.discordWebhook),
+    notify: cfg.notify === 'all' ? 'all' : 'important', keywords: cfg.keywords, trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId), discord: Boolean(cfg.discordWebhook),
     streams: { highlightScore: cfg.streams.highlightScore, pingScore: cfg.streams.pingScore, watch: cfg.streams.watch, language: cfg.streams.language },
     filter: activePreset(cfg),
     keys: keyStatus(),
@@ -287,13 +292,16 @@ async function ingest(raw) {
     watchlist: cfg.watchlist, ignore: cfg.ignore, max: source === 'stream' ? 5 : 6,
   });
   const vip = source === 'x' && cfg.vip.map(v => v.toLowerCase()).includes(author.toLowerCase());
-  const watch = candidates.filter(c => c.watch).map(c => c.word);
+  const kwHits = kw.keywordHits(text, cfg.keywords);
+  const muted = Boolean(cfg.accountMeta[author.toLowerCase()]?.muted);
+  const watch = muted ? [] : kwHits.filter(k => !k.muted).map(k => k.word);
 
   const item = {
     id, source, author, authorName: String(raw.authorName || ''), avatar: safeUrl(raw.avatar),
     text, url: safeUrl(raw.url), createdAt, receivedAt,
     latencyMs: createdAt ? Math.max(0, receivedAt - createdAt) : null,
-    vip, watch, candidates, via: raw.via || source,
+    vip, watch, candidates, via: raw.via || source, muted,
+    kw: kwHits.map(k => ({ word: k.word, color: k.color })),
     stale: ageSec > cfg.alertMaxAgeSeconds,
     tags: Array.isArray(raw.tags) ? raw.tags.slice(0, 8).map(String) : undefined,
     links: Array.isArray(raw.links) ? raw.links.slice(0, 10).map(String) : undefined,
@@ -318,9 +326,16 @@ async function ingest(raw) {
 
   // Alerts: VIP tweets and watchlist hits fire immediately — before any market lookup.
   if (source === 'x' && !item.stale) streams.fromTweet(item);
-  if (!quiet && !item.stale && (vip || watch.length)) {
-    const why = [vip && `VIP @${author}`, watch.length && `watchlist: ${watch.join(', ')}`].filter(Boolean).join(' · ');
-    alert({ kind: vip ? 'vip' : 'watch', title: why, item });
+  if (!quiet && !item.stale && !muted && (vip || watch.length)) {
+    const why = [vip && `VIP @${author}`, watch.length && `keyword: ${watch.join(', ')}`].filter(Boolean).join(' · ');
+    alert({ kind: watch.length ? 'watch' : 'vip', title: why, item });
+  }
+  // Built-in detectors (Settings → Keywords): a tracked account posting a $TICKER or a "quoted name".
+  if (!quiet && !item.stale && !muted && source === 'x') {
+    const tick = cfg.builtins.cashtag && candidates.find(c => c.reasons.includes('cashtag') && !MAJORS.has(c.word.toLowerCase()));
+    const quote = cfg.builtins.quoted && candidates.find(c => c.reasons.includes('quoted'));
+    if (tick) alert({ kind: 'watch', title: `$TICKER · @${author} posted ${tick.display}`, item, word: tick.word, important: true });
+    else if (quote) alert({ kind: 'watch', title: `QUOTED · @${author}: “${quote.display}”`, item, word: quote.word, important: true });
   }
 
   // Trend spikes: recomputed at most every 2 s (a burst of tweets used to recompute it for each one).
@@ -398,6 +413,10 @@ plays.risk = risk;
 plays.enrich = makeEnricher({ getConfig: () => cfg, getStats: () => plays.stats() });
 plays.searchImages = q => searchImages(q, { searchPairs: term => dex.searchPairs(term, 60000), demo: DEMO });
 plays.imagePicker = makeImagePicker({ getConfig: () => cfg });
+plays.onAiName = (p, names) => {
+  if (!cfg.builtins.ai || !names.length) return;
+  alert({ kind: 'watch', title: `AI NAME · @${p.author}'s tweet → ${names.slice(0, 3).map(n => '$' + n).join(', ')}`, item: { id: p.itemId, source: p.source, author: p.author, text: p.text, url: p.url }, important: true });
+};
 // A coin from a stream line hit a milestone: clip the moment it was said (if it's still in the 15-min buffer).
 plays.onMilestone = (p, d, mc) => {
   if (!p.streamRef || p._t.clipped) return;
@@ -438,7 +457,7 @@ function isImportant(a) {
 }
 
 function alert(a) {
-  a.important = a.important ?? isImportant(a);
+  a.important = cfg.accountMeta[String(a.item?.author || '').toLowerCase()]?.muted ? false : (a.important ?? isImportant(a));
   const payload = { ...a, at: Date.now(), itemId: a.item.id };
   delete payload.item;
   payload.author = a.item.author;
@@ -520,7 +539,7 @@ async function pollLoop() {
         status.lastPollWarn = r?.errors?.length ? r.errors[0] : null;
       } catch (e) {
         // Both kinds of key set: if one provider fails (out of credit, rate limit), use the other this round.
-        const other = provider === 'twitterapi.io' ? (cfg.keys.xBearer && 'x-api') : (cfg.keys.twitterapiIo && 'twitterapi.io');
+        const other = provider === 'twitterapi.io' ? (cfg.xApiFallback === true && cfg.keys.xBearer && 'x-api') : (cfg.keys.twitterapiIo && 'twitterapi.io');
         if (!other) throw e;
         await (other === 'x-api' ? sources.pollXApi : sources.pollTwitterApiIo)(cfg, accounts, t => ingest({ ...t, via: other }), { sinceMs });
       }
@@ -540,6 +559,79 @@ async function pollLoop() {
 
 function statusPayload() {
   return { ...status, provider: DEMO ? 'demo' : activeProvider(), clients: clients.size };
+}
+
+// Big established coins: a $BTC / $ETH mention isn't a play.
+const MAJORS = new Set('btc eth sol bnb xrp usdt usdc doge ada trx ton avax link dot sui hype ltc bch shib xlm hbar near apt arb op pol matic uni aave'.split(' '));
+
+// ---------- Settings page: accounts & keywords ----------
+const PRESET_GROUPS = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'presets', 'accounts.json'), 'utf8')).groups; } catch { return []; } })();
+const groupOf = new Map(PRESET_GROUPS.flatMap(g => g.accounts.map(a => [a.toLowerCase(), g])));
+function saveDisk(mutate) {
+  const disk = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  mutate(disk);
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(disk, null, 2));
+  cfg = readConfig();
+  send('config', publicConfig());
+}
+const handlesFrom = v => [...new Set((Array.isArray(v) ? v.join(' ') : String(v || '')).replace(/https?:\/\/(?:www\.)?(?:x|twitter)\.com\//gi, ' ')
+  .split(/[\s,;|"'\[\]{}()]+/).map(h => h.replace(/^@/, '').replace(/\/.*$/, '')).filter(h => /^[A-Za-z0-9_]{1,15}$/.test(h)))];
+
+function accountsApi(b) {
+  const lc = s => String(s).toLowerCase();
+  const op = b.op || 'list';
+  if (op === 'add' || op === 'remove' || op === 'set' || op === 'group') {
+    saveDisk(d => {
+      d.accounts = d.accounts || []; d.vip = d.vip || []; d.accountMeta = d.accountMeta || {};
+      const has = (l, h) => l.some(x => lc(x) === lc(h));
+      if (op === 'add') for (const h of handlesFrom(b.handles)) if (!has(d.accounts, h)) d.accounts.push(h);
+      if (op === 'remove') { const rm = new Set(handlesFrom(b.handles).map(lc)); d.accounts = d.accounts.filter(a => !rm.has(lc(a))); d.vip = d.vip.filter(a => !rm.has(lc(a))); }
+      if (op === 'group') {
+        const g = PRESET_GROUPS.find(x => x.id === b.id);
+        if (g) {
+          if (b.on) for (const h of g.accounts) { if (!has(d.accounts, h)) d.accounts.push(h); }
+          else { const rm = new Set(g.accounts.map(lc)); d.accounts = d.accounts.filter(a => !rm.has(lc(a))); }
+        }
+      }
+      if (op === 'set' && b.handle) {
+        const h = String(b.handle);
+        if ('vip' in b) d.vip = b.vip ? (has(d.vip, h) ? d.vip : [...d.vip, h]) : d.vip.filter(a => lc(a) !== lc(h));
+        const m = { ...(d.accountMeta[lc(h)] || {}) };
+        for (const k of ['muted', 'pinned']) if (k in b) m[k] = Boolean(b[k]);
+        if ('note' in b) m.note = String(b.note || '').slice(0, 200);
+        d.accountMeta[lc(h)] = m;
+      }
+    });
+    pollLoop();
+  }
+  const vip = new Set(cfg.vip.map(lc));
+  const accounts = cfg.accounts.map(h => {
+    const g = groupOf.get(lc(h)), m = cfg.accountMeta[lc(h)] || {};
+    return { handle: h, group: g?.label || null, groupId: g?.id || null, preset: Boolean(g), vip: vip.has(lc(h)), muted: Boolean(m.muted), pinned: Boolean(m.pinned), note: m.note || '' };
+  });
+  const on = new Set(cfg.accounts.map(lc));
+  const groups = PRESET_GROUPS.map(g => ({ id: g.id, label: g.label, tier: g.tier, total: g.accounts.length, active: g.accounts.filter(a => on.has(lc(a))).length }));
+  return { accounts, groups };
+}
+
+function keywordsApi(b) {
+  const op = b.op || 'list';
+  if (op !== 'list') {
+    saveDisk(d => {
+      let list = kw.normalizeKeywords(Array.isArray(d.keywords) ? d.keywords : d.watchlist || []);
+      const word = kw.norm(b.word);
+      if (op === 'add' && word) {
+        const words = String(b.word).split(/[\n,]+/).map(kw.norm).filter(Boolean); // paste several at once
+        words.forEach((w, i) => { if (!list.some(k => k.word === w)) list.push({ word: w, match: b.match === 'partial' ? 'partial' : 'word', color: i === 0 ? b.color : kw.PALETTE[(list.length) % kw.PALETTE.length] }); });
+      }
+      if (op === 'remove') list = list.filter(k => k.word !== word);
+      if (op === 'update') list = list.map(k => (k.word === word ? { ...k, ...b.patch, word: kw.norm(b.patch?.word || k.word) } : k));
+      if (op === 'builtin' && ['cashtag', 'quoted', 'ai'].includes(b.key)) d.builtins = { ...kw.DEFAULT_BUILTINS, ...(d.builtins || {}), [b.key]: Boolean(b.on) };
+      d.keywords = kw.normalizeKeywords(list);
+      delete d.watchlist;
+    });
+  }
+  return { keywords: cfg.keywords, builtins: cfg.builtins, palette: kw.PALETTE };
 }
 
 // ---------- auto-update ----------
@@ -662,7 +754,7 @@ const server = http.createServer(async (req, res) => {
         };
         const disk = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
         for (const k of ['accounts', 'vip']) if (k in body) disk[k] = clean(body[k]);
-        for (const k of ['watchlist', 'ignore']) if (k in body) {
+        for (const k of ['ignore']) if (k in body) {
           disk[k] = [...new Set((Array.isArray(body[k]) ? body[k] : String(body[k]).split(/[\n,]+/)).map(s => normalize(String(s).trim())).filter(Boolean))];
         }
         if ('pollSeconds' in body) disk.pollSeconds = Math.max(2, Math.min(300, Number(body.pollSeconds) || 10));
@@ -688,6 +780,9 @@ const server = http.createServer(async (req, res) => {
         pollLoop();
         return json(res, 200, publicConfig());
       }
+
+      if (url.pathname === '/api/accounts') return json(res, 200, accountsApi(body));
+      if (url.pathname === '/api/keywords') return json(res, 200, keywordsApi(body));
 
       if (url.pathname === '/api/tweets/test') {
         // One real fetch for a few big accounts over the last day: shows tweets or the exact error.

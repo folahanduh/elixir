@@ -31,6 +31,8 @@
     bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
     gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
     search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+    hash: '<path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16"/>',
     key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M14 9l2 2"/>',
     side: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
   };
@@ -50,6 +52,8 @@
       <a href="/streams.html" data-k="streams">${svg('streams')}Streams</a>
       <a href="/#plays" data-k="plays">${svg('plays')}Plays<span class="sb-n" data-n="plays"></span></a>
       <a href="#" data-k="kols">${svg('kols')}KOL wallets<span class="sb-n" data-n="kols"></span></a>
+      <a href="/settings.html#accounts" data-k="accounts">${svg('users')}Accounts<span class="sb-n" data-n="accounts"></span></a>
+      <a href="/settings.html#keywords" data-k="keywords">${svg('hash')}Keywords<span class="sb-n" data-n="keywords"></span></a>
       <a href="/#playbook" data-k="book">${svg('book')}Playbook</a>
       <a href="/#alerts" data-k="alerts">${svg('bell')}Alerts<span class="sb-n" data-n="alerts"></span></a>
       <a href="/#keys" data-k="keys">${svg('key')}API keys<span class="sb-n" data-n="keys"></span></a>
@@ -62,7 +66,7 @@
       </div>
     </div>`;
   document.body.prepend(sb);
-  sb.querySelector(`[data-k="${page}"]`)?.classList.add('on');
+  sb.querySelector(`[data-k="${page === 'settings' ? (location.hash === '#keywords' ? 'keywords' : 'accounts') : page}"]`)?.classList.add('on');
   document.body.classList.add('shell');
   const fold = () => document.body.classList.toggle('sb-folded', store.get('sbFold', '0') === '1');
   fold();
@@ -76,7 +80,13 @@
     else location.href = '/?q=' + encodeURIComponent(v);
   };
   const kolBtn = () => document.querySelector('.kolp-toggle');
-  sb.querySelector('[data-k="kols"]').onclick = e => { e.preventDefault(); kolBtn()?.click(); };
+  sb.querySelector('[data-k="kols"]').onclick = e => { e.preventDefault(); if (kolBtn()) kolBtn().click(); else location.href = '/'; };
+  for (const k of ['accounts', 'keywords']) sb.querySelector(`[data-k="${k}"]`).addEventListener('click', e => {
+    if (page !== 'settings') return;
+    e.preventDefault(); location.hash = k;
+    document.querySelector(`#stabs [data-sec="${k}"]`)?.click();
+    sb.querySelectorAll('.sb-nav a').forEach(a => a.classList.toggle('on', a.dataset.k === k));
+  });
   sb.querySelector('.sb-import').onclick = () => {
     const p = document.querySelector('.kolp');
     if (p?.hidden) kolBtn()?.click();
@@ -89,6 +99,11 @@
   const jump = id => { const el = document.getElementById(id); if (el) { el.closest('.panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return true; } };
   for (const [k, id] of [['book', 'playbook'], ['alerts', 'alerts']]) sb.querySelector(`[data-k="${k}"]`).addEventListener('click', e => { if (jump(id)) e.preventDefault(); });
   sb.querySelector('[data-k="keys"]').addEventListener('click', e => { if (typeof window.openKeys === 'function') { e.preventDefault(); window.openKeys(); } });
+  const paintCounts = c => {
+    if (!c) return;
+    sb.querySelector('[data-n="accounts"]').textContent = (c.accounts || []).length || '';
+    sb.querySelector('[data-n="keywords"]').textContent = (c.keywords || []).length || '';
+  };
   const paintKeyCount = c => {
     const ks = c?.keys; if (!ks) return;
     const n = ['DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY'].filter(k => ks[k]?.set).length;
@@ -182,7 +197,7 @@
     streams.clear(); plays.clear();
     for (const s of d.streams?.sessions || []) { const { segs, ...m } = s; streams.set(s.id, m); }
     for (const p of d.plays || []) plays.set(p.id, p);
-    C = d.config; ST = d.status; SS = d.streams?.status; paintKeyCount(C);
+    C = d.config; ST = d.status; SS = d.streams?.status; paintKeyCount(C); paintCounts(C);
     upcoming = SS?.upcoming || []; paintNext();
     paintLive(); paintKols(d.kols); paintItems(C, ST, SS);
     up = true; paintBar();
@@ -195,7 +210,7 @@
   es.addEventListener('play-removed', e => { plays.delete(JSON.parse(e.data).id); paintLive(); });
   es.addEventListener('kol-status', e => paintKols(JSON.parse(e.data)));
   es.addEventListener('status', e => { ST = JSON.parse(e.data); paintItems(C, ST, SS); });
-  es.addEventListener('config', e => { C = JSON.parse(e.data); paintItems(C, ST, SS); paintKeyCount(C); });
+  es.addEventListener('config', e => { C = JSON.parse(e.data); paintItems(C, ST, SS); paintKeyCount(C); paintCounts(C); });
   es.addEventListener('alert', () => { alerts++; sb.querySelector('[data-n="alerts"]').textContent = alerts; });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { alerts = 0; sb.querySelector('[data-n="alerts"]').textContent = ''; } });
 

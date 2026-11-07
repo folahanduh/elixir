@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings · Elixir</title>
+<link rel="preload" href="/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/settings.css">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+</head>
+<body data-page="settings">
+<script src="/shell.js"></script>
+<header class="top">
+  <div class="ptitle"><span class="pt-ico"><span class="dot" id="liveDot"></span></span><div><b id="secTitle">Tracker</b><small id="secSub">Accounts you follow</small></div></div>
+  <nav class="stabs" id="stabs">
+    <button data-sec="accounts" class="on">Accounts</button>
+    <button data-sec="keywords">Keywords</button>
+    <a href="/#keys">API keys ↗</a>
+    <a href="/#settings">General ↗</a>
+  </nav>
+</header>
+
+<main class="spage">
+  <!-- ============ Accounts ============ -->
+  <section id="sec-accounts">
+    <form class="ssearch" id="accSearchForm">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+      <input id="accSearch" placeholder="Search and add accounts… (paste @handles or x.com links to add several)" autocomplete="off" spellcheck="false">
+      <span class="ssearch-count" id="accCount" title="Accounts tracked">0</span>
+    </form>
+
+    <div class="segtabs" id="accTabs">
+      <button data-tab="all" class="on">All accounts <span id="nAll"></span></button>
+      <button data-tab="preset">Preset <span id="nPreset"></span></button>
+      <button data-tab="custom">Your accounts <span id="nCustom"></span></button>
+      <button data-tab="groups">Groups</button>
+    </div>
+
+    <div id="accList" class="rows"></div>
+    <div id="groupList" class="rows" hidden></div>
+
+    <div class="sfoot">
+      <span class="muted" id="accShowing"></span>
+      <span class="grow"></span>
+      <span class="muted" id="accWatching"></span>
+    </div>
+    <div class="sactions">
+      <button class="ghost" id="accImportBtn">Import</button>
+      <button class="ghost" id="accExportBtn">Export</button>
+      <span class="grow"></span>
+      <button id="accAddBtn">Add accounts</button>
+    </div>
+    <div class="importbox" id="accImport" hidden>
+      <textarea rows="5" spellcheck="false" placeholder="Paste a list: @handles, plain names, x.com links, one per line or separated by commas. A j7/other tracker's copied list works too."></textarea>
+      <div class="sactions"><span class="muted small" id="accImportMsg"></span><span class="grow"></span><button class="ghost" type="button" id="accImportCancel">Cancel</button><button type="button" id="accImportGo">Add all</button></div>
+    </div>
+  </section>
+
+  <!-- ============ Keywords ============ -->
+  <section id="sec-keywords" hidden>
+    <div class="shead"><span class="sicon">T</span>BUILT-IN</div>
+    <div class="rows" id="builtins"></div>
+
+    <div class="shead kwhead">
+      <span class="sicon">#</span>CUSTOM KEYWORDS <span class="muted" id="kwCount"></span>
+      <span class="grow"></span>
+      <div class="minisearch"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><input id="kwSearch" placeholder="Search"></div>
+      <button class="ghost" id="kwAddBtn">+ Add keyword</button>
+    </div>
+    <form class="kwform" id="kwForm" hidden>
+      <input id="kwWord" placeholder="keyword or phrase (several: separate with commas)" autocomplete="off" required>
+      <select id="kwMatch"><option value="word">Full word</option><option value="partial">Partial match</option></select>
+      <div class="swatches" id="kwSwatches"></div>
+      <button class="ghost" type="button" id="kwCancel">Cancel</button>
+      <button id="kwSave">Add</button>
+    </form>
+    <div class="rows" id="kwList"></div>
+    <p class="hint">Keywords ping you when a tracked account tweets them or a streamer says them. <b>Full word</b> matches “doge” but not “dogecoin”; <b>partial</b> matches anywhere. Muted keywords are still highlighted but never ping.</p>
+  </section>
+</main>
+
+<div id="toasts" class="toasts"></div>
+<script src="/settings.js"></script>
+</body>
+</html>

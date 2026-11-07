@@ -96,12 +96,10 @@
       <div id="keyRows"></div>
       <div class="row end"><span class="muted small grow" id="keyMsg">Paste a key and press Save keys. Leave a box empty to keep what's saved.</span><button type="button" class="ghost small" id="testTweets">Test tweets</button><button type="button" class="ghost small" id="testKeys">Test saved keys</button><button type="button" id="saveKeys">Save keys</button></div>
     </fieldset>
-    <label>Accounts to track <span class="muted">(paste anything: handles, @names, x.com links, or a whole copied list)</span>
-      <textarea name="accounts" rows="3"></textarea></label>
-    <label>VIP accounts <span class="muted">(every tweet alerts)</span>
-      <textarea name="vip" rows="2"></textarea></label>
-    <label>Watchlist words <span class="muted">(one per line or comma separated; phrases OK)</span>
-      <textarea name="watchlist" rows="4"></textarea></label>
+    <div class="setlinks">
+      <a class="setlink" href="/settings.html#accounts"><b>Accounts</b><span>Search, add, import, VIP, mute <i id="setAccN"></i></span></a>
+      <a class="setlink" href="/settings.html#keywords"><b>Keywords</b><span>$TICKER, quotes, your words with colours <i id="setKwN"></i></span></a>
+    </div>
     <label>Ignore words <span class="muted">(never flagged)</span>
       <textarea name="ignore" rows="2"></textarea></label>
     <div class="row">

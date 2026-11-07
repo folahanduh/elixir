@@ -44,6 +44,7 @@ function connect() {
     renderLiveStreams();
     $('#liveDot').classList.add('live');
     if (location.hash === '#keys' && !$('#settings').open) openKeys();
+    if (location.hash === '#settings' && !$('#settings').open) $('#settingsBtn').click();
   });
   es.addEventListener('item', e => addItem(JSON.parse(e.data))); // its play panel is drawn when the card lands
   es.addEventListener('play', e => { const p = JSON.parse(e.data); renderPlay(p); if (state.filter === 'plays') applyFilter(); });
@@ -103,8 +104,14 @@ function visible(it) {
   return it.source === state.filter || (state.filter === 'x' && it.source === 'manual');
 }
 
-function highlight(text, cands) {
+function highlight(text, cands, kws) {
   let html = esc(text);
+  // Your keywords first, in their colours.
+  for (const k of (kws || []).slice().sort((a, b) => b.word.length - a.word.length)) {
+    const re = new RegExp('(' + esc(k.word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+') + ')(?![^<]*>)', 'gi');
+    html = html.replace(re, `<mark class="kw" style="--kc:${/^#[0-9a-f]{6}$/i.test(k.color) ? k.color : '#e7b54a'}">$1</mark>`);
+  }
+  if (kws?.length) return html;
   const words = (cands || []).filter(c => c.score >= 2 || c.watch).map(c => c.display.replace(/^[$#]/, '')).filter(w => w.length > 1)
     .sort((a, b) => b.length - a.length);
   if (!words.length) return html;
@@ -157,7 +164,7 @@ function cardHTML(it) {
       ${it.url ? `<a class="lk" href="${esc(it.url)}" target="_blank" rel="noopener">open ↗</a>` : ''}
       <button class="ghost small trackbtn" data-track="${esc(it.id)}" title="Find the 1st/2nd/3rd deploys, rank by real volume, suggest tickers and vamps">Track play</button>
     </div>
-    <div class="text">${highlight(it.text, it.candidates)}</div>
+    <div class="text">${highlight(it.text, it.candidates, it.kw)}</div>
     ${(it.media || []).length ? `<div class="media">${it.media.slice(0, 2).map(m => `<a href="${esc(m)}" target="_blank" rel="noopener"><img src="${esc(m)}" alt="" loading="lazy"></a>`).join('')}</div>` : ''}
     ${it.engagement && (it.engagement.likes || it.engagement.views) ? `<div class="eng muted small">${fmtNum(it.engagement.likes)} likes · ${fmtNum(it.engagement.reposts)} RT · ${fmtNum(it.engagement.views)} views</div>` : ''}
     ${streamLink ? `<div class="streamlink"><button class="ghost small" data-transcribe="${esc(streamLink)}" data-label="${esc(it.author)}">Transcribe stream</button><a class="lk" href="${esc(streamLink)}" target="_blank" rel="noopener">Open stream ↗</a></div>` : ''}
@@ -574,9 +581,8 @@ function addStreamMoment(seg) {
 // ---------- settings ----------
 $('#settingsBtn').onclick = () => {
   const c = state.config || {}, f = $('#settingsForm');
-  f.accounts.value = (c.accounts || []).join(', ');
-  f.vip.value = (c.vip || []).join(', ');
-  f.watchlist.value = (c.watchlist || []).join('\n');
+  $('#setAccN').textContent = (c.accounts || []).length + ' tracked';
+  $('#setKwN').textContent = (c.keywords || []).length + ' keywords';
   f.ignore.value = (c.ignore || []).join(', ');
   f.pollSeconds.value = c.pollSeconds || 8;
   f.chains.value = (c.chains || []).join(', ');
@@ -600,7 +606,7 @@ $('#settingsForm').addEventListener('submit', async e => {
   if (e.submitter?.value !== 'save') return;
   const f = e.target;
   state.config = await api('/api/config', {
-    accounts: f.accounts.value, vip: f.vip.value, watchlist: f.watchlist.value, ignore: f.ignore.value,
+    ignore: f.ignore.value,
     pollSeconds: f.pollSeconds.value, chains: f.chains.value, includeReplies: f.includeReplies.checked, notify: f.notify.value,
     ...(state.resetFilter ? { filterReset: true } : { filter: { label: f.fLabel.value, npAge: f.npAge.value, npVol: f.npVol.value, fsMcap: f.fsMcap.value, fsVol: f.fsVol.value, fsAge: f.fsAge.value, grFees: f.grFees.value } }),
   });
@@ -681,7 +687,7 @@ $('#keyRows').addEventListener('click', e => {
 // Sidebar "API keys" link and first run: /#keys opens straight to it.
 function openKeys() { $('#settingsBtn').click(); setTimeout(() => $('#keyset').scrollIntoView({ block: 'start' }), 50); }
 window.openKeys = openKeys;
-window.addEventListener('hashchange', () => { if (location.hash === '#keys') openKeys(); });
+window.addEventListener('hashchange', () => { if (location.hash === '#keys') openKeys(); if (location.hash === '#settings') $('#settingsBtn').click(); });
 
 // keep relative times fresh
 connect();

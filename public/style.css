@@ -568,3 +568,11 @@ details.fold[open] > summary { margin-bottom: 8px; }
 .kmore > summary { cursor: pointer; padding: 8px 0; font-size: 13px; color: var(--primary); list-style: none; }
 .kmore > summary::-webkit-details-marker { display: none; }
 .kmore[open] > summary { color: var(--text); }
+
+mark.kw { background: color-mix(in srgb, var(--kc) 16%, transparent); color: var(--kc); border-radius: 3px; padding: 0 2px; }
+.setlinks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.setlink { display: block; padding: 12px 14px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2); color: var(--text); text-decoration: none; }
+.setlink:hover { border-color: var(--primary); }
+.setlink b { display: block; }
+.setlink span { color: var(--muted); font-size: 12.5px; }
+.setlink i { font-style: normal; color: var(--primary); }
