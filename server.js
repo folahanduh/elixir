@@ -554,15 +554,22 @@ async function pollLoop() {
       }
       lastPolled[tier] = tierStart;
     }
+    if (status.lastPollError) console.log('  Tweets are coming in again.');
     status.lastPollError = null;
   } catch (e) {
+    // Print an error once (and again only if it changes or 10 minutes pass), not every cycle.
+    if (e.message !== status.lastPollError || Date.now() - (status.lastPollLoggedAt || 0) > 600000) {
+      console.error('[poll]', e.message);
+      status.lastPollLoggedAt = Date.now();
+    }
     status.lastPollError = e.message;
-    console.error('[poll]', e.message);
   }
   status.lastPollAt = Date.now();
   status.polls++;
   send('status', statusPayload());
-  const wait = Math.max(1000, cfg.pollSeconds * 1000 - (Date.now() - started));
+  // A rejected key or no credit won't fix itself: try again in 5 minutes (saving a key retries at once).
+  const keyProblem = /\((401|402|403)\)|out of credit|rejected/i.test(status.lastPollError || '');
+  const wait = keyProblem ? 300000 : Math.max(1000, cfg.pollSeconds * 1000 - (Date.now() - started));
   pollTimer = setTimeout(pollLoop, wait);
 }
 
