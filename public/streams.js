@@ -68,6 +68,7 @@ function upsertSession(m) {
     s.el = document.createElement('article');
     s.el.className = 'sess';
     s.el.dataset.sid = m.id;
+    s.el.dataset.pop = 'stream-' + m.id; s.el.dataset.popLabel = m.label || 'Stream'; s.el.dataset.popSize = '680x820';
     s.el.innerHTML = `
       <div class="sess-head">
         <span class="sess-av"></span><h3><span class="nm"></span><span class="plat"></span><span class="rec"></span></h3>
@@ -378,9 +379,10 @@ function onAlert(a) {
   if (Date.now() - (seenAlerts.get(key) || 0) < 15000) return;
   seenAlerts.set(key, Date.now());
   if (a.important === false) return; // quiet alerts are listed on the Feed page only
-  if (Date.now() - (window.__lastBeep || 0) > 8000) { window.__lastBeep = Date.now(); beep(a.kind); }
-  toast(a);
-  desktopNotify(a);
+  const mine = window.elixirClaimNoise ? window.elixirClaimNoise(a.title + '|' + a.at) : true;
+  if (mine && Date.now() - (window.__lastBeep || 0) > 8000) { window.__lastBeep = Date.now(); beep(a.kind); }
+  if (!window.elixirQuietToasts) toast(a);
+  if (mine) desktopNotify(a);
 }
 
 // ---------- start: link ----------

@@ -44,21 +44,21 @@
   </section>
 
   <aside class="col side-col">
-    <div class="panel">
+    <div class="panel" data-pop="moments" data-pop-label="Moments" data-pop-size="480x760">
       <div class="panel-head"><h2>Moments</h2>
         <label class="pause"><input type="checkbox" id="pingOnly"> pings only</label>
       </div>
       <div id="moments" class="moments"><span class="muted placeholder">Highlights from every stream land here.</span></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" data-pop="clips" data-pop-label="Clips" data-pop-size="560x640">
       <div class="panel-head"><h2>Clips</h2><span class="muted small">auto-made on every ping</span></div>
       <video id="clipPlayer" controls playsinline hidden></video>
       <div id="clipTitle" class="small" hidden></div>
       <div id="clips" class="clips"><span class="muted placeholder small">Clips of pinged moments appear here (link capture only). Use "clip" on any line to clip it yourself.</span></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" data-pop="upcoming" data-pop-label="Upcoming streams" data-pop-size="420x460">
       <div class="panel-head"><h2>Upcoming</h2><span class="muted small">pings 15 min before</span></div>
       <div id="upcoming" class="upc-list"><span class="muted small">Checking scheduled streams…</span></div>
     </div>

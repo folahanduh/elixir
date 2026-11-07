@@ -1,8 +1,49 @@
 // App shell shared by both pages: left sidebar (live streams + plays with their pictures, feature nav),
 // bottom status bar (server latency, sources), and one shared server-event connection.
 (() => {
-  window.nrES = window.nrES || new EventSource('/api/events');
+  // ---- one live connection shared by every Elixir window (main page + pop-outs) ----
+  // Browsers allow ~6 connections per site, so each window opening its own stream would freeze Elixir
+  // after a few pop-outs. The first window holds the stream and relays it to the others over a
+  // BroadcastChannel; when it closes, the next window takes over (Web Locks).
+  window.nrES = window.nrES || (() => {
+    const L = new Map();
+    const fire = (type, data) => { for (const fn of [...(L.get(type) || [])]) { try { fn({ type, data }); } catch (e) { console.error(e); } } };
+    const es = {
+      addEventListener(t, fn) { if (!L.has(t)) L.set(t, new Set()); L.get(t).add(fn); },
+      removeEventListener(t, fn) { L.get(t)?.delete(fn); },
+    };
+    Object.defineProperty(es, 'onerror', { set(fn) { es.addEventListener('error', fn); } });
+    Object.defineProperty(es, 'onopen', { set(fn) { es.addEventListener('open', fn); } });
+    const chan = 'BroadcastChannel' in window ? new BroadcastChannel('elixir-events') : null;
+    let leader = false;
+    const lead = () => new Promise(() => { // held for this window's lifetime
+      leader = true;
+      const src = new EventSource('/api/events?mux=1');
+      src.onmessage = m => {
+        let o; try { o = JSON.parse(m.data); } catch { return; }
+        const d = JSON.stringify(o.d);
+        fire(o.e, d);
+        chan?.postMessage({ e: o.e, d });
+      };
+      src.onopen = () => { fire('open'); chan?.postMessage({ e: 'open' }); };
+      src.onerror = () => { fire('error'); chan?.postMessage({ e: 'error' }); };
+    });
+    if (chan && navigator.locks) {
+      chan.onmessage = m => { if (!leader) fire(m.data.e, m.data.d); };
+      navigator.locks.request('elixir-events', lead);
+      // A window joining later missed the leader's first snapshot: fetch the current state once.
+      setTimeout(async () => {
+        if (leader) return;
+        try { const r = await fetch('/api/snapshot', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); fire('open'); fire('hello', await r.text()); } catch { fire('error'); }
+      }, 250);
+    } else lead();
+    return es;
+  })();
   const es = window.nrES;
+
+  // ---- pop-out mode: ?popout=page (whole page, no sidebar) or ?popout=<panel> (just that panel) ----
+  const POP = new URLSearchParams(location.search).get('popout');
+  if (POP) document.documentElement.classList.add('popout', POP === 'page' ? 'pop-page' : 'pop-view');
   const page = document.body.dataset.page || 'feed';
   const h = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const usd = n => n == null ? '' : '$' + (n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n));
@@ -237,6 +278,86 @@
     } else slot.innerHTML = '';
   }).catch(() => {});
   setTimeout(() => upd(), 1200);
+
+  // ---- pop-out buttons ----
+  const popIcon = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-8 8"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>';
+  const canFloat = 'documentPictureInPicture' in window;
+  async function popOut(view, size, label, onTop) {
+    const [w, hgt] = String(size || '520x760').split('x').map(Number);
+    const url = location.pathname + '?popout=' + encodeURIComponent(view);
+    if (onTop && canFloat) {
+      // Chrome/Edge: a small window that stays above other apps (your trading terminal).
+      const pip = await documentPictureInPicture.requestWindow({ width: w, height: hgt });
+      pip.document.title = (label || 'Elixir') + ' · Elixir';
+      pip.document.body.style.cssText = 'margin:0;background:#000;height:100vh';
+      const f = pip.document.createElement('iframe');
+      f.src = url; f.style.cssText = 'border:0;width:100%;height:100%;display:block';
+      pip.document.body.append(f);
+      return;
+    }
+    window.open(url, 'elixir-pop-' + view, `popup,width=${w},height=${hgt}`);
+  }
+  window.elixirPopOut = popOut;
+  // Several Elixir windows open: only one of them beeps / notifies for each alert.
+  window.elixirClaimNoise = key => {
+    try { const k = 'nr.noise'; if (localStorage.getItem(k) === key) return false; localStorage.setItem(k, key); return true; } catch { return true; }
+  };
+  // Small pop-outs only show pop-up toasts if they *are* the alerts list.
+  window.elixirQuietToasts = Boolean(POP && POP !== 'page' && POP !== 'alerts');
+  let popMenu = null;
+  function popChooser(btn, view, size, label) {
+    if (!canFloat) return popOut(view, size, label, false);
+    popMenu?.remove();
+    popMenu = document.createElement('div');
+    popMenu.className = 'pop-menu';
+    popMenu.innerHTML = '<button data-m="win">New window</button><button data-m="top">Float on top <small>stays above other apps</small></button>';
+    document.body.append(popMenu);
+    const r = btn.getBoundingClientRect();
+    popMenu.style.top = (r.bottom + 6) + 'px';
+    popMenu.style.left = Math.max(8, Math.min(innerWidth - 230, r.right - 220)) + 'px';
+    popMenu.onclick = e => { const m = e.target.closest('[data-m]'); if (!m) return; popMenu.remove(); popMenu = null; popOut(view, size, label, m.dataset.m === 'top'); };
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-popbtn]');
+    if (b) { e.preventDefault(); e.stopPropagation(); return popChooser(b, b.dataset.popbtn, b.dataset.size, b.dataset.label); }
+    if (popMenu && !e.target.closest('.pop-menu')) { popMenu.remove(); popMenu = null; }
+  }, true);
+  const popBtnHTML = (view, size, label) => `<button type="button" class="ghost small popbtn" data-popbtn="${h(view)}" data-size="${h(size || '')}" data-label="${h(label || '')}" title="Pop out ${h(label || '')}">${popIcon}</button>`;
+  window.elixirPopBtn = popBtnHTML;
+  function addPopButtons(root = document) {
+    for (const el of root.querySelectorAll('[data-pop]')) {
+      if (el.dataset.popReady) continue;
+      el.dataset.popReady = '1';
+      const head = el.querySelector(':scope > .panel-head, :scope > .kolp-head, :scope > .sess-head, :scope > .panel-head') || el.querySelector('.panel-head');
+      if (!head) continue;
+      head.insertAdjacentHTML('beforeend', popBtnHTML(el.dataset.pop, el.dataset.popSize, el.dataset.popLabel));
+    }
+  }
+  const onReady = fn => (document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', fn) : fn());
+  onReady(() => {
+    if (POP) return;
+    addPopButtons();
+    new MutationObserver(() => addPopButtons()).observe(document.body, { childList: true, subtree: true });
+    // Whole page
+    document.querySelector('.top .actions')?.insertAdjacentHTML('beforeend', `<button type="button" class="ghost popbtn-page" data-popbtn="page" data-size="${page === 'streams' ? '900x900' : '1100x900'}" data-label="${h(document.title)}" title="Pop out this page">${popIcon}<span>Pop out</span></button>`);
+    bar.insertAdjacentHTML('beforeend', `<a href="#" class="sbar-l" data-popbtn="page" data-size="1100x900" data-label="Elixir">Pop out</a>`);
+  });
+  // In a pop-out of one panel: move that panel out on its own (it keeps all its live behaviour).
+  if (POP && POP !== 'page') {
+    onReady(() => {
+      const root = document.createElement('div');
+      root.className = 'pop-root';
+      document.body.append(root);
+      const take = () => {
+        const el = document.querySelector(`[data-pop="${CSS.escape(POP)}"]`);
+        if (!el || el.parentElement === root) return Boolean(el);
+        root.append(el);
+        document.title = (el.dataset.popLabel || 'Elixir') + ' · Elixir';
+        return true;
+      };
+      if (!take()) { const mo = new MutationObserver(() => { if (take()) mo.disconnect(); }); mo.observe(document.body, { childList: true, subtree: true }); }
+    });
+  }
 
   // Mobile: the sidebar slides in from a header button.
   const menu = document.createElement('button');

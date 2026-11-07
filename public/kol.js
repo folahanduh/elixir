@@ -14,6 +14,7 @@
 
   const panel = document.createElement('aside');
   panel.className = 'kolp';
+  panel.dataset.pop = 'kols'; panel.dataset.popLabel = 'KOL wallets'; panel.dataset.popSize = '600x460';
   panel.innerHTML = `
     <div class="kolp-head">
       <b>KOL WALLETS</b><span class="kolp-st">…</span>
@@ -48,6 +49,7 @@
 
   const okey = document.body.dataset.page === 'streams' ? 'kolOpenStreams' : 'kolOpen';
   let open = store.get(okey, document.body.dataset.page === 'streams' ? '0' : '1') === '1';
+  if (new URLSearchParams(location.search).get('popout') === 'kols') open = true; // popped out on its own: always shown
   let buysOnly = store.get('kolBuys', '0') === '1';
   const events = new Map();
   const paintOpen = () => { panel.hidden = !open; btn.classList.toggle('on', open); document.body.classList.toggle('kol-open', open); };

@@ -212,9 +212,12 @@ const clients = new Set();
 const status = { lastPollAt: null, lastPollError: null, polls: 0, bridgeLastSeen: null };
 
 function send(event, data) {
-  const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const res of clients) res.write(msg);
+  const json = JSON.stringify(data);
+  const named = `event: ${event}\ndata: ${json}\n\n`;
+  const mux = `data: {"e":${JSON.stringify(event)},"d":${json}}\n\n`; // one stream shared by every Elixir window
+  for (const res of clients) res.write(res.mux ? mux : named);
 }
+const helloPayload = () => ({ version: VERSION, config: publicConfig(), status: statusPayload(), items: items.slice(-150), trends: trendsSnapshot(), streams: streams.snapshot(), plays: plays.list(), playStats: plays.stats(), kols: kols.snapshot(), riskMemory: risk.memorySummary() });
 
 // Same word looked up again within a minute: reuse the answer. Max 4 lookups at a time.
 const lookupCache = new Map();
@@ -687,7 +690,9 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && url.pathname === '/api/events') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
-      res.write(`event: hello\ndata: ${JSON.stringify({ version: VERSION, config: publicConfig(), status: statusPayload(), items: items.slice(-150), trends: trendsSnapshot(), streams: streams.snapshot(), plays: plays.list(), playStats: plays.stats(), kols: kols.snapshot(), riskMemory: risk.memorySummary() })}\n\n`);
+      res.mux = url.searchParams.get('mux') === '1';
+      const hello = JSON.stringify(helloPayload());
+      res.write(res.mux ? `data: {"e":"hello","d":${hello}}\n\n` : `event: hello\ndata: ${hello}\n\n`);
       clients.add(res);
       const ping = setInterval(() => res.write(': ping\n\n'), 20000);
       req.on('close', () => { clearInterval(ping); clients.delete(res); });
@@ -781,6 +786,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, publicConfig());
       }
 
+      if (url.pathname === '/api/snapshot') return json(res, 200, helloPayload()); // pop-out windows joining the shared stream
       if (url.pathname === '/api/accounts') return json(res, 200, accountsApi(body));
       if (url.pathname === '/api/keywords') return json(res, 200, keywordsApi(body));
 

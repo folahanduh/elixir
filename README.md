@@ -113,6 +113,17 @@ The landing page lives in `docs/`. To publish it, go to **Settings → Pages →
 - **Header:** stat tiles for the page. On the feed: tweets, plays tracking, deploys found, alerts, source, bridge. On streams: streams live, lines heard, highlights, speech, Claude.
 - **Status bar (bottom):** server connection and round-trip time, plus which tweet source, X bridge, speech engine and Claude judge are on.
 
+## Pop-outs (for your trading terminal)
+
+Click **⧉** on any panel, or **Pop out** in the header for a whole page, to open it in its own small window. That window has no sidebar or bottom bar, so you can crop it next to Axiom or GMGN. You can pop out:
+- Live feed, Alerts, Stream moments, Hot words, Playbook
+- KOL wallets
+- Each stream card, plus Moments, Upcoming and Clips on the Streams page
+
+In Chrome and Edge you can also pick **Float on top**, which keeps the window above your other apps.
+
+All Elixir windows share one live connection, so pop-outs don't slow anything down. Only one window beeps for each alert.
+
 ## 1. Twitter plays: 1st / 2nd / 3rd deploys, ranked by real volume
 
 When a big play lands, the tweet gets a **🎯 PLAY** panel right beside it:

@@ -585,3 +585,26 @@ mark.kw { background: color-mix(in srgb, var(--kc) 16%, transparent); color: var
 .kolp-toggle::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
 .kolp-toggle.on::before { background: var(--accent); box-shadow: 0 0 0 3px rgba(50, 210, 150, .15); }
 button.small, .sess-head button { font-weight: 500; }
+
+/* ---------- pop-outs ---------- */
+.popbtn { padding: 0 !important; width: 28px; height: 26px; display: inline-grid !important; place-items: center; color: var(--muted) !important; }
+.popbtn:hover { color: var(--text) !important; }
+.panel-head .popbtn { margin-left: 4px; }
+.popbtn-page { gap: 6px; }
+.popbtn-page svg { opacity: .8; }
+.pop-menu { position: fixed; z-index: 80; width: 220px; padding: 5px; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 12px 30px #000c; display: flex; flex-direction: column; }
+.pop-menu button { background: transparent; color: var(--text); text-align: left; font-weight: 500; font-size: 13px; padding: 8px 10px; border-radius: 7px; }
+.pop-menu button:hover { background: var(--panel-3); }
+.pop-menu small { display: block; color: var(--muted); font-weight: 400; font-size: 11.5px; }
+html.popout body.shell { padding: 0; }
+html.popout .sb, html.popout .sbar, html.popout .sb-menu, html.popout .popbtn, html.popout .popbtn-page { display: none !important; }
+html.pop-view body > :not(.pop-root):not(#toasts):not(script):not(.upd):not(.pop-menu) { display: none !important; }
+html.pop-view .pop-root { padding: 8px; min-height: 100vh; }
+html.pop-view .pop-root > * { margin: 0 !important; width: auto !important; max-width: none !important; }
+html.pop-view .pop-root > .panel, html.pop-view .pop-root > .sess, html.pop-view .pop-root > .kolp { min-height: calc(100vh - 16px); }
+html.pop-view .pop-root .alerts, html.pop-view .pop-root .moments, html.pop-view .pop-root .trends, html.pop-view .pop-root .kolp-list { max-height: calc(100vh - 90px) !important; }
+html.pop-view .pop-root .transcript { max-height: calc(100vh - 260px); }
+html.pop-view .kolp { position: static !important; }
+html.pop-view .toasts { bottom: 12px; }
+
+html.pop-view .kolp-close { display: none !important; }

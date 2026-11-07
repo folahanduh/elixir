@@ -24,7 +24,7 @@
 </header>
 
 <main class="grid">
-  <section class="col feed-col">
+  <section class="col feed-col" data-pop="feed" data-pop-label="Live feed" data-pop-size="560x900">
     <div class="panel-head">
       <h2>Live feed</h2>
       <div class="tabs" id="tabs">
@@ -42,7 +42,7 @@
   </section>
 
   <section class="col side-col">
-    <div class="panel" id="streamPanel">
+    <div class="panel" id="streamPanel" data-pop="stream-moments" data-pop-label="Stream moments" data-pop-size="460x700">
       <div class="panel-head">
         <h2>Stream moments</h2>
         <a href="/streams.html" class="lk">Open monitor ↗</a>
@@ -51,12 +51,12 @@
       <div id="streamMoments" class="alerts"><span class="muted placeholder">Funny lines, crypto talk and coin-able names from live streams land here.</span></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" data-pop="playbook" data-pop-label="Playbook" data-pop-size="460x640">
       <div class="panel-head"><h2>Playbook</h2><span class="muted small">learns from your plays</span></div>
       <div id="playbook"></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" data-pop="trends" data-pop-label="Hot words" data-pop-size="400x560">
       <div class="panel-head"><h2>Hot words</h2><span class="muted small">15‑min window · click to check</span></div>
       <div id="trends" class="trends"></div>
     </div>
@@ -70,7 +70,7 @@
       <div id="lookupOut"></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" data-pop="alerts" data-pop-label="Alerts" data-pop-size="440x640">
       <div class="panel-head"><h2>Alerts</h2><button id="clearAlerts" class="ghost small">Clear</button></div>
       <div id="alerts" class="alerts"><span class="muted placeholder">No alerts yet.</span></div>
     </div>

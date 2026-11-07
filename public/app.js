@@ -514,11 +514,12 @@ function onAlert(a) {
   recentAlerts.set(key, Date.now());
   const it = state.items.get(a.itemId); if (it) it.hot = true;
   const loud = a.important !== false;
-  if (loud && Date.now() - (state.lastBeep || 0) > 8000) { state.lastBeep = Date.now(); beep(a.kind); }
-  if (loud) toast(a);
+  const mine = loud && (window.elixirClaimNoise ? window.elixirClaimNoise(a.title + '|' + a.at) : true);
+  if (mine && Date.now() - (state.lastBeep || 0) > 8000) { state.lastBeep = Date.now(); beep(a.kind); }
+  if (loud && !window.elixirQuietToasts) toast(a);
   if (a.important !== false) { state.alertCount++; } state.alertTotal = (state.alertTotal || 0) + 1;
   document.title = `(${state.alertCount}) Elixir`;
-  if (loud && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+  if (mine && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     const n = new Notification(a.title, { body: (a.author ? '@' + a.author + ': ' : '') + (a.text || ''), tag: key });
     n.onclick = () => { window.focus(); if (a.url) window.open(a.url, '_blank'); };
   }
