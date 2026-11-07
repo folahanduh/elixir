@@ -1,0 +1,83 @@
+{
+  "about": "Elixir's built-in X accounts. Added to your list once (on first start, and new ones after updates); remove any you don't want in Settings and they stay removed. 'fast' groups are polled every cycle, 'slow' groups every 4th cycle to save API credit. Groups marked vip alert on every tweet.",
+  "groups": [
+    {
+      "id": "movers",
+      "label": "Market movers",
+      "tier": "fast",
+      "vip": true,
+      "accounts": [
+        "elonmusk", "realDonaldTrump", "POTUS", "WhiteHouse", "JDVance", "DonaldJTrumpJr", "EricTrump", "MELANIATRUMP",
+        "cz_binance", "heyibinance", "saylor", "VitalikButerin", "brian_armstrong", "aeyakovenko", "blknoiz06",
+        "justinsuntron", "davidsacks", "DOGE", "cb_doge", "xai", "grok"
+      ]
+    },
+    {
+      "id": "breaking",
+      "label": "Breaking news",
+      "tier": "fast",
+      "vip": false,
+      "accounts": [
+        "WatcherGuru", "tier10k", "DeItaone", "DegenerateNews", "Tree_of_Alpha", "unusual_whales", "zerohedge",
+        "BNONews", "disclosetv", "spectatorindex", "Breaking911", "AFpost", "Reuters", "AP", "business", "CNBC",
+        "FoxNews", "cnnbrk", "BBCBreaking", "Cointelegraph", "CoinDesk", "TheBlock__", "BitcoinMagazine", "whale_alert",
+        "SECGov", "federalreserve"
+      ]
+    },
+    {
+      "id": "solana",
+      "label": "Solana & launchpads",
+      "tier": "fast",
+      "vip": false,
+      "accounts": [
+        "solana", "SolanaFndn", "rajgokal", "calilyliu", "0xMert_", "heliuslabs", "pumpdotfun", "a1lon9",
+        "JupiterExchange", "weremeow", "kashdhanda", "RaydiumProtocol", "MeteoraAG", "phantom", "bonk_inu",
+        "theunipcs", "MagicEden", "solanamobile", "armaniferrante", "dexscreener", "gmgnai"
+      ]
+    },
+    {
+      "id": "memecoin-kols",
+      "label": "Memecoin traders & KOLs",
+      "tier": "slow",
+      "vip": false,
+      "accounts": [
+        "MustStopMurad", "notthreadguy", "frankdegods", "Cupseyy", "orangie", "MoonOverlord", "dingalingts",
+        "gainzy222", "beaverd", "wizardofsoho", "KookCapitalLLC", "ZssBecker", "CryptoGodJohn", "AltcoinGordon",
+        "Zeneca", "farokh", "CryptoKaleo", "HsakaTrades", "GCRClassic", "inversebrah", "loomdart", "DegenSpartan",
+        "cobie", "Pentosh1", "cryptocobain", "CryptoHayes", "rektcapital", "CredibleCrypto", "punk6529"
+      ]
+    },
+    {
+      "id": "onchain",
+      "label": "On-chain sleuths",
+      "tier": "slow",
+      "vip": false,
+      "accounts": [
+        "zachxbt", "lookonchain", "spotonchain", "EmberCN", "ai_9684xtpa", "arkham", "nansen_ai", "bubblemaps", "tayvano_", "samczsun"
+      ]
+    },
+    {
+      "id": "crypto-leaders",
+      "label": "Crypto founders & investors",
+      "tier": "slow",
+      "vip": false,
+      "accounts": [
+        "jessepollak", "haydenzadams", "StaniKulechov", "gavofyork", "rleshner", "el33th4xor", "hosseeb", "cdixon",
+        "balajis", "naval", "pmarca", "chamath", "mcuban", "APompliano", "novogratz", "CathieDWood", "RaoulGMI",
+        "BillAckman", "jack", "sama", "nic__carter", "RyanSAdams", "HyperliquidX", "chameleon_jeff",
+        "binance", "coinbase", "krakenfx", "okx", "Bybit_Official", "SenLummis", "HesterPeirce"
+      ]
+    },
+    {
+      "id": "culture",
+      "label": "Celebrities & viral (memecoin fuel)",
+      "tier": "slow",
+      "vip": false,
+      "accounts": [
+        "kanyewest", "IGGYAZALEA", "stoolpresidente", "MrBeast", "snoopdogg", "ParisHilton", "LoganPaul", "jakepaul",
+        "KSI", "Cobratate", "adinross", "dog_rates", "PopCrave", "PopBase", "dexerto", "culturecrave", "DailyLoud",
+        "Tesla", "SpaceX", "Starlink", "neuralink", "OpenAI", "teslaownersSV"
+      ]
+    }
+  ]
+}

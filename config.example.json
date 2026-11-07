@@ -3,21 +3,8 @@
   "provider": "auto",
   "pollSeconds": 8,
   "includeReplies": true,
-  "accounts": [
-    "elonmusk",
-    "cb_doge",
-    "WatcherGuru",
-    "DegenerateNews",
-    "Cointelegraph",
-    "realDonaldTrump",
-    "cz_binance",
-    "KanyeWest"
-  ],
-  "vip": [
-    "elonmusk",
-    "realDonaldTrump",
-    "cz_binance"
-  ],
+  "accounts": [],
+  "vip": [],
   "watchlist": [
     "doge",
     "pepe",
@@ -68,13 +55,7 @@
     "recordAudio": false,
     "autoFromTweets": true,
     "ytdlpArgs": [],
-    "watch": [
-      {
-        "url": "https://www.twitch.tv/dvces",
-        "label": "DVCES",
-        "auto": true
-      }
-    ],
+    "watch": [],
     "judge": {
       "enabled": true,
       "model": "claude-opus-5-5",
@@ -150,5 +131,6 @@
   "telegram": {
     "botToken": "",
     "chatId": ""
-  }
+  },
+  "presets": true
 }

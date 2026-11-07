@@ -30,7 +30,37 @@ const LOG_PATH = path.join(ROOT, 'data', 'feed.jsonl');
 // ---------- config ----------
 loadDotEnv();
 if (!fs.existsSync(CONFIG_PATH)) fs.copyFileSync(path.join(ROOT, 'config.example.json'), CONFIG_PATH);
+seedPresets();
 let cfg = readConfig();
+
+// Built-in accounts and live channels (presets/*.json). Each preset entry is added once: ones you
+// remove stay removed, and presets added in later versions still arrive. "presets": false turns it off.
+function seedPresets() {
+  let disk;
+  try { disk = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch { return; }
+  if (disk.presets === false) return;
+  const read = f => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'presets', f), 'utf8')); } catch { return null; } };
+  const acc = read('accounts.json'), st = read('streams.json');
+  const seeded = { accounts: [], vip: [], streams: [], ...(disk.presetSeeded || {}) };
+  const has = (list, h) => list.some(x => String(x).toLowerCase() === h.toLowerCase());
+  disk.accounts = disk.accounts || []; disk.vip = disk.vip || [];
+  let added = 0, streamsAdded = 0;
+  for (const g of acc?.groups || []) for (const h of g.accounts) {
+    if (!has(seeded.accounts, h)) { seeded.accounts.push(h); if (!has(disk.accounts, h)) { disk.accounts.push(h); added++; } }
+    if (g.vip && !has(seeded.vip, h)) { seeded.vip.push(h); if (!has(disk.vip, h)) disk.vip.push(h); }
+  }
+  disk.streams = disk.streams || {}; disk.streams.watch = disk.streams.watch || [];
+  for (const w of st?.watch || []) {
+    if (seeded.streams.includes(w.url)) continue;
+    seeded.streams.push(w.url);
+    if (!disk.streams.watch.some(x => x.url === w.url)) { disk.streams.watch.push(w); streamsAdded++; }
+  }
+  disk.presetSeeded = seeded;
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(disk, null, 2));
+  if (added || streamsAdded) console.log(`  Added ${added} preset X accounts and ${streamsAdded} live channels (presets/). Remove any in Settings.`);
+}
+// Accounts in 'slow' preset groups are polled every 4th cycle to save API credit.
+const SLOW = new Set((() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'presets', 'accounts.json'), 'utf8')).groups.filter(g => g.tier === 'slow').flatMap(g => g.accounts.map(a => a.toLowerCase())); } catch { return []; } })());
 
 // Keys typed into .env.example by mistake: move them into .env (which git ignores) and blank them in
 // .env.example, so they work and can't be pushed to GitHub by accident.
@@ -401,7 +431,8 @@ async function telegram(a) {
 }
 
 // ---------- polling ----------
-let pollTimer = null;
+let pollTimer = null, pollCycle = 0;
+const lastPolled = {};
 async function pollLoop() {
   clearTimeout(pollTimer);
   const provider = activeProvider();
@@ -412,13 +443,24 @@ async function pollLoop() {
   const started = Date.now();
   try {
     const fn = provider === 'twitterapi.io' ? sources.pollTwitterApiIo : sources.pollXApi;
-    try {
-      await fn(cfg, cfg.accounts, t => ingest({ ...t, via: provider }));
-    } catch (e) {
-      // Both kinds of key set: if one provider fails (out of credit, rate limit), use the other this round.
-      const other = provider === 'twitterapi.io' ? (cfg.keys.xBearer && 'x-api') : (cfg.keys.twitterapiIo && 'twitterapi.io');
-      if (!other) throw e;
-      await (other === 'x-api' ? sources.pollXApi : sources.pollTwitterApiIo)(cfg, cfg.accounts, t => ingest({ ...t, via: other }));
+    // Fast tier every cycle; slow tier (KOLs, celebrities…) every 4th. Only ask for tweets since the tier's last poll.
+    pollCycle++;
+    const fast = cfg.accounts.filter(a => !SLOW.has(a.toLowerCase())), slow = cfg.accounts.filter(a => SLOW.has(a.toLowerCase()));
+    const rounds = [['fast', fast]];
+    if (slow.length && pollCycle % 4 === 1) rounds.push(['slow', slow]);
+    for (const [tier, accounts] of rounds) {
+      if (!accounts.length) continue;
+      const sinceMs = (lastPolled[tier] || Date.now() - 10 * 60000) - 30000; // 30 s overlap; duplicates are dropped
+      const tierStart = Date.now();
+      try {
+        await fn(cfg, accounts, t => ingest({ ...t, via: provider }), { sinceMs });
+      } catch (e) {
+        // Both kinds of key set: if one provider fails (out of credit, rate limit), use the other this round.
+        const other = provider === 'twitterapi.io' ? (cfg.keys.xBearer && 'x-api') : (cfg.keys.twitterapiIo && 'twitterapi.io');
+        if (!other) throw e;
+        await (other === 'x-api' ? sources.pollXApi : sources.pollTwitterApiIo)(cfg, accounts, t => ingest({ ...t, via: other }), { sinceMs });
+      }
+      lastPolled[tier] = tierStart;
     }
     status.lastPollError = null;
   } catch (e) {
