@@ -76,7 +76,15 @@ function upsertSession(m) {
         <button class="ghost small watch" hidden>Watch</button>
         <a class="lk open" target="_blank" rel="noopener">open ↗</a>
         <button class="ghost small clipnow" hidden title="Clip the last ~30 seconds">Clip</button>
-        <button class="ghost small stop">Stop</button>
+        <button class="ghost small collapse" title="Fold this stream away. It keeps transcribing and pinging">Hide</button>
+        <button class="small restart" hidden title="Start transcribing this stream again">Start again</button>
+        <div class="more">
+          <button class="ghost small more-btn" title="More" aria-haspopup="menu">⋯</button>
+          <div class="more-menu" role="menu" hidden>
+            <button class="m-stop" role="menuitem">Stop transcribing</button>
+            <button class="m-remove" role="menuitem">Remove from page</button>
+          </div>
+        </div>
       </div>
       <div class="player" hidden></div>
       <div class="meters"><div class="vu" title="Live audio level"><i></i></div><span class="chatrate"></span></div>
@@ -88,10 +96,31 @@ function upsertSession(m) {
         <span class="counts"></span><span class="judge"></span>
       </div>
       <div class="transcript"></div>`;
-    s.el.querySelector('.stop').onclick = () => {
-      if (s.endedAt) return api('/api/streams/remove', { id: s.id });
+    // Hide = fold the card (keeps running). Stopping lives in the ⋯ menu; a stopped stream can be started again.
+    const folded = () => { try { return JSON.parse(localStorage.getItem('nr.folded') || '[]'); } catch { return []; } };
+    const setFolded = on => { try { const f = new Set(folded()); on ? f.add(s.url || s.id) : f.delete(s.url || s.id); localStorage.setItem('nr.folded', JSON.stringify([...f].slice(-50))); } catch {} };
+    const paintFold = on => { s.el.classList.toggle('folded', on); s.el.querySelector('.collapse').textContent = on ? 'Show' : 'Hide'; };
+    paintFold(folded().includes(m.url || m.id));
+    s.el.querySelector('.collapse').onclick = () => { const on = !s.el.classList.contains('folded'); paintFold(on); setFolded(on); };
+    const menu = s.el.querySelector('.more-menu');
+    s.el.querySelector('.more-btn').onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; };
+    document.addEventListener('click', () => { menu.hidden = true; });
+    s.el.querySelector('.m-stop').onclick = () => {
+      menu.hidden = true;
       if (S.local?.id === s.id) S.local.stop();
       api('/api/streams/stop', { id: s.id });
+    };
+    s.el.querySelector('.m-remove').onclick = () => {
+      menu.hidden = true;
+      if (!s.endedAt) { if (S.local?.id === s.id) S.local.stop(); api('/api/streams/stop', { id: s.id }).then(() => api('/api/streams/remove', { id: s.id })).catch(() => {}); }
+      else api('/api/streams/remove', { id: s.id });
+    };
+    s.el.querySelector('.restart').onclick = async () => {
+      if (!s.url) return showErr('This was a tab or mic capture: start it again from the buttons above.');
+      try {
+        await api('/api/streams/start', { url: s.url, label: s.label, kind: 'url' });
+        api('/api/streams/remove', { id: s.id }).catch(() => {});
+      } catch (err) { showErr(err.message); }
     };
     s.el.querySelector('.watch').onclick = () => toggleWatch(s);
     s.el.querySelector('.clipnow').onclick = () => requestClip(s.id, { at: Date.now() - 8000 });
@@ -121,7 +150,10 @@ function upsertSession(m) {
   s.el.querySelector('.watch').hidden = !(e && e.src);
   s.el.querySelector('.clipnow').hidden = !s.canClip || Boolean(s.endedAt);
   for (const c of (m.clips || []).slice().reverse()) addClip(c, true);
-  s.el.querySelector('.stop').textContent = live ? 'Stop' : 'Remove';
+  s.el.querySelector('.restart').hidden = live;
+  s.el.querySelector('.m-stop').hidden = !live;
+  s.el.querySelector('.collapse').hidden = !live;
+  s.el.querySelector('.clipnow').hidden = !s.canClip || !live;
   s.el.querySelector('.counts').textContent = `${s.count} lines · ${s.highlights} highlights`;
   s.el.querySelector('.judge').textContent = s.judge ? '· Claude: ' + s.judge : '';
   s.el.querySelector('.elapsed').dataset.t = s.startedAt;

@@ -165,3 +165,19 @@ mark.k.name { border-color: var(--line); }
 .mo-top { gap: 8px; }
 
 #sttNotice { margin-top: 10px; }
+
+/* stream card buttons: Hide (fold), Start again, ⋯ menu */
+.sess.folded > :not(.sess-head) { display: none !important; }
+.sess.folded .sess-head { border-bottom: 0; }
+.more { position: relative; }
+.more-btn { width: 30px; padding: 3px 0 !important; letter-spacing: 1px; }
+.more-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 190px; padding: 5px; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 12px 30px #000c; display: flex; flex-direction: column; }
+.more-menu button { background: transparent; color: var(--text); text-align: left; font-weight: 500; font-size: 13px; padding: 8px 10px; border-radius: 7px; }
+.more-menu button:hover { background: var(--panel-3); }
+.more-menu .m-remove { color: #ff8a9b; }
+.restart { padding: 5px 12px; }
+
+.sess-head button, .sess-head .lk.open { height: 30px; display: inline-flex; align-items: center; padding: 0 11px; font: 500 13px/1 var(--sans); border-radius: 8px; }
+.sess-head .lk.open { color: #c9cbd3; background: var(--panel-2); border: 1px solid var(--line-2); }
+.sess-head .lk.open:hover { color: var(--text); border-color: #3a3e48; }
+.sess-head .more-btn { padding: 0 !important; width: 32px; justify-content: center; }

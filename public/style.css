@@ -576,3 +576,12 @@ mark.kw { background: color-mix(in srgb, var(--kc) 16%, transparent); color: var
 .setlink b { display: block; }
 .setlink span { color: var(--muted); font-size: 12.5px; }
 .setlink i { font-style: normal; color: var(--primary); }
+
+/* header action buttons */
+.top .actions button { font: 500 13px/1 var(--sans); letter-spacing: .1px; height: 32px; padding: 0 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px; }
+.top .actions button.ghost { color: #c9cbd3; }
+.top .actions button.ghost:hover { color: var(--text); }
+.kolp-toggle.on { border-color: var(--line-2) !important; color: var(--text) !important; background: var(--panel-3) !important; }
+.kolp-toggle::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.kolp-toggle.on::before { background: var(--accent); box-shadow: 0 0 0 3px rgba(50, 210, 150, .15); }
+button.small, .sess-head button { font-weight: 500; }
