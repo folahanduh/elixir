@@ -64,7 +64,7 @@ function seedPresets() {
 const SLOW = new Set((() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'presets', 'accounts.json'), 'utf8')).groups.filter(g => g.tier === 'slow').flatMap(g => g.accounts.map(a => a.toLowerCase())); } catch { return []; } })());
 
 // API keys: lib/keys.js finds them in .env (or .env.example / env / .env.txt), under common names too.
-let keyReport = { files: [], loaded: {}, notes: [] };
+var keyReport = { files: [], loaded: {}, notes: [] }; // var: loadDotEnv() runs above this line
 function loadDotEnv() {
   keyReport = require('./lib/keys').loadKeys(ROOT, m => console.log(m));
 }
