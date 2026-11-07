@@ -1,4 +1,5 @@
-# Elixir
+<p align="center"><img src="docs/logo.svg" width="112" alt="Elixir logo"></p>
+<h1 align="center">Elixir</h1>
 
 Spots memecoin plays the moment they happen, on X and on live streams, then checks whether a coin already exists.
 

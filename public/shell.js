@@ -21,7 +21,7 @@
   };
   window.srcName = (profile, label) => (profile && profile.name) || label || 'Stream';
 
-  const mark = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="1.6"/><circle cx="12" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-opacity=".6" stroke-width="1.6"/><path d="M12 12 19 6" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.8" fill="var(--accent)"/></svg>`;
+  const mark = '<img src="/logo.svg" width="24" height="24" alt="">';
   const ico = {
     feed: '<path d="M4 6h16M4 12h16M4 18h10"/>',
     streams: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',

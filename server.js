@@ -327,7 +327,7 @@ function statusPayload() {
 }
 
 // ---------- http ----------
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
+const MIME = { '.png': 'image/png', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
 
 function json(res, code, data) {
   res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' });
