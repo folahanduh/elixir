@@ -509,7 +509,10 @@ const server = http.createServer(async (req, res) => {
         const changes = {};
         for (const [k, v] of Object.entries(body.values || {})) {
           if (!KEY_ENVS.includes(k)) continue;
-          const val = String(v ?? '').trim();
+          let val = String(v ?? '').trim();
+          // Helius: accept the bare API key (a UUID) or the https:// RPC link, not just the wss:// URL.
+          if (k === 'SOLANA_WS_URL' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) val = 'wss://mainnet.helius-rpc.com/?api-key=' + val;
+          if (k === 'SOLANA_WS_URL') val = val.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:');
           if (/[\r\n]/.test(val) || val.length > 600) return json(res, 400, { error: `${k} looks wrong (too long or has line breaks)` });
           changes[k] = val;
         }
