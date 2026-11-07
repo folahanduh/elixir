@@ -182,7 +182,13 @@ async function testKey(k) {
     }
     if (k === 'DEEPGRAM_API_KEY') { const r = await fetch('https://api.deepgram.com/v1/projects', { ...T, headers: { authorization: 'Token ' + v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
     if (k === 'ANTHROPIC_API_KEY') { const r = await fetch('https://api.anthropic.com/v1/models?limit=1', { ...T, headers: { 'x-api-key': v, 'anthropic-version': '2023-06-01' } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
-    if (k === 'TWITTERAPI_IO_KEY') { const r = await fetch('https://api.twitterapi.io/twitter/user/info?userName=x', { ...T, headers: { 'X-API-Key': v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
+    if (k === 'TWITTERAPI_IO_KEY') {
+      const r = await sources.tioFetch('https://api.twitterapi.io/twitter/user/info?userName=x', v);
+      if (r.ok) return { ok: true, msg: sources.tioGap() >= 4000 ? 'works · free tier (1 request / 5 s)' : 'works' };
+      const body = await r.text().catch(() => '');
+      if (r.status === 429 && /free-tier/i.test(body)) return { ok: true, msg: 'works · free tier (1 request / 5 s)' };
+      return { ok: false, msg: `${r.status} ${body.slice(0, 120)}` };
+    }
     if (k === 'X_BEARER_TOKEN' || k === 'X_BEARER_TOKEN_2') { const r = await fetch('https://api.x.com/2/users/by/username/x', { ...T, headers: { authorization: 'Bearer ' + v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
     if (k === 'DISCORD_WEBHOOK_URL') {
       if (!DISCORD_RE.test(v)) return { ok: false, msg: 'should start with https://discord.com/api/webhooks/' };
