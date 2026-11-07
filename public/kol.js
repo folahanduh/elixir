@@ -46,13 +46,14 @@
   btn.title = 'Show what tracked KOL wallets are buying';
   q('.top .actions')?.prepend(btn);
 
-  let open = store.get('kolOpen', '1') === '1';
+  const okey = document.body.dataset.page === 'streams' ? 'kolOpenStreams' : 'kolOpen';
+  let open = store.get(okey, document.body.dataset.page === 'streams' ? '0' : '1') === '1';
   let buysOnly = store.get('kolBuys', '0') === '1';
   const events = new Map();
   const paintOpen = () => { panel.hidden = !open; btn.classList.toggle('on', open); document.body.classList.toggle('kol-open', open); };
   paintOpen();
-  btn.onclick = () => { open = !open; store.set('kolOpen', open ? '1' : '0'); paintOpen(); };
-  panel.querySelector('.kolp-close').onclick = () => { open = false; store.set('kolOpen', '0'); paintOpen(); };
+  btn.onclick = () => { open = !open; store.set(okey, open ? '1' : '0'); paintOpen(); };
+  panel.querySelector('.kolp-close').onclick = () => { open = false; store.set(okey, '0'); paintOpen(); };
   panel.querySelector('.kolp-buys').checked = buysOnly;
   panel.querySelector('.kolp-buys').onchange = e => { buysOnly = e.target.checked; store.set('kolBuys', buysOnly ? '1' : '0'); render(); };
 

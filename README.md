@@ -39,24 +39,36 @@ From a terminal it's the same thing: `npm start`, or `npm run demo`.
 - **Your mic and browser-tab streams:** transcribed free in the browser.
 
 ### Built-in accounts and live channels
-Elixir starts with a hand-picked list of **161 X accounts** in `presets/accounts.json`:
+Elixir starts with a hand-picked list of **179 X accounts** in `presets/accounts.json`:
 - **Market movers** (VIP: every tweet alerts): Elon, Trump, the White House, CZ, Saylor, Vitalik, toly, Ansem…
 - **Breaking news:** Watcher Guru, Tree News, Walter Bloomberg…
 - **Solana and launchpads:** pump.fun, Jupiter, Helius…
+- **Midterms and politics** (checked every cycle): Decision Desk HQ and AP race calls, Polymarket and Kalshi odds, congressional leaders.
 - **Memecoin traders, on-chain sleuths, founders, and viral/celebrity accounts.**
 
 Movers, news and Solana are checked every cycle; the rest every 4th cycle, to save API credit. Each poll only asks for tweets newer than the last one, so you aren't billed for the same tweets twice.
 
-**Auto-watched live streams** (`presets/streams.json`) are deliberately few, only streams that move markets or spawn plays:
+**Auto-watched live streams** (`presets/streams.json`) are deliberately few, only streams that move markets or spawn plays. Their **scheduled** streams show under **Upcoming**, on the Streams page and in the sidebar, with a countdown and a ping 15 minutes before:
 - The White House
 - the Federal Reserve (FOMC press conferences)
 - SpaceX
 - Tesla
 - DVCES
+- Market Bubble
+- NVIDIA (GTC keynotes)
+- OpenAI (launch streams)
+- C-SPAN (Congress and election coverage; pings only, no auto-transcribe)
 
 X live broadcasts and Spaces from VIP accounts start automatically from their tweets. 24/7 news channels are left out because they'd transcribe nonstop.
 
 Add or remove anything in **Settings** or the Streams page. A preset you remove stays removed, and new presets from updates still arrive. To start with an empty list instead, set `"presets": false` in `config.json`.
+
+### Auto-update
+Every time you open or refresh the page, Elixir checks GitHub for a newer version. If there is one, it installs it, restarts itself and reloads the page, which takes a few seconds and needs no clicks. It also checks on every start.
+- **Git installs:** it does a fast-forward `git pull`. If you've edited Elixir's own files, it leaves them alone and tells you.
+- **ZIP installs:** it downloads the new source and copies it over, keeping `.env`, `config.json`, `data/` and `bin/`.
+- **During a stream:** if a stream is being transcribed, the update waits so the capture isn't cut off. An **Update ready · install** button appears in the bottom bar instead.
+- **To turn it off:** set `"autoUpdate": false` in `config.json`.
 
 ### Keys (optional extras)
 **To add keys:** click **API keys** in the sidebar, or go to **Settings → API keys**. Paste a key and press **Save keys**. Each key is tested straight away, with a green **works** or the provider's error. No restart is needed. Keys are saved in a `.env` file in the Elixir folder on your computer. That file is never uploaded, never sent to the page, and git ignores it. (You can also edit `.env` by hand; `.env.example` shows the format.)

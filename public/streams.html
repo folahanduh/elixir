@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Streams · Elixir</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="preload" href="/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/streams.css">
 <link rel="icon" href="/logo.svg" type="image/svg+xml">
@@ -24,15 +23,14 @@
 
 <section class="addbar">
   <form id="startForm" class="add-row">
-    <input id="urlIn" type="url" placeholder="Paste a live link: twitch.tv/…, youtube.com/…, x.com/i/broadcasts/…, kick.com/…" required>
+    <input id="urlIn" type="url" placeholder="Paste a live link: Twitch, YouTube, X broadcast or Space, Kick" required>
     <input id="labelIn" placeholder="Name (optional)" class="lbl">
     <button>Transcribe</button>
+    <span class="add-or">or</span>
+    <button id="tabBtn" type="button" class="ghost" title="Transcribe audio from any Chrome tab, e.g. a pump.fun stream">Share tab</button>
+    <button id="micBtn" type="button" class="ghost" title="Free: uses the browser's own speech recognition">Mic</button>
   </form>
-  <div class="add-row alt">
-    <button id="tabBtn" class="ghost">Share tab audio</button>
-    <button id="micBtn" class="ghost">Use mic (free)</button>
-    <span class="muted small" id="addHint">The link option runs on the server, so you don't have to keep the stream open. Tab sharing works for anything that plays in Chrome, including pump.fun streams.</span>
-  </div>
+  <span id="addHint" hidden></span>
   <div id="addErr" class="err" hidden></div>
 </section>
 
@@ -48,10 +46,6 @@
       <div class="panel-head"><h2>Moments</h2>
         <label class="pause"><input type="checkbox" id="pingOnly"> pings only</label>
       </div>
-      <div class="legend">
-        <span class="tg COINABLE">COINABLE</span><span class="tg CRYPTO">CRYPTO</span><span class="tg FUNNY">FUNNY</span>
-        <span class="tg MEME">MEME</span><span class="tg LOUD">LOUD</span><span class="tg REPEAT">REPEAT</span><span class="tg WATCH">WATCH</span>
-      </div>
       <div id="moments" class="moments"><span class="muted placeholder">Highlights from every stream land here.</span></div>
     </div>
 
@@ -63,6 +57,11 @@
     </div>
 
     <div class="panel">
+      <div class="panel-head"><h2>Upcoming</h2><span class="muted small">pings 15 min before</span></div>
+      <div id="upcoming" class="upc-list"><span class="muted small">Checking scheduled streams…</span></div>
+    </div>
+
+    <div class="panel">
       <div class="panel-head"><h2>Auto-watch</h2><span class="muted small">checked every 60s</span></div>
       <div id="watchList" class="watch-list"></div>
       <form id="watchForm" class="row">
@@ -70,11 +69,11 @@
         <input id="watchLabel" placeholder="Name" class="lbl">
         <button>Add</button>
       </form>
-      <p class="hint">When a channel goes live you get a ping and transcription starts on its own. For X, nothing is needed: when a tracked account tweets a live broadcast or Space link, it starts automatically.</p>
+      <p class="hint">Live → ping, and transcription starts if “auto” is on. X lives and Spaces from tracked accounts start on their own.</p>
     </div>
 
-    <div class="panel">
-      <div class="panel-head"><h2>Sensitivity</h2></div>
+    <details class="panel fold">
+      <summary class="panel-head"><h2>Sensitivity &amp; language</h2><span class="muted small">tune</span></summary>
       <div class="row">
         <label class="small">Highlight at score <input id="hlScore" type="number" min="1" max="30"></label>
         <label class="small">Ping at score <input id="pingScore" type="number" min="1" max="30"></label>
@@ -89,16 +88,16 @@
         <button id="saveSens" class="ghost">Save</button>
       </div>
       <p class="hint">Lower numbers mean more highlights. Watchlist words always ping.</p>
-    </div>
+    </details>
 
-    <div class="panel">
-      <div class="panel-head"><h2>Quick check</h2><span class="muted small">press <kbd>/</kbd></span></div>
+    <details class="panel fold">
+      <summary class="panel-head"><h2>Quick check</h2><span class="muted small">press <kbd>/</kbd></span></summary>
       <form id="lookupForm" class="row">
         <input id="lookupInput" placeholder="word or ticker → is there a coin?" autocomplete="off">
         <button>Check</button>
       </form>
       <div id="lookupOut"></div>
-    </div>
+    </details>
   </aside>
 </main>
 

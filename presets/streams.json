@@ -1,10 +1,50 @@
 {
-  "about": "Live channels Elixir auto-watches out of the box. Deliberately short: only streams that move markets or spawn memecoin plays. 24/7 news channels are left out on purpose (they're always live, so they'd transcribe nonstop and burn speech credit). X live broadcasts and Spaces from VIP accounts (Elon, Trump…) start automatically from their tweets, so they don't need a channel here.",
+  "about": "Live channels Elixir auto-watches out of the box. Deliberately short: only streams that move markets or spawn memecoin plays. 'auto': true transcribes as soon as it goes live; false just pings you. Scheduled streams from these channels show under Upcoming. 24/7 news channels are left out (always live, so they'd transcribe nonstop). X live broadcasts and Spaces from VIP accounts (Elon, Trump, Ansem\u2026) start automatically from their tweets.",
   "watch": [
-    { "url": "https://www.youtube.com/@WhiteHouse/live", "label": "The White House", "auto": true },
-    { "url": "https://www.youtube.com/@federalreserve/live", "label": "Federal Reserve (FOMC)", "auto": true },
-    { "url": "https://www.youtube.com/@SpaceX/live", "label": "SpaceX", "auto": true },
-    { "url": "https://www.youtube.com/@tesla/live", "label": "Tesla", "auto": true },
-    { "url": "https://www.twitch.tv/dvces", "label": "DVCES", "auto": true }
+    {
+      "url": "https://www.youtube.com/@WhiteHouse/live",
+      "label": "The White House",
+      "auto": true
+    },
+    {
+      "url": "https://www.youtube.com/@federalreserve/live",
+      "label": "Federal Reserve (FOMC)",
+      "auto": true
+    },
+    {
+      "url": "https://www.youtube.com/@SpaceX/live",
+      "label": "SpaceX",
+      "auto": true
+    },
+    {
+      "url": "https://www.youtube.com/@tesla/live",
+      "label": "Tesla",
+      "auto": true
+    },
+    {
+      "url": "https://www.twitch.tv/dvces",
+      "label": "DVCES",
+      "auto": true
+    },
+    {
+      "url": "https://www.youtube.com/@MarketBubble/live",
+      "label": "Market Bubble",
+      "auto": true
+    },
+    {
+      "url": "https://www.youtube.com/@NVIDIA/live",
+      "label": "NVIDIA (GTC keynotes)",
+      "auto": true
+    },
+    {
+      "url": "https://www.youtube.com/@OpenAI/live",
+      "label": "OpenAI (launches)",
+      "auto": true
+    },
+    {
+      "url": "https://www.youtube.com/@CSPAN/live",
+      "label": "C-SPAN (Congress, elections)",
+      "auto": false
+    }
   ]
 }

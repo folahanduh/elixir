@@ -43,6 +43,7 @@
     <div class="sb-brand"><span class="sb-mark">${mark}</span><b>Elixir</b><span class="sb-ver">v1.4</span><button class="sb-fold" title="Collapse sidebar">${svg('side')}</button></div>
     <form class="sb-search">${svg('search', 15)}<input placeholder="Search coin or word" autocomplete="off"><kbd>/</kbd></form>
     <div class="sb-live"><div class="sb-empty">Nothing live yet. Start a stream or track a play.</div></div>
+    <div class="sb-next" hidden></div>
     <div class="sb-sec">Features</div>
     <nav class="sb-nav">
       <a href="/" data-k="feed">${svg('feed')}Live feed</a>
@@ -122,6 +123,18 @@
     const s = e.target.closest('[data-sid]');
     if (s && page === 'streams') { const el = document.querySelector(`.sess[data-sid="${CSS.escape(s.dataset.sid)}"]`); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }
   });
+  // Next scheduled streams (from auto-watched channels)
+  let upcoming = [];
+  const inT = t => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)); const d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60; return s === 0 ? 'now' : d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${Math.max(1, m)}m`; };
+  function paintNext() {
+    const el = sb.querySelector('.sb-next');
+    const list = upcoming.filter(u => u.startAt > Date.now() - 600000).slice(0, 3);
+    el.hidden = !list.length;
+    el.innerHTML = '<div class="sb-sub">Upcoming</div>' + list.map(u => `<a class="sb-it" href="/streams.html">${window.srcAvatar(u.profile, u.label, 26)}
+      <div><b>${h(u.title)}</b><small>${h(window.srcName(u.profile, u.label))}</small></div><span class="sb-tag">${h(inT(u.startAt))}</span></a>`).join('');
+  }
+  setInterval(paintNext, 30000);
+
   const paintKols = d => {
     if (!d || d.wallets == null) return;
     if (d.status === 'demo' && !d.wallets) { sb.querySelector('.sb-wa').textContent = 'Demo wallets'; sb.querySelector('.sb-wd').textContent = 'Import your Axiom list'; return; }
@@ -133,7 +146,7 @@
   // ---- status bar ----
   const bar = document.createElement('footer');
   bar.className = 'sbar';
-  bar.innerHTML = `<span class="sbar-live"><i></i><b>Connecting…</b></span><span class="sbar-items"></span><span class="grow"></span>
+  bar.innerHTML = `<span class="sbar-live"><i></i><b>Connecting…</b></span><span class="sbar-items"></span><span class="sbar-upd"></span><span class="grow"></span>
     <a href="https://x.com" target="_blank" rel="noopener" class="sbar-l">X</a><span class="sbar-tg"></span><span class="sbar-l sbar-clock"></span>`;
   document.body.append(bar);
   let up = false, latency = null;
@@ -163,16 +176,21 @@
   es.addEventListener('error', () => { up = false; paintBar(); });
   es.addEventListener('hello', e => {
     const d = JSON.parse(e.data);
+    // Server came back on a new version (auto-update): reload so the page matches it.
+    if (window.__elixirVer !== undefined && d.version && window.__elixirVer !== d.version) { location.reload(); return; }
+    window.__elixirVer = d.version || null;
     streams.clear(); plays.clear();
     for (const s of d.streams?.sessions || []) { const { segs, ...m } = s; streams.set(s.id, m); }
     for (const p of d.plays || []) plays.set(p.id, p);
     C = d.config; ST = d.status; SS = d.streams?.status; paintKeyCount(C);
+    upcoming = SS?.upcoming || []; paintNext();
     paintLive(); paintKols(d.kols); paintItems(C, ST, SS);
     up = true; paintBar();
   });
   es.addEventListener('stream-session', e => { const m = JSON.parse(e.data); streams.set(m.id, m); paintLive(); });
   es.addEventListener('stream-removed', e => { streams.delete(JSON.parse(e.data).id); paintLive(); });
-  es.addEventListener('stream-status', e => { SS = JSON.parse(e.data); paintItems(C, ST, SS); });
+  es.addEventListener('stream-status', e => { SS = JSON.parse(e.data); paintItems(C, ST, SS); if (SS.upcoming) { upcoming = SS.upcoming; paintNext(); } });
+  es.addEventListener('stream-upcoming', e => { upcoming = JSON.parse(e.data); paintNext(); });
   es.addEventListener('play', e => { const p = JSON.parse(e.data); plays.set(p.id, p); paintLive(); });
   es.addEventListener('play-removed', e => { plays.delete(JSON.parse(e.data).id); paintLive(); });
   es.addEventListener('kol-status', e => paintKols(JSON.parse(e.data)));
@@ -180,6 +198,30 @@
   es.addEventListener('config', e => { C = JSON.parse(e.data); paintItems(C, ST, SS); paintKeyCount(C); });
   es.addEventListener('alert', () => { alerts++; sb.querySelector('[data-n="alerts"]').textContent = alerts; });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { alerts = 0; sb.querySelector('[data-n="alerts"]').textContent = ''; } });
+
+  // ---- auto-update: checked on every page load/refresh ----
+  const note = document.createElement('div');
+  note.className = 'upd';
+  note.hidden = true;
+  document.body.append(note);
+  const showUpdating = () => {
+    note.hidden = false;
+    note.innerHTML = '<i></i><b>Updating Elixir…</b><span>The page reloads by itself in a moment.</span>';
+    const t0 = Date.now();
+    const poll = setInterval(async () => {
+      try { const r = await fetch('/api/ping', { cache: 'no-store' }); if (r.ok && Date.now() - t0 > 2500) { clearInterval(poll); location.reload(); } } catch {}
+    }, 1500);
+  };
+  es.addEventListener('updating', showUpdating);
+  const upd = (body = { apply: true }) => fetch('/api/update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()).then(r => {
+    if (r.updating) return showUpdating();
+    const slot = bar.querySelector('.sbar-upd');
+    if (r.behind && (r.waiting || r.failed || r.auto === false)) {
+      slot.innerHTML = `<button class="sbar-ub" title="${h(r.failed || r.waiting || 'Auto-update is off')}">Update ready · install</button>`;
+      slot.querySelector('button').onclick = () => upd({ apply: true, force: true });
+    } else slot.innerHTML = '';
+  }).catch(() => {});
+  setTimeout(() => upd(), 1200);
 
   // Mobile: the sidebar slides in from a header button.
   const menu = document.createElement('button');

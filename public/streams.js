@@ -18,7 +18,7 @@ function connect() {
     $('#moments').innerHTML = '<span class="muted placeholder">Highlights from every stream land here.</span>';
     S.sessions.clear();
     for (const s of d.streams.sessions) { upsertSession(s); for (const seg of s.segs || []) upsertSeg(seg, true); }
-    paintPills(); paintWatch(); paintSens();
+    paintPills(); paintWatch(); paintSens(); paintUpcoming(d.streams.status.upcoming);
     $('#liveDot').classList.add('live');
   });
   es.addEventListener('config', e => { S.config = JSON.parse(e.data); paintWatch(); });
@@ -35,6 +35,7 @@ function connect() {
   });
   es.addEventListener('stream-levels', e => paintLevels(JSON.parse(e.data)));
   es.addEventListener('stream-clip', e => addClip(JSON.parse(e.data)));
+  es.addEventListener('stream-upcoming', e => paintUpcoming(JSON.parse(e.data)));
   es.addEventListener('alert', e => onAlert(JSON.parse(e.data)));
   es.onerror = () => $('#liveDot').classList.remove('live');
 }
@@ -49,9 +50,9 @@ function paintPills() {
     stat(live.length, 'Streams live', live.length ? 'up' : ''),
     stat(lines, 'Lines heard'),
     stat(hl, 'Highlights', hl ? 'up' : ''),
-    stat(st.stt === 'deepgram' ? 'Deepgram' : st.stt === 'demo' ? 'Demo' : 'Mic only', 'Speech', st.stt === 'browser-only' ? 'bad' : ''),
-    stat(esc(String(st.judge || 'off').replace(/ \(.*/, '')), 'Claude judge', String(st.judge).startsWith('on') || st.judge === 'demo' ? 'up' : ''),
-    st.stt === 'demo' ? '' : stat(t.ffmpeg && t.ytdlp ? 'Ready' : 'Missing', 'ffmpeg · yt-dlp', t.ffmpeg && t.ytdlp ? 'up' : 'bad'),
+    stat(st.stt === 'deepgram' ? 'Deepgram' : st.stt === 'demo' ? 'Demo' : 'Browser', 'Speech', st.stt === 'browser-only' ? 'warn' : 'ok'),
+    stat(String(st.judge || 'off').startsWith('on') ? 'On' : st.judge === 'demo' ? 'Demo' : 'Off', 'Claude judge', String(st.judge).startsWith('on') || st.judge === 'demo' ? 'ok' : ''),
+    st.stt === 'demo' || (t.ffmpeg && t.ytdlp) ? '' : stat('Missing', 'ffmpeg · yt-dlp', 'bad'),
   ].join('');
 }
 
@@ -441,14 +442,37 @@ async function startMic() {
 $('#micBtn').onclick = () => (S.local?.kind === 'browser' ? S.local.stop() : startMic());
 
 // ---------- auto-watch & sensitivity ----------
+// ---------- upcoming (scheduled) streams ----------
+let upcomingList = [];
+const until = t => {
+  const s = Math.round((t - Date.now()) / 1000);
+  if (s <= 0) return 'starting';
+  const d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60;
+  return 'in ' + (d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${Math.max(1, m)}m`);
+};
+const when = t => new Date(t).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+function paintUpcoming(list) {
+  if (list) upcomingList = list;
+  const el = $('#upcoming');
+  if (!el) return;
+  el.innerHTML = upcomingList.length ? upcomingList.map(u => `
+    <a class="upc ${u.startAt - Date.now() < 3600000 ? 'soon' : ''}" href="${esc(u.url)}" target="_blank" rel="noopener">
+      ${srcAvatar(u.profile, u.label, 30)}
+      <div><b>${esc(u.title)}</b><small>${esc(srcName(u.profile, u.label))} · ${esc(when(u.startAt))}</small></div>
+      <span class="upc-t">${esc(until(u.startAt))}</span>
+    </a>`).join('') : '<span class="muted small">Nothing scheduled yet. Announced YouTube streams from your channels appear here.</span>';
+}
+setInterval(() => paintUpcoming(), 30000);
+
+const shortSrc = u => { try { const x = new URL(u); const seg = x.pathname.split('/').filter(Boolean)[0] || ''; return x.hostname.replace(/^www\./, '').replace(/\.(com|tv)$/, '') + (seg ? ' · ' + seg : ''); } catch { return u; } };
 function paintWatch() {
   const list = S.status?.watch || S.config?.streams?.watch || [];
   $('#watchList').innerHTML = list.length ? list.map((w, i) => `
     <div class="wl" title="${w.checkedAt ? 'checked ' + clock(w.checkedAt) : 'not checked yet'}">
       ${srcAvatar(w.profile, w.label || w.url, 28)}
-      <div><b>${esc(w.profile?.name || w.label || w.url)}</b>${w.live ? ' <span class="livetag">Live</span>' : ''}<div class="u">${esc(w.url)}</div></div>
-      <label><input type="checkbox" data-auto="${i}" ${w.auto !== false ? 'checked' : ''}> auto</label>
-      <button class="ghost small" data-del="${i}">Remove</button>
+      <div title="${esc(w.url)}"><b>${esc(w.label || w.profile?.name || w.url)}</b>${w.live ? ' <span class="livetag">Live</span>' : ''}<div class="u">${esc(shortSrc(w.url))}</div></div>
+      <label title="Start transcribing automatically when it goes live"><input type="checkbox" data-auto="${i}" ${w.auto !== false ? 'checked' : ''}> auto</label>
+      <button class="ghost small wl-x" data-del="${i}" title="Remove">×</button>
     </div>`).join('') : '<span class="muted small">No channels yet.</span>';
 }
 async function saveWatch(list) {

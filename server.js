@@ -21,6 +21,7 @@ const { checkCoin, activePreset } = require('./lib/filters');
 const { padsFrom, classify } = require('./lib/launchpads');
 const { KolWatcher, isWallet, parseWalletList } = require('./lib/kols');
 const { RiskEngine } = require('./lib/risk');
+const updater = require('./lib/update');
 
 const ROOT = __dirname;
 const DEMO = process.argv.includes('--demo') || process.env.DEMO === '1';
@@ -478,8 +479,39 @@ function statusPayload() {
   return { ...status, provider: DEMO ? 'demo' : activeProvider(), clients: clients.size };
 }
 
+// ---------- auto-update ----------
+let VERSION = null, updating = false;
+updater.current().then(v => { VERSION = v; });
+const busyStreams = () => [...streams.sessions.values()].some(s => !s.endedAt && s.kind !== 'demo');
+async function autoUpdate(reason, { force = false } = {}) {
+  if (DEMO || process.env.CI || cfg.autoUpdate === false) return { off: true };
+  if (updating) return { updating: true };
+  const st = await updater.check({ fresh: force });
+  if (!st.behind) return st;
+  if (busyStreams() && !force) return { ...st, waiting: 'a stream is being transcribed' };
+  updating = true;
+  console.log(`  New version found (${reason}). Installing…`);
+  const r = await updater.apply();
+  if (!r.ok) { updating = false; console.log('  Update skipped: ' + r.msg); return { ...st, failed: r.msg }; }
+  console.log('  ' + r.msg + '. Restarting…');
+  send('updating', { to: String(st.latest || '').slice(0, 7) });
+  setTimeout(restartAfterUpdate, 400);
+  return { ...st, updating: true };
+}
+function restartAfterUpdate() {
+  for (const c of clients) { try { c.end(); } catch {} }
+  server.close();
+  // start.sh / start.bat relaunch on exit code 75; a plain `node server.js` relaunches itself.
+  if (process.env.ELIXIR_SUPERVISED === '1') return setTimeout(() => process.exit(75), 200);
+  try { require('child_process').execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'setup.js')], { stdio: 'inherit', cwd: ROOT }); } catch {}
+  setTimeout(() => {
+    require('child_process').spawn(process.execPath, process.argv.slice(1), { stdio: 'inherit', cwd: ROOT, env: { ...process.env, NO_OPEN: '1' } });
+    process.exit(0);
+  }, 300);
+}
+
 // ---------- http ----------
-const MIME = { '.png': 'image/png', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
+const MIME = { '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.png': 'image/png', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
 
 function json(res, code, data) {
   res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' });
@@ -500,7 +532,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && url.pathname === '/api/events') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
-      res.write(`event: hello\ndata: ${JSON.stringify({ config: publicConfig(), status: statusPayload(), items: items.slice(-150), trends: trendsSnapshot(), streams: streams.snapshot(), plays: plays.list(), playStats: plays.stats(), kols: kols.snapshot(), riskMemory: risk.memorySummary() })}\n\n`);
+      res.write(`event: hello\ndata: ${JSON.stringify({ version: VERSION, config: publicConfig(), status: statusPayload(), items: items.slice(-150), trends: trendsSnapshot(), streams: streams.snapshot(), plays: plays.list(), playStats: plays.stats(), kols: kols.snapshot(), riskMemory: risk.memorySummary() })}\n\n`);
       clients.add(res);
       const ping = setInterval(() => res.write(': ping\n\n'), 20000);
       req.on('close', () => { clearInterval(ping); clients.delete(res); });
@@ -591,6 +623,11 @@ const server = http.createServer(async (req, res) => {
         send('config', publicConfig());
         pollLoop();
         return json(res, 200, publicConfig());
+      }
+
+      if (url.pathname === '/api/update') {
+        const r = body.apply ? await autoUpdate('page refresh', { force: Boolean(body.force) }) : await updater.check();
+        return json(res, 200, { ...r, version: VERSION, auto: cfg.autoUpdate !== false });
       }
 
       if (url.pathname === '/api/keys') {
@@ -778,6 +815,7 @@ server.listen(cfg.port, '127.0.0.1', () => {
     try { require('child_process').spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref(); } catch {}
   }
   if (!DEMO && !process.env.CI) require('./lib/bin').ensureTools();
+  setTimeout(() => autoUpdate('start').catch(() => {}), 3000);
   if (DEMO) {
     if (process.env.DEMO_TWEETS !== '0') sources.startDemo(t => ingest({ ...t, via: 'demo' }));
     streams.start({ label: 'Demo streamer', kind: 'demo', url: 'https://www.twitch.tv/demo_streamer' });

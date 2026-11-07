@@ -141,3 +141,25 @@ mark.k.name { border-color: var(--line); }
 .addbar { max-width: none; }
 .addbar .add-row input { flex: 1 1 320px; }
 .sgrid { max-width: none; }
+
+/* cleanup: one-line add bar, quiet tags */
+.addbar { margin: 14px 0 0; padding: 0 16px; }
+.addbar .add-row { flex-wrap: nowrap; }
+.addbar .add-row #urlIn { flex: 1 1 auto; min-width: 0; }
+.addbar .add-row .lbl { flex: 0 0 170px; }
+.add-or { color: var(--muted); font-size: 12px; padding: 0 2px; }
+@media (max-width: 900px) { .addbar .add-row { flex-wrap: wrap; } .addbar .add-row #urlIn { flex-basis: 100%; } }
+.tg { font-family: var(--sans); font-size: 10.5px; font-weight: 500; letter-spacing: .2px; text-transform: lowercase; padding: 1px 6px; border: 0 !important; border-radius: 4px; background: var(--panel-3); }
+.tg.COINABLE { background: rgba(231, 181, 74, .12); }
+.tg.CRYPTO { background: rgba(50, 210, 150, .1); }
+.tg.FUNNY { background: rgba(232, 121, 166, .12); }
+.tg.MEME, .tg.MEMEABLE { background: rgba(76, 195, 209, .12); }
+.tg.LOUD, .tg.HYPE { background: rgba(240, 138, 60, .12); }
+.tg.REPEAT { background: rgba(167, 139, 250, .12); }
+.tg.WATCH { background: rgba(242, 71, 95, .14); }
+.wl { padding: 6px 4px; border-radius: 8px; }
+.wl:hover { background: var(--panel-2); }
+.wl .u { font-size: 11.5px; }
+.wl button { padding: 3px 9px; font-size: 12px; }
+.mo { background: var(--panel); border-color: var(--line); padding: 10px 12px; }
+.mo-top { gap: 8px; }
