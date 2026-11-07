@@ -32,7 +32,33 @@ loadDotEnv();
 if (!fs.existsSync(CONFIG_PATH)) fs.copyFileSync(path.join(ROOT, 'config.example.json'), CONFIG_PATH);
 let cfg = readConfig();
 
+// Keys typed into .env.example by mistake: move them into .env (which git ignores) and blank them in
+// .env.example, so they work and can't be pushed to GitHub by accident.
+function rescueExampleKeys() {
+  const ex = path.join(ROOT, '.env.example');
+  if (!fs.existsSync(ex)) return;
+  const lines = fs.readFileSync(ex, 'utf8').split(/\r?\n/);
+  const found = {};
+  const blanked = lines.map(l => {
+    const m = l.match(/^\s*([A-Z0-9_]+)\s*=\s*(\S.*?)\s*$/);
+    if (!m || m[1] === 'PORT') return l;
+    // Same name twice (e.g. two X keys pasted as X_BEARER_TOKEN): keep both as NAME, NAME_2, NAME_3…
+    let name = m[1];
+    for (let n = 2; name in found; n++) name = `${m[1]}_${n}`;
+    found[name] = m[2].replace(/^["']|["']$/g, '');
+    return name === m[1] ? `${m[1]}=` : null; // drop the duplicate line
+  }).filter(l => l !== null);
+  if (!Object.keys(found).length) return;
+  const envPath = path.join(ROOT, '.env');
+  const have = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+  const add = Object.entries(found).filter(([k]) => !new RegExp(`^\\s*${k}\\s*=\\s*\\S`, 'm').test(have));
+  fs.writeFileSync(envPath, have.replace(/\n*$/, have ? '\n' : '') + add.map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { mode: 0o600 });
+  fs.writeFileSync(ex, blanked.join('\n'));
+  console.log(`  Moved ${Object.keys(found).length} key(s) from .env.example into .env (keys belong in .env, which is never uploaded).`);
+}
+
 function loadDotEnv() {
+  rescueExampleKeys();
   const p = path.join(ROOT, '.env');
   if (!fs.existsSync(p)) return;
   for (const line of fs.readFileSync(p, 'utf8').split(/\r?\n/)) {
@@ -44,8 +70,13 @@ function loadDotEnv() {
 function readConfig() {
   const c = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
   c.keys = c.keys || {};
-  c.keys.twitterapiIo = process.env.TWITTERAPI_IO_KEY || c.keys.twitterapiIo || '';
-  c.keys.xBearer = process.env.X_BEARER_TOKEN || c.keys.xBearer || '';
+  // Extra keys rotate when one is rate-limited: X_BEARER_TOKEN_2, _3… (or several, comma-separated).
+  const many = (name, fromCfg) => [...new Set([process.env[name], ...[2, 3, 4, 5].map(n => process.env[`${name}_${n}`]), fromCfg]
+    .flatMap(v => String(v || '').split(',')).map(v => v.trim()).filter(Boolean))];
+  c.keys.twitterapiIos = many('TWITTERAPI_IO_KEY', c.keys.twitterapiIo);
+  c.keys.xBearers = many('X_BEARER_TOKEN', c.keys.xBearer).map(t => decodeURIComponent(t)); // X shows tokens %-encoded sometimes
+  c.keys.twitterapiIo = c.keys.twitterapiIos[0] || '';
+  c.keys.xBearer = c.keys.xBearers[0] || '';
   c.telegram = c.telegram || {};
   c.telegram.botToken = process.env.TELEGRAM_BOT_TOKEN || c.telegram.botToken || '';
   c.telegram.chatId = process.env.TELEGRAM_CHAT_ID || c.telegram.chatId || '';
@@ -84,7 +115,7 @@ function publicConfig() {
 }
 
 // ---------- API keys (Settings → API keys writes .env; values never go back to the page) ----------
-const KEY_ENVS = ['SOLANA_WS_URL', 'SOLANA_RPC_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY', 'TWITTERAPI_IO_KEY', 'X_BEARER_TOKEN', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'DISCORD_WEBHOOK_URL'];
+const KEY_ENVS = ['SOLANA_WS_URL', 'SOLANA_RPC_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY', 'TWITTERAPI_IO_KEY', 'X_BEARER_TOKEN', 'X_BEARER_TOKEN_2', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'DISCORD_WEBHOOK_URL'];
 function keyStatus() {
   const out = {};
   for (const k of KEY_ENVS) {
@@ -121,7 +152,7 @@ async function testKey(k) {
     if (k === 'DEEPGRAM_API_KEY') { const r = await fetch('https://api.deepgram.com/v1/projects', { ...T, headers: { authorization: 'Token ' + v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
     if (k === 'ANTHROPIC_API_KEY') { const r = await fetch('https://api.anthropic.com/v1/models?limit=1', { ...T, headers: { 'x-api-key': v, 'anthropic-version': '2023-06-01' } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
     if (k === 'TWITTERAPI_IO_KEY') { const r = await fetch('https://api.twitterapi.io/twitter/user/info?userName=x', { ...T, headers: { 'X-API-Key': v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
-    if (k === 'X_BEARER_TOKEN') { const r = await fetch('https://api.x.com/2/users/by/username/x', { ...T, headers: { authorization: 'Bearer ' + v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
+    if (k === 'X_BEARER_TOKEN' || k === 'X_BEARER_TOKEN_2') { const r = await fetch('https://api.x.com/2/users/by/username/x', { ...T, headers: { authorization: 'Bearer ' + v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
     if (k === 'DISCORD_WEBHOOK_URL') {
       if (!DISCORD_RE.test(v)) return { ok: false, msg: 'should start with https://discord.com/api/webhooks/' };
       const r = await fetch(v, T); const j = await r.json().catch(() => ({})); return r.ok ? { ok: true, msg: 'posts as ' + (j.name || 'webhook') } : fail(r);
@@ -381,7 +412,14 @@ async function pollLoop() {
   const started = Date.now();
   try {
     const fn = provider === 'twitterapi.io' ? sources.pollTwitterApiIo : sources.pollXApi;
-    await fn(cfg, cfg.accounts, t => ingest({ ...t, via: provider }));
+    try {
+      await fn(cfg, cfg.accounts, t => ingest({ ...t, via: provider }));
+    } catch (e) {
+      // Both kinds of key set: if one provider fails (out of credit, rate limit), use the other this round.
+      const other = provider === 'twitterapi.io' ? (cfg.keys.xBearer && 'x-api') : (cfg.keys.twitterapiIo && 'twitterapi.io');
+      if (!other) throw e;
+      await (other === 'x-api' ? sources.pollXApi : sources.pollTwitterApiIo)(cfg, cfg.accounts, t => ingest({ ...t, via: other }));
+    }
     status.lastPollError = null;
   } catch (e) {
     status.lastPollError = e.message;
@@ -475,8 +513,16 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (url.pathname === '/api/config') {
-        const clean = list => [...new Set((Array.isArray(list) ? list : String(list || '').split(/[\s,]+/))
-          .map(s => String(s).trim().replace(/^@/, '')).filter(Boolean))];
+        const clean = list => {
+          const text = Array.isArray(list) ? list.join(' ') : String(list || '');
+          const out = [];
+          // x.com/handle or twitter.com/handle links, then @handles and bare words
+          for (const m of text.matchAll(/(?:x|twitter)\.com\/(?!i\/|home|search|intent|share)([A-Za-z0-9_]{1,15})/gi)) out.push(m[1]);
+          const rest = text.replace(/https?:\/\/\S+/g, ' ');
+          for (const w of rest.split(/[\s,;|"'\[\]{}()]+/)) { const h = w.replace(/^@/, ''); if (/^[A-Za-z0-9_]{1,15}$/.test(h)) out.push(h); }
+          const seen = new Set();
+          return out.filter(h => { const k = h.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+        };
         const disk = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
         for (const k of ['accounts', 'vip']) if (k in body) disk[k] = clean(body[k]);
         for (const k of ['watchlist', 'ignore']) if (k in body) {
