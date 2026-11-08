@@ -271,3 +271,9 @@ mark.k.name { font-weight: 500; background: transparent; text-decoration: underl
 .cm-l a, .cm-l button { font: 500 11.5px/1 var(--sans); padding: 5px 8px; border-radius: 6px; background: #16171c; border: 1px solid #2a2d35; color: #c9cbd3; text-decoration: none; height: auto; }
 .cm-l a:hover, .cm-l button:hover { color: var(--text); border-color: #3a3e48; background: #1b1c22; }
 .tg.COIN { color: var(--coin); }
+
+.cm-head { font-size: 11.5px; color: var(--tx-dim); letter-spacing: .3px; text-transform: uppercase; margin: 2px 0 1px; }
+.cm-note { margin-top: 6px; font-size: 12.5px; color: var(--tx-dim); }
+.wl-wallet { font-size: 11.5px !important; padding: 2px 8px !important; }
+.wl-wallet.on { color: var(--accent) !important; }
+.wl { grid-template-columns: auto minmax(0, 1fr) auto auto auto !important; }

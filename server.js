@@ -429,6 +429,37 @@ const streams = new StreamManager({
       .then(it => plays.considerStream(it || items.find(x => x.id === 'seg-' + seg.id), { ...seg, pinged: true, keywords: [...(seg.keywords || []), ...found.map(f => ({ text: f.phrase, kind: 'coinable' }))] }, session))
       .catch(() => {});
   },
+  async onWalletMention(seg, session) {
+    const w = (cfg.streams.watch || []).find(x => x.url && x.url === session.url && x.wallet)?.wallet
+      || kols.walletNamed(session.label, session.profile?.name, session.profile?.handle);
+    if (!w) {
+      seg.walletNote = `Said they're in a coin. Link ${session.profile?.name || session.label}'s wallet (Streams → Auto-watch → wallet) to see which one.`;
+      streams.send('stream-seg', seg);
+      return;
+    }
+    let buys = [];
+    try { buys = await kols.recentBuys(w); } catch {}
+    const coins = [];
+    for (const b of buys) {
+      let info = null;
+      try { info = await dex.tokenInfo(b.mint); } catch {}
+      coins.push({
+        mint: b.mint, symbol: info?.symbol || b.mint.slice(0, 5), name: info?.name || '', image: info?.image || null, marketCap: info?.marketCap ?? null,
+        ageMin: b.at ? Math.round((Date.now() - b.at) / 60000) : null, sol: b.sol, pad: info?.dexId || '', bought: true,
+        links: { axiom: `https://axiom.trade/meme/${info?.pairAddress || b.mint}`, gmgn: `https://gmgn.ai/sol/token/${b.mint}`, dexscreener: `https://dexscreener.com/solana/${b.mint}`, tx: b.sig ? `https://solscan.io/tx/${b.sig}` : null },
+      });
+    }
+    seg.walletCoins = coins;
+    seg.walletNote = coins.length ? '' : `No buys from ${session.label}'s wallet in the last 2 hours.`;
+    if (coins.length && !seg.tags.includes('COIN')) seg.tags.push('COIN');
+    if (coins.length) seg.highlight = true;
+    streams.send('stream-seg', seg);
+    if (coins.length) {
+      const c = coins[0];
+      const mc = c.marketCap ? ` · $${c.marketCap >= 1e6 ? (c.marketCap / 1e6).toFixed(2) + 'M' : Math.round(c.marketCap / 1000) + 'K'}` : '';
+      alert({ kind: 'fresh', title: `WALLET · ${session.label} is in $${c.symbol}${mc}${c.sol ? ` (${c.sol.toFixed(2)} SOL, ${c.ageMin}m ago)` : ''}`, item: { id: 'seg-' + seg.id, source: 'stream', author: session.label, text: seg.text, url: session.url || '' }, streamId: session.id, segId: seg.id, tags: ['WATCH'], important: true });
+    }
+  },
   onPing(seg, session, title, kind) {
     const item = { id: 'seg-' + seg.id, source: 'stream', author: session.label, text: seg.text, url: session.url || '' };
     alert({ kind, title, item, word: (seg.keywords || []).find(k => k.kind === 'coinable' || k.kind === 'watch' || k.kind === 'ai')?.text, streamId: session.id, segId: seg.id, tags: seg.tags });
@@ -948,7 +979,7 @@ const server = http.createServer(async (req, res) => {
         if (Array.isArray(body.watch)) {
           disk.streams.watch = body.watch
             .filter(w => /^https:\/\/\S+$/i.test(String(w.url || '')))
-            .map(w => ({ url: String(w.url).trim(), label: String(w.label || '').slice(0, 40), auto: w.auto !== false }))
+            .map(w => ({ url: String(w.url).trim(), label: String(w.label || '').slice(0, 40), auto: w.auto !== false, ...(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(String(w.wallet || '')) ? { wallet: String(w.wallet) } : {}) }))
             .slice(0, 30);
         }
         for (const k of ['highlightScore', 'pingScore']) if (k in body) disk.streams[k] = Math.max(1, Math.min(30, Number(body[k]) || 4));

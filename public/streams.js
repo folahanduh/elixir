@@ -230,6 +230,21 @@ function aiHTML(seg) {
 // Coins named after what was said: tiny image, ticker, market cap, age, and where to open them.
 const mc$ = n => n == null ? '' : '$' + (n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n));
 const age$ = m => m == null ? '' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd';
+function walletCoinsHTML(seg) {
+  if (seg.walletNote && !seg.walletCoins?.length) return `<div class="cm-note">${esc(seg.walletNote)}</div>`;
+  if (!seg.walletCoins?.length) return '';
+  return `<div class="cmatch"><div class="cm-head">In their wallet</div>${seg.walletCoins.map(c => cmRow(c)).join('')}</div>`;
+}
+function cmRow(c) {
+  return `<div class="cm">
+    <span class="cm-img">${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<i>${esc((c.symbol || '?').slice(0, 2))}</i></span>
+    <b class="cm-t" data-word="${esc(c.symbol || '')}" title="${esc(c.name || '')}">$${esc(c.symbol || '?')}</b>
+    ${c.name ? `<span class="cm-n">${esc(c.name)}</span>` : ''}
+    <span class="cm-mc">${esc(mc$(c.marketCap))}</span>
+    <span class="cm-age">${c.bought ? `bought ${c.sol ? esc(c.sol.toFixed(2)) + ' SOL ' : ''}${esc(age$(c.ageMin))} ago` : `${esc(age$(c.ageMin))}${c.pad ? ' · ' + esc(c.pad) : ''}`}</span>
+    <span class="cm-l"><a href="${esc(c.links.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${esc(c.links.gmgn)}" target="_blank" rel="noopener">GMGN</a><button type="button" class="cm-fomo" data-ca="${esc(c.mint)}" title="Copy the contract address and open Fomo">Fomo</button>${c.links.tx ? `<a href="${esc(c.links.tx)}" target="_blank" rel="noopener" title="The buy transaction">tx</a>` : ''}</span>
+  </div>`;
+}
 function coinMatchHTML(seg) {
   if (!seg.coinMatches?.length) return '';
   return `<div class="cmatch">${seg.coinMatches.map(f => f.coins.map(c => `<div class="cm">
@@ -255,7 +270,7 @@ function lineHTML(seg) {
   const s = S.sessions.get(seg.sid);
   const tools = `<span class="ln-tools">${s?.canClip ? `<button class="ghost small" data-clipseg="${esc(seg.id)}" title="Clip this moment">clip</button>` : ''}${seg.highlight ? `<button class="ghost small" data-playseg="${esc(seg.id)}" title="Track as a play: deploys, tickers, vamps">track</button>` : ''}</span>`;
   const chip = s ? spkChip(s, seg.speaker) : '';
-  return `<span class="ts" title="${esc(hms(seg.offset))} into the stream">${esc(clock(seg.t))}</span><div><div class="tx">${chip}${gaps(markText(seg.text, [...(seg.keywords || []), ...(seg.coinMatches || []).map(f => ({ text: f.phrase, kind: 'coinable' }))]))}${tools}</div>${coinMatchHTML(seg)}${extra}</div>`;
+  return `<span class="ts" title="${esc(hms(seg.offset))} into the stream">${esc(clock(seg.t))}</span><div><div class="tx">${chip}${gaps(markText(seg.text, [...(seg.keywords || []), ...(seg.coinMatches || []).map(f => ({ text: f.phrase, kind: 'coinable' }))]))}${tools}</div>${walletCoinsHTML(seg)}${coinMatchHTML(seg)}${extra}</div>`;
 }
 
 function upsertSeg(seg, quiet) {
@@ -537,15 +552,27 @@ function paintWatch() {
     <div class="wl" title="${w.checkedAt ? 'checked ' + clock(w.checkedAt) : 'not checked yet'}">
       ${srcAvatar(w.profile, w.label || w.url, 28)}
       <div title="${esc(w.url)}"><b>${esc(w.label || w.profile?.name || w.url)}</b>${w.live ? ' <span class="livetag">Live</span>' : ''}<div class="u">${esc(shortSrc(w.url))}</div></div>
+      <button type="button" class="ghost small wl-wallet ${w.wallet ? 'on' : ''}" data-wallet="${i}" title="${w.wallet ? 'Wallet: ' + esc(w.wallet) : 'Link this streamer\'s wallet: when they say “the coin I\'m in”, Elixir shows what they bought'}">${w.wallet ? 'wallet ✓' : '+ wallet'}</button>
       <label title="Start transcribing automatically when it goes live"><input type="checkbox" data-auto="${i}" ${w.auto !== false ? 'checked' : ''}> auto</label>
       <button class="ghost small wl-x" data-del="${i}" title="Remove">×</button>
     </div>`).join('') : '<span class="muted small">No channels yet.</span>';
 }
 async function saveWatch(list) {
-  const r = await api('/api/streams/settings', { watch: list.map(w => ({ url: w.url, label: w.label, auto: w.auto })) });
+  const r = await api('/api/streams/settings', { watch: list.map(w => ({ url: w.url, label: w.label, auto: w.auto, ...(w.wallet ? { wallet: w.wallet } : {}) })) });
   S.status = r.status; paintWatch();
 }
 $('#watchList').addEventListener('click', e => {
+  const wb = e.target.closest('[data-wallet]');
+  if (wb) {
+    const list = (S.config?.streams?.watch || []).slice(), i = Number(wb.dataset.wallet);
+    const v = prompt('Solana wallet address for ' + (list[i]?.label || 'this streamer') + ' (leave empty to unlink):', list[i]?.wallet || '');
+    if (v === null) return;
+    const addr = v.trim();
+    if (addr && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr)) return toast({ title: 'That doesn\'t look like a Solana wallet address' });
+    list[i] = { ...list[i], wallet: addr || undefined };
+    saveWatch(list);
+    return;
+  }
   const del = e.target.closest('[data-del]');
   if (!del) return;
   const list = (S.config?.streams?.watch || []).slice(); list.splice(Number(del.dataset.del), 1); saveWatch(list);
