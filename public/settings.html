@@ -71,6 +71,7 @@
     <form class="kwform" id="kwForm" hidden>
       <input id="kwWord" placeholder="keyword or phrase (several: separate with commas)" autocomplete="off" required>
       <select id="kwMatch"><option value="word">Full word</option><option value="partial">Partial match</option></select>
+      <select id="kwScope" title="Where this keyword pings"><option value="both">Tweets &amp; streams</option><option value="tweets">Tweets only</option><option value="streams">Streams only</option></select>
       <div class="swatches" id="kwSwatches"></div>
       <button class="ghost" type="button" id="kwCancel">Cancel</button>
       <button id="kwSave">Add</button>

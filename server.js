@@ -106,6 +106,11 @@ function seedPresets() {
     delete disk.watchlist;
     seeded.keywords = true;
   }
+  if (kwPreset && !seeded.kwScope && Array.isArray(disk.keywords)) {
+    const defaults = new Set(kwPreset.keywords.map(k => k.word));
+    disk.keywords = disk.keywords.map(k => (typeof k === 'object' && defaults.has(k.word) && !k.scope ? { ...k, scope: 'tweets' } : k));
+    seeded.kwScope = true;
+  }
   // The first versions shipped a demo watchlist of generic words (cat, frog, grok…) that pinged constantly.
   // If it's still exactly that list, clear it: your watchlist should only hold words you care about.
   const OLD_DEMO = ['doge', 'pepe', 'frog', 'cat', 'hamster', 'penguin', 'grok', 'x money'];
@@ -169,7 +174,7 @@ function readConfig() {
   c.kols = { ...defaults.kols, ...(c.kols || {}) };
   c.filters = { ...defaults.filters, ...(c.filters || {}), presets: { ...defaults.filters.presets, ...((c.filters || {}).presets || {}) } };
   c.keywords = kw.normalizeKeywords(Array.isArray(c.keywords) ? c.keywords : c.watchlist || []);
-  c.watchlist = c.keywords.filter(k => !k.muted).map(k => k.word); // used by stream speech hints and live pings
+  c.watchlist = c.keywords.filter(k => !k.muted && k.scope !== 'tweets').map(k => k.word); // streams: speech hints + live pings
   c.builtins = { ...kw.DEFAULT_BUILTINS, ...(c.builtins || {}) };
   c.accountMeta = c.accountMeta || {};
   if (DEMO) c.vip = [...new Set([...(c.vip || []), 'memelord_daily', 'frogwatcher'])]; // fictional demo accounts, so demo plays fire
@@ -351,7 +356,7 @@ async function ingest(raw) {
     const strong = c => c.watch || c.reasons.some(r => r === 'cashtag' || r === 'quoted' || r === 'pattern' || r === 'watchlist');
     candidates.splice(0, candidates.length, ...candidates.filter(strong));
   }
-  const kwHits = kw.keywordHits(text, cfg.keywords);
+  const kwHits = kw.keywordHits(text, cfg.keywords.filter(k => (source === 'stream' ? k.scope !== 'tweets' : k.scope !== 'streams')));
   const muted = Boolean(cfg.accountMeta[author.toLowerCase()]?.muted);
   const watch = muted ? [] : kwHits.filter(k => !k.muted).map(k => k.word);
 
@@ -733,9 +738,10 @@ function keywordsApi(b) {
     saveDisk(d => {
       let list = kw.normalizeKeywords(Array.isArray(d.keywords) ? d.keywords : d.watchlist || []);
       const word = kw.norm(b.word);
+      if (op === 'add' && word && b.scope) b.scope = ['tweets', 'streams'].includes(b.scope) ? b.scope : 'both';
       if (op === 'add' && word) {
         const words = String(b.word).split(/[\n,]+/).map(kw.norm).filter(Boolean); // paste several at once
-        words.forEach((w, i) => { if (!list.some(k => k.word === w)) list.push({ word: w, match: b.match === 'partial' ? 'partial' : 'word', color: i === 0 ? b.color : kw.PALETTE[(list.length) % kw.PALETTE.length] }); });
+        words.forEach((w, i) => { if (!list.some(k => k.word === w)) list.push({ word: w, match: b.match === 'partial' ? 'partial' : 'word', scope: b.scope || 'both', color: i === 0 ? b.color : kw.PALETTE[(list.length) % kw.PALETTE.length] }); });
       }
       if (op === 'remove') list = list.filter(k => k.word !== word);
       if (op === 'update') list = list.map(k => (k.word === word ? { ...k, ...b.patch, word: kw.norm(b.patch?.word || k.word) } : k));

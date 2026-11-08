@@ -146,7 +146,7 @@
     $('#kwCount').textContent = K.keywords.length;
     $('#kwList').innerHTML = list.map(k => `<div class="row ${k.muted ? 'is-muted' : ''}" data-kw="${h(k.word)}">
       <span class="sw" style="--c:${h(k.color)}"></span>
-      <div class="rmain"><b>${h(k.word)}${k.muted ? '<span class="chip">muted</span>' : ''}</b><small>${k.match === 'partial' ? 'Partial match' : 'Full word'}</small></div>
+      <div class="rmain"><b>${h(k.word)}${k.muted ? '<span class="chip">muted</span>' : ''}</b><small>${k.match === 'partial' ? 'Partial match' : 'Full word'} · ${k.scope === 'tweets' ? 'tweets only' : k.scope === 'streams' ? 'streams only' : 'tweets & streams'}</small></div>
       <div class="ractions">
         ${ibtn(k.muted ? 'mute' : 'bell', k.muted ? 'Muted: highlighted, never pings. Click to unmute' : 'Mute: keep highlighting, stop pinging', 'data-kact="muted"', k.muted)}
         ${ibtn('edit', 'Edit', 'data-kact="edit"')}
@@ -161,7 +161,7 @@
   let editing = null;
   const openForm = (k = null) => {
     editing = k; pick = k?.color || K.palette[K.keywords.length % K.palette.length];
-    $('#kwWord').value = k?.word || ''; $('#kwMatch').value = k?.match || 'word'; $('#kwSave').textContent = k ? 'Save' : 'Add';
+    $('#kwWord').value = k?.word || ''; $('#kwMatch').value = k?.match || 'word'; $('#kwScope').value = k?.scope || 'both'; $('#kwSave').textContent = k ? 'Save' : 'Add';
     $('#kwForm').hidden = false; paintKeywords(); $('#kwWord').focus();
   };
   $('#kwAddBtn').onclick = () => openForm();
@@ -170,8 +170,8 @@
   $('#kwForm').onsubmit = async e => {
     e.preventDefault();
     const word = $('#kwWord').value.trim(); if (!word) return;
-    if (editing) await loadKeywords({ op: 'update', word: editing.word, patch: { word, match: $('#kwMatch').value, color: pick } });
-    else await loadKeywords({ op: 'add', word, match: $('#kwMatch').value, color: pick });
+    if (editing) await loadKeywords({ op: 'update', word: editing.word, patch: { word, match: $('#kwMatch').value, scope: $('#kwScope').value, color: pick } });
+    else await loadKeywords({ op: 'add', word, match: $('#kwMatch').value, scope: $('#kwScope').value, color: pick });
     $('#kwForm').hidden = true; editing = null;
   };
   $('#kwList').addEventListener('click', async e => {

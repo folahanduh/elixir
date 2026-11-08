@@ -1,65 +1,80 @@
 {
-  "about": "Default keywords: added once (new installs and existing ones). Remove any in Settings \u2192 Keywords and they stay removed.",
+  "about": "Default keywords: added once (new installs and existing ones). Remove any in Settings \u2192 Keywords and they stay removed. These are tweet triggers (scope 'tweets'): a streamer says them all the time.",
   "keywords": [
     {
       "word": "coin",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "deploy",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "inu",
-      "match": "word"
+      "match": "word",
+      "scope": "tweets"
     },
     {
       "word": "baby",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "justice",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "rip",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "dead",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "token",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "dog",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "doggy",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "named",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "called",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "introducing",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "asteroid",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     },
     {
       "word": "trump",
-      "match": "partial"
+      "match": "partial",
+      "scope": "tweets"
     }
   ]
 }
