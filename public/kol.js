@@ -138,7 +138,10 @@
   function render() { if (!frame) frame = setTimeout(() => { frame = 0; draw(); }, 250); } // at most 4 redraws a second
   function draw() {
     const list = [...events.values()].sort((a, b) => b.seenAt - a.seenAt).filter(e => !buysOnly || e.side === 'buy').slice(0, 30);
-    panel.querySelector('.kolp-list').innerHTML = list.length ? list.map(row).join('') : '<div class="kolp-empty">Waiting for KOL trades…</div>';
+    const st = panel.querySelector('.kolp-st').textContent;
+    const why = /checking/.test(st) ? `First run: checking which of your wallets traded recently (${h(st)}). Active ones go live as they're found.`
+      : /RPC|add a Solana/.test(st) ? h(st) : 'Waiting for KOL trades… The latest trades of your most active wallets load here in a moment.';
+    panel.querySelector('.kolp-list').innerHTML = list.length ? list.map(row).join('') : `<div class="kolp-empty">${why}</div>`;
   }
 
   const es = window.nrES || (window.nrES = new EventSource('/api/events'));
@@ -159,7 +162,7 @@
     render();
   });
   es.addEventListener('kol-drop', e => { events.delete(JSON.parse(e.data).id); render(); });
-  es.addEventListener('kol-status', e => { const d = JSON.parse(e.data); panel.querySelector('.kolp-st').textContent = d.status; paintCounts(d); });
+  es.addEventListener('kol-status', e => { const d = JSON.parse(e.data); panel.querySelector('.kolp-st').textContent = d.status; paintCounts(d); if (!events.size) render(); });
 
   // Click a coin: hand it to the page's own copy-and-check if it has one.
   panel.addEventListener('click', e => {
