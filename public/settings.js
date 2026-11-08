@@ -64,10 +64,10 @@
     const exact = query && /^[a-z0-9_]{1,15}$/.test(query) && !all.some(a => a.handle.toLowerCase() === query);
     const rows = list.slice(0, limit).map(a => `<div class="row ${a.muted ? 'is-muted' : ''}">
       <span class="av"><img src="https://unavatar.io/x/${h(a.handle)}?fallback=false" alt="" loading="lazy" onerror="this.remove()"><i>${h(a.handle.slice(0, 2).toUpperCase())}</i></span>
-      <div class="rmain"><b><a href="https://x.com/${h(a.handle)}" target="_blank" rel="noopener">@${h(a.handle)}</a>${a.vip ? '<span class="chip vip">VIP</span>' : ''}${a.muted ? '<span class="chip">muted</span>' : ''}${a.pinned ? '<span class="chip">pinned</span>' : ''}</b><small>${a.group ? h(a.group) : 'Added by you'}</small></div>
+      <div class="rmain"><b><a href="https://x.com/${h(a.handle)}" target="_blank" rel="noopener">@${h(a.handle)}</a>${a.vip ? '<span class="chip vip">VIP</span>' : ''}${a.ping ? '<span class="chip ping">every tweet</span>' : ''}${a.muted ? '<span class="chip">muted</span>' : ''}${a.pinned ? '<span class="chip">pinned</span>' : ''}</b><small>${a.group ? h(a.group) : 'Added by you'}</small></div>
       <div class="ractions">
         ${ibtn('vip', a.vip ? 'VIP: every tweet pings. Click to turn off' : 'Make VIP: every tweet pings', `data-acc="${h(a.handle)}" data-act="vip"`, a.vip)}
-        ${ibtn(a.muted ? 'mute' : 'bell', a.muted ? 'Muted: shown, never pings. Click to unmute' : 'Mute: still shown, never pings', `data-acc="${h(a.handle)}" data-act="muted"`, a.muted)}
+        ${ibtn(a.muted ? 'mute' : 'bell', a.muted ? 'Muted: shown, never pings. Click for normal' : a.ping ? 'Every tweet and reply pings. Click to mute' : 'Normal: pings on important tweets. Click to ping on every tweet and reply', `data-acc="${h(a.handle)}" data-act="bell"`, a.ping || a.muted)}
         ${ibtn('pin', a.pinned ? 'Unpin' : 'Pin to the top', `data-acc="${h(a.handle)}" data-act="pinned"`, a.pinned)}
         ${ibtn('trash', 'Stop tracking', `data-acc="${h(a.handle)}" data-act="remove"`)}
       </div>
@@ -95,6 +95,12 @@
     const a = A.accounts.find(x => x.handle === b.dataset.acc); if (!a) return;
     const act = b.dataset.act;
     if (act === 'remove') { await loadAccounts({ op: 'remove', handles: a.handle }); toast('Stopped tracking @' + a.handle); return; }
+    if (act === 'bell') { // normal → every tweet → muted → normal
+      const next = a.muted ? { muted: false, ping: false } : a.ping ? { ping: false, muted: true } : { ping: true, muted: false };
+      await loadAccounts({ op: 'set', handle: a.handle, ...next });
+      toast(next.ping ? `@${a.handle}: every tweet and reply pings` : next.muted ? `@${a.handle}: muted` : `@${a.handle}: normal`);
+      return;
+    }
     await loadAccounts({ op: 'set', handle: a.handle, [act]: !a[act] });
   });
   $('#accList').addEventListener('scroll', () => {}, { passive: true });

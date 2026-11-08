@@ -1,5 +1,5 @@
 {
-  "about": "Elixir's built-in X accounts. Added to your list once (on first start, and new ones after updates); remove any you don't want in Settings and they stay removed. 'fast' groups are polled every cycle, 'slow' groups every 4th cycle to save API credit. Groups marked vip alert on every tweet. 'removed' lists presets taken out in later versions: they're removed from your list too, unless you re-add them after that.",
+  "about": "Elixir's built-in X accounts. Added to your list once (on first start, and new ones after updates); remove any you don't want in Settings and they stay removed. 'fast' groups are polled every cycle, 'slow' groups every 4th cycle to save API credit. Groups marked vip alert on every tweet. 'removed' lists presets taken out in later versions: they're removed from your list too, unless you re-add them after that. 'ping' accounts make a noise on every tweet and reply (Alon of pump.fun).",
   "groups": [
     {
       "id": "movers",
@@ -246,5 +246,8 @@
   "removed": [
     "grok",
     "xai"
+  ],
+  "ping": [
+    "a1lon9"
   ]
 }

@@ -69,6 +69,16 @@ function seedPresets() {
     disk.accounts = disk.accounts.filter(a => a.toLowerCase() !== h.toLowerCase());
     disk.vip = disk.vip.filter(a => a.toLowerCase() !== h.toLowerCase());
   }
+  // Accounts that ping on every tweet and reply out of the box (presets/accounts.json "ping"): set once.
+  seeded.ping = seeded.ping || [];
+  disk.accountMeta = disk.accountMeta || {};
+  for (const h of acc?.ping || []) {
+    const k = h.toLowerCase();
+    if (seeded.ping.includes(k)) continue;
+    seeded.ping.push(k);
+    if (!disk.accountMeta[k]) disk.accountMeta[k] = { ping: true };
+    else if (disk.accountMeta[k].ping === undefined && !disk.accountMeta[k].muted) disk.accountMeta[k].ping = true;
+  }
   // Built-in KOL / dev wallets (presets/wallets.json): added once, removed ones stay removed.
   const walPreset = read('wallets.json');
   if (walPreset) {
@@ -353,6 +363,7 @@ async function ingest(raw) {
     kw: kwHits.map(k => ({ word: k.word, color: k.color })),
     stale: ageSec > cfg.alertMaxAgeSeconds,
     tags: Array.isArray(raw.tags) ? raw.tags.slice(0, 8).map(String) : undefined,
+    replyTo: raw.replyTo ? String(raw.replyTo).replace(/^@/, '').slice(0, 30) : null,
     links: Array.isArray(raw.links) ? raw.links.slice(0, 10).map(String) : undefined,
     media: Array.isArray(raw.media) ? raw.media.map(safeUrl).filter(Boolean).slice(0, 4) : [],
     engagement: raw.engagement && typeof raw.engagement === 'object'
@@ -378,6 +389,10 @@ async function ingest(raw) {
   if (!quiet && !item.stale && !muted && (vip || watch.length)) {
     const why = [vip && `VIP @${author}`, watch.length && `keyword: ${watch.join(', ')}`].filter(Boolean).join(' · ');
     alert({ kind: watch.length ? 'watch' : 'vip', title: why, item });
+  }
+  // Accounts set to "ping on every tweet" (Settings → Accounts, the bell): every tweet and reply makes a noise.
+  if (!quiet && !item.stale && !muted && source === 'x' && cfg.accountMeta[author.toLowerCase()]?.ping) {
+    alert({ kind: 'vip', title: item.replyTo ? `REPLY · @${author} replied to @${item.replyTo}` : `TWEET · @${author}`, item, important: true });
   }
   // Built-in detectors (Settings → Keywords): a tracked account posting a $TICKER or a "quoted name".
   if (!quiet && !item.stale && !muted && source === 'x') {
@@ -695,7 +710,7 @@ function accountsApi(b) {
         const h = String(b.handle);
         if ('vip' in b) d.vip = b.vip ? (has(d.vip, h) ? d.vip : [...d.vip, h]) : d.vip.filter(a => lc(a) !== lc(h));
         const m = { ...(d.accountMeta[lc(h)] || {}) };
-        for (const k of ['muted', 'pinned']) if (k in b) m[k] = Boolean(b[k]);
+        for (const k of ['muted', 'pinned', 'ping']) if (k in b) m[k] = Boolean(b[k]);
         if ('note' in b) m.note = String(b.note || '').slice(0, 200);
         d.accountMeta[lc(h)] = m;
       }
@@ -705,7 +720,7 @@ function accountsApi(b) {
   const vip = new Set(cfg.vip.map(lc));
   const accounts = cfg.accounts.map(h => {
     const g = groupOf.get(lc(h)), m = cfg.accountMeta[lc(h)] || {};
-    return { handle: h, group: g?.label || null, groupId: g?.id || null, preset: Boolean(g), vip: vip.has(lc(h)), muted: Boolean(m.muted), pinned: Boolean(m.pinned), note: m.note || '' };
+    return { handle: h, group: g?.label || null, groupId: g?.id || null, preset: Boolean(g), vip: vip.has(lc(h)), muted: Boolean(m.muted), pinned: Boolean(m.pinned), ping: Boolean(m.ping), note: m.note || '' };
   });
   const on = new Set(cfg.accounts.map(lc));
   const groups = PRESET_GROUPS.map(g => ({ id: g.id, label: g.label, tier: g.tier, total: g.accounts.length, active: g.accounts.filter(a => on.has(lc(a))).length }));

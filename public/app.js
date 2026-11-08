@@ -205,6 +205,24 @@ function riskBadge(d) {
   return '';
 }
 
+// The top deploy, live: did the coin actually take off? Volume in the last 5 minutes decides it.
+function liveCoinHTML(p, top) {
+  if (!top) return '';
+  const v5 = top.vol5m || 0, tr = top.trades5m || 0;
+  const verdict = v5 >= 10000 && tr >= 40 ? ['up', 'Took off: real volume'] : v5 >= 1500 || tr >= 15 ? ['mid', 'Getting volume'] : ['no', 'Deployed, no traction yet'];
+  const chartOpen = state.openCharts?.has(p.id);
+  const pairId = top.pairAddress || top.address;
+  return `<div class="livecoin">
+    <span class="lc-img">${top.image ? `<img src="${esc(top.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<i>${esc((top.symbol || '?').slice(0, 2))}</i></span>
+    <div class="lc-main"><b>$${esc(top.symbol)}</b><span class="muted">${esc(top.name || '')} · ${esc(top.padLabel || '')} · ${esc(top.orderLabel || '')} deploy</span></div>
+    <div class="lc-stat"><b>${fmtUsd(top.marketCap)}</b><span>mcap${top.change5m != null ? ` · <i class="${top.change5m >= 0 ? 'pos' : 'neg'}">${top.change5m >= 0 ? '+' : ''}${top.change5m}%</i> 5m` : ''}</span></div>
+    <div class="lc-stat"><b>${fmtUsd(v5)}</b><span>vol 5m · ${tr} trades</span></div>
+    <span class="lc-verdict ${verdict[0]}">${verdict[1]}</span>
+    <span class="lc-links"><a class="lk" target="_blank" rel="noopener" href="${esc(top.links.axiom)}">Axiom</a><a class="lk" target="_blank" rel="noopener" href="${esc(top.links.gmgn)}">GMGN</a>${top.links.pumpfun ? `<a class="lk" target="_blank" rel="noopener" href="${esc(top.links.pumpfun)}">pump.fun</a>` : ''}<button class="ghost small" data-chart="${esc(p.id)}">${chartOpen ? 'Hide chart' : 'Chart'}</button></span>
+    ${chartOpen ? `<iframe class="lc-chart" src="https://dexscreener.com/solana/${encodeURIComponent(pairId)}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=1&chartType=marketCap&interval=1" loading="lazy" title="Live chart"></iframe>` : ''}
+  </div>`;
+}
+
 function playPanelHTML(p) {
   let list = [...p.deploys].sort((a, b) => state.playSort === 'order' ? a.order - b.order : b.vol.real - a.vol.real);
   const passing = p.deploys.filter(passesFilter).length;
@@ -235,7 +253,7 @@ function playPanelHTML(p) {
   // Real vamps = the name relaunched on a different launchpad. Same-pad repeats are just copies.
   const detected = p.deploys.filter(d => d.vampOf && d.vampOf.pad !== d.padLabel);
   const copies = p.deploys.filter(d => d.vampOf && d.vampOf.pad === d.padLabel).length;
-  return `
+  return `${liveCoinHTML(p, top)}
     <div class="pp-head">
       <b>PLAY</b><span class="muted small">${p.status === 'tracking' ? 'tracking' : esc(p.status)} · ${p.deploys.length} deploy${p.deploys.length === 1 ? '' : 's'}${p.lastPollAt ? ' · ' + clock(p.lastPollAt) : ''}</span>
       <span class="spacer"></span>
@@ -292,7 +310,11 @@ function renderPlay(p) {
   card.classList.add('has-play');
   const slot = card.querySelector('.pp-slot');
   slot.className = 'pp-slot play-panel';
+  // Keep an open live chart across re-renders (the panel updates every few seconds; reloading the chart would flicker).
+  const oldChart = slot.querySelector('.lc-chart');
   slot.innerHTML = playPanelHTML(p);
+  const newChart = slot.querySelector('.lc-chart');
+  if (oldChart && newChart && oldChart.src === newChart.src) newChart.replaceWith(oldChart);
   card.querySelector('.trackbtn').hidden = true;
 }
 
@@ -715,6 +737,14 @@ document.addEventListener('change', e => {
   for (const p of state.plays.values()) renderPlay(p);
 });
 document.addEventListener('click', async e => {
+  const ch = e.target.closest('[data-chart]');
+  if (ch) {
+    state.openCharts = state.openCharts || new Set();
+    const id = ch.dataset.chart;
+    state.openCharts.has(id) ? state.openCharts.delete(id) : state.openCharts.add(id);
+    const p = [...state.plays.values()].find(x => x.id === id); if (p) renderPlay(p);
+    return;
+  }
   const rb = e.target.closest('[data-riskmint]');
   if (rb) { const slot = rb.closest('.tok').querySelector('.riskslot'); runRisk(rb.dataset.riskmint, slot); return; }
   if (e.target.id === 'rugImportBtn') {
