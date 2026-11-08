@@ -229,7 +229,18 @@
 
   function paintSide(sel) {
     const d = mapData;
-    if (!d) { $('#bmSide').innerHTML = ''; return; }
+    if (!d) {
+      $('#bmSide').innerHTML = `<div class="bm-guide">
+        <div class="bm-sec">HOW TO READ IT</div>
+        <div class="g"><i style="background:#a7b1ff"></i><div><b>Same colour = one group</b><span>Connected by a shared funder, by funding each other, by passing the token, or by buying in the same transaction.</span></div></div>
+        <div class="g"><i class="ring"></i><div><b>Amber ring = pre-funded</b><span>Got its SOL in the 3 days before launch. A lot of supply in amber is a planned launch.</span></div></div>
+        <div class="g"><i style="background:#2fd18b"></i><div><b>Green dot = fresh wallet</b><span>Only a few transactions ever. Made for this coin.</span></div></div>
+        <div class="g"><i class="dash"></i><div><b>Dashed = pool or curve</b><span>Liquidity, not a person. Never grouped.</span></div></div>
+        <div class="bm-sec">TRY IT</div>
+        <span class="muted">Paste a coin from <a href="/plays.html">Plays</a> or a KOL's wallet. Hover any bubble for its card, click for full details, double-click to open its connections.</span>
+      </div>`;
+      return;
+    }
     let html = '';
     if (d.type === 'wallet') {
       const center = d.nodes.find(n => n.role === 'center') || {};
@@ -290,6 +301,8 @@
     const c = e.target.closest('[data-copy]');
     if (c) { e.preventDefault(); navigator.clipboard?.writeText(c.dataset.copy).then(() => { const t = c.textContent; c.textContent = 'Copied'; setTimeout(() => { c.textContent = t; }, 1200); }).catch(() => {}); }
   });
+
+  paintSide(null);
 
   // ---------- live ----------
   const es = window.nrES || (window.nrES = new EventSource('/api/events'));

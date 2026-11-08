@@ -17,7 +17,7 @@
   panel.dataset.pop = 'kols'; panel.dataset.popLabel = 'KOL wallets'; panel.dataset.popSize = '600x460';
   panel.innerHTML = `
     <div class="kolp-head">
-      <b>KOL WALLETS</b><span class="kolp-st">…</span>
+      <b>KOL wallets</b><span class="kolp-st">…</span>
       <label class="kolp-f" title="Only show buys"><input type="checkbox" class="kolp-buys"> buys</label>
       <button class="ghost small kolp-dorm-btn" title="Wallets with no transaction in the last month (hidden, re-checked in the background)">Dormant</button>
       <button class="ghost small kolp-imp-btn" title="Paste or drop your Axiom wallet export">Import</button>
