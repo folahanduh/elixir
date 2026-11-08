@@ -757,7 +757,16 @@ function keywordsApi(b) {
 let VERSION = null, updating = false;
 updater.current().then(v => { VERSION = v; });
 const busyStreams = () => [...streams.sessions.values()].some(s => !s.endedAt && s.kind !== 'demo');
-async function autoUpdate(reason, { force = false } = {}) {
+const JUST_UPDATED = path.join(ROOT, 'data', '.just-updated');
+let checking = null; // one check at a time, however many windows refresh together
+function autoUpdate(reason, opts = {}) {
+  if (checking && !opts.force) return checking;
+  const p = autoUpdateOnce(reason, opts);
+  checking = p;
+  p.finally(() => { if (checking === p) checking = null; });
+  return p;
+}
+async function autoUpdateOnce(reason, { force = false } = {}) {
   if (DEMO || process.env.CI || cfg.autoUpdate === false) return { off: true };
   if (updating) return { updating: true };
   const st = await updater.check({ fresh: force });
@@ -769,6 +778,7 @@ async function autoUpdate(reason, { force = false } = {}) {
   if (!r.ok) { updating = false; console.log('  Update skipped: ' + r.msg); return { ...st, failed: r.msg }; }
   console.log('  ' + r.msg + '. Restarting…');
   send('updating', { to: String(st.latest || '').slice(0, 7) });
+  try { fs.writeFileSync(JUST_UPDATED, String(Date.now())); } catch {} // the restart skips its own update check
   setTimeout(restartAfterUpdate, 400);
   return { ...st, updating: true };
 }
@@ -1109,7 +1119,10 @@ server.listen(cfg.port, '127.0.0.1', () => {
   }
   require('./lib/stream/capture').refreshTools();
   if (!DEMO && !process.env.CI) require('./lib/bin').ensureTools().then(() => require('./lib/stream/capture').refreshTools());
-  setTimeout(() => autoUpdate('start').catch(() => {}), 3000);
+  // Right after an update there's nothing new to fetch: skip the start check.
+  let fresh = false;
+  try { fresh = Date.now() - Number(fs.readFileSync(JUST_UPDATED, 'utf8')) < 5 * 60000; fs.unlinkSync(JUST_UPDATED); } catch {}
+  if (!fresh) setTimeout(() => autoUpdate('start').catch(() => {}), 3000);
   if (DEMO) {
     if (process.env.DEMO_TWEETS !== '0') sources.startDemo(t => ingest({ ...t, via: 'demo' }));
     streams.start({ label: 'Demo streamer', kind: 'demo', url: 'https://www.twitch.tv/demo_streamer' });

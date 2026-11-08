@@ -276,8 +276,12 @@
     note.innerHTML = '<i></i><b>Updating Elixir…</b><span>The page reloads by itself in a moment.</span>';
     const t0 = Date.now();
     const poll = setInterval(async () => {
-      try { const r = await fetch('/api/ping', { cache: 'no-store' }); if (r.ok && Date.now() - t0 > 2500) { clearInterval(poll); location.reload(); } } catch {}
-    }, 1500);
+      try {
+        const r = await fetch('/api/ping', { cache: 'no-store' });
+        // Windows reload one after another, not all at the same instant.
+        if (r.ok && Date.now() - t0 > 2000) { clearInterval(poll); setTimeout(() => location.reload(), POP ? 600 + Math.random() * 2400 : 0); }
+      } catch {}
+    }, 1000);
   };
   es.addEventListener('updating', showUpdating);
   const upd = (body = { apply: true }) => fetch('/api/update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()).then(r => {
@@ -288,7 +292,8 @@
       slot.querySelector('button').onclick = () => upd({ apply: true, force: true });
     } else slot.innerHTML = '';
   }).catch(() => {});
-  setTimeout(() => upd(), 1200);
+  // Pop-outs don't check: the main window does, and every window hears the 'updating' event.
+  if (!POP) setTimeout(() => upd(), 1200);
 
   // ---- pop-out buttons ----
   const popIcon = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-8 8"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>';

@@ -10,6 +10,7 @@
   const plays = new Map();
   let filter = 'active';
   const charts = new Set();      // plays whose chart is open
+  let autoIds = new Set();       // took-off plays whose chart opens by itself (max 2)
   const closed = new Set();      // charts the user closed (don't auto-open again)
 
   const topOf = p => [...(p.deploys || [])].sort((a, b) => (b.vol?.real || 0) - (a.vol?.real || 0))[0] || null;
@@ -26,7 +27,7 @@
   function card(p) {
     const top = topOf(p);
     const [vk, vt] = verdictOf(top);
-    const auto = vk === 'up' && !closed.has(p.id);
+    const auto = autoIds.has(p.id); // only the top two auto-open: each chart is a whole web page
     const showChart = top && (charts.has(p.id) || auto);
     const pairId = top ? (top.pairAddress || top.address) : '';
     const src = p.source === 'stream' ? `${esc(p.author)} · stream` : `@${esc(p.author)}`;
@@ -73,6 +74,7 @@
     // Took off first, then getting volume, newest first within each
     const rank = p => ({ up: 0, mid: 1, no: 2, none: 3 }[verdictOf(topOf(p))[0]]);
     list.sort((a, b) => rank(a) - rank(b) || (b.tweetAt || 0) - (a.tweetAt || 0));
+    autoIds = new Set(list.filter(p => verdictOf(topOf(p))[0] === 'up' && !closed.has(p.id)).slice(0, 2).map(p => p.id));
     const box = $('#plays');
     // Keep open charts across re-renders: they'd reload (and flicker) otherwise.
     const keep = new Map([...box.querySelectorAll('.pc-chart')].map(f => [f.closest('.pcard').dataset.id, f]));
