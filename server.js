@@ -563,6 +563,7 @@ const whales = new WhaleWatcher({
   },
 });
 kols.onOther = (wallet, sig, logs) => whales.fromKol(wallet, sig, logs);
+kols.onBuy = ev => whales.kolBuy(ev).catch(() => {});
 
 /**
  * Which alerts are worth a ping (sound, pop-up, phone). Everything else is listed silently in Alerts.
@@ -572,7 +573,7 @@ function isImportant(a) {
   if (cfg.notify === 'all') return true;
   const t = String(a.title || '');
   if (/^Test alert/.test(t)) return true;
-  if (/^(LIVE|SOON|KOL CLUSTER|BACK ONLINE|FILTER PASS|WHALE BUY|WHALE DEPLOY) ·/.test(t)) return true;
+  if (/^(LIVE|SOON|KOL CLUSTER|BACK ONLINE|FILTER PASS|WHALE BUY|WHALE DEPLOY|WHALE VOLUME) ·/.test(t)) return true;
   if (/^DEPLOY · 1st /.test(t)) return true;                       // the first coin for a play
   if (/^\d+(K|M) · /.test(t)) return !/^20K/.test(t) || /stream/.test(t); // mcap milestones (20K only for stream coins)
   if (a.streamId) return (a.tags || []).includes('WATCH');          // stream lines: only your watchlist words
@@ -1040,7 +1041,7 @@ const server = http.createServer(async (req, res) => {
             if (op === 'label' && isWallet(body.wallet)) { wh.labels = { ...(wh.labels || {}) }; if (body.name) wh.labels[body.wallet] = String(body.name).slice(0, 40); else delete wh.labels[body.wallet]; }
             if (op === 'settings') {
               const num = (k, lo, hi) => { if (k in body) wh[k] = Math.max(lo, Math.min(hi, Number(body[k]) || lo)); };
-              num('minSol', 1, 100000); num('bigSol', 1, 1000000); num('minBuySol', 0.1, 10000); num('maxAgeHours', 1, 720); num('followHours', 1, 720);
+              num('minSol', 1, 100000); num('bigSol', 1, 1000000); num('minBuySol', 0.1, 10000); num('volumeSol', 5, 100000); num('maxAgeHours', 1, 720); num('followHours', 1, 720);
               if ('enabled' in body) wh.enabled = Boolean(body.enabled);
               if ('watchKols' in body) wh.watchKols = Boolean(body.watchKols);
             }
@@ -1052,11 +1053,16 @@ const server = http.createServer(async (req, res) => {
       }
       if (url.pathname === '/api/whales/map') {
         const m = String(body.q || '').match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
-        if (!m) return json(res, 400, { error: 'Paste a coin address (CA)' });
+        if (!m) return json(res, 400, { error: 'Paste a coin (CA) or a wallet address' });
         if (!cfg.keys.solanaRpc) return json(res, 400, { error: 'Add a Solana RPC (Helius) in API keys first' });
         try {
           const top = Math.max(20, Math.min(150, Number(body.top) || 80));
-          return json(res, 200, await whales.mapCoin(m[0], { top, progress: p => send('whale-map-progress', p) }));
+          const progress = p => send('whale-map-progress', p);
+          // A coin (has a token supply) → holder map; a wallet → its connections.
+          let isMint = body.kind === 'coin';
+          if (!body.kind) { try { isMint = Boolean((await whales.rpc('getTokenSupply', [m[0]]))?.value); } catch {} }
+          if (!isMint) return json(res, 200, await whales.mapWallet(m[0], { progress }));
+          return json(res, 200, { type: 'coin', ...(await whales.mapCoin(m[0], { top, progress })) });
         } catch (e) { return json(res, 500, { error: e.message }); }
       }
       if (url.pathname === '/api/whales/trace') {

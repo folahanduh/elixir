@@ -22,7 +22,7 @@
     <div class="whhead">
       <b>Bubble map</b>
       <form class="whtrace bm-form" id="bmForm">
-        <input id="bmQ" placeholder="Paste a coin address (CA) or a pump.fun / GMGN / DexScreener link" autocomplete="off" spellcheck="false">
+        <input id="bmQ" placeholder="Paste a coin (CA) for its holder map, or a wallet for its connections" autocomplete="off" spellcheck="false">
         <select id="bmTop" title="How many top holders"><option value="50">Top 50</option><option value="80" selected>Top 80</option><option value="150">Top 150</option></select>
         <button>Map</button>
       </form>
@@ -30,9 +30,9 @@
     <div class="bm-body">
       <div class="bm-wrap">
         <canvas id="bm"></canvas>
-        <div class="bm-empty" id="bmEmpty"><b>See who really holds a coin.</b><span>Every bubble is a holder, sized by its share of the supply. Wallets that are connected (same funder, funded each other, passed the token, or bought in the same transaction) get the same colour and a line between them. One colour holding a big share = one group in control.</span></div>
+        <div class="bm-empty" id="bmEmpty"><b>Paste a coin or a wallet.</b><span><b>Coin:</b> every bubble is a holder, sized by its share of supply. Connected wallets share a colour and a line (same funder, funded each other, passed the token, bought in the same transaction). Amber rings = wallets funded right before launch.<br><b>Wallet:</b> who funded it, who it paid, who paid it, with SOL amounts on the arrows. Double-click any bubble to open its connections.</span></div>
         <div class="bm-tip" id="bmTip" hidden></div>
-        <div class="bm-legend"><span><i class="lf"></i>funded by</span><span><i class="lb"></i>same-transaction buy</span><span><i class="lt"></i>token sent</span><span><i class="ls"></i>SOL sent</span><span><i class="lc"></i>pool / contract</span><span><i class="lh"></i>shared funder</span></div>
+        <div class="bm-legend"><span><i class="lf"></i>funded by</span><span><i class="lb"></i>same-transaction buy</span><span><i class="lt"></i>token sent</span><span><i class="ls"></i>SOL sent</span><span><i class="lc"></i>pool / contract</span><span><i class="lh"></i>shared funder</span><span><i class="lp"></i>pre-funded</span><span><i class="lg"></i>fresh</span></div>
       </div>
       <aside class="bm-side" id="bmSide"></aside>
     </div>
@@ -40,8 +40,9 @@
 
   <section class="whcol" data-pop="whale-moves" data-pop-label="Whale moves" data-pop-size="560x760">
     <div class="whhead"><b>Live moves</b><span class="muted small" id="whStatus">…</span><span class="grow"></span>
-      <div class="segtabs" id="whTabs"><button data-f="all" class="on">All</button><button data-f="buy">Buys</button><button data-f="deploy">Deploys</button><button data-f="fund">Funding</button></div>
+      <div class="segtabs" id="whTabs"><button data-f="all" class="on">All</button><button data-f="volume">Volume</button><button data-f="buy">Buys</button><button data-f="deploy">Deploys</button><button data-f="fund">Funding</button></div>
     </div>
+    <div id="whHot" class="whlist"></div>
     <div id="whMoves" class="whlist"></div>
   </section>
 
@@ -70,6 +71,7 @@
         <label>Fresh wallet funded with at least <input type="number" name="minSol" min="1" step="1"> SOL</label>
         <label>Ping on every funding of <input type="number" name="bigSol" min="1" step="1"> SOL or more</label>
         <label>Buys of at least <input type="number" name="minBuySol" min="0.1" step="0.1"> SOL</label>
+        <label>Whale volume alert at <input type="number" name="volumeSol" min="5" step="5"> SOL into one new coin (then ×2, ×5, ×10)</label>
         <label>…into coins younger than <input type="number" name="maxAgeHours" min="1" step="1"> hours</label>
         <label>Follow funded wallets for <input type="number" name="followHours" min="1" step="1"> hours</label>
         <label class="chk"><input type="checkbox" name="watchKols"> Watch KOL wallets for big transfers</label>

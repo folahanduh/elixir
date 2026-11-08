@@ -108,3 +108,55 @@ section.whcol:first-child, .whcard { background: var(--panel); border: 1px solid
 .bm-form input { flex: 1 1 auto; min-width: 220px; width: auto; }
 .bm-form select { flex: 0 0 auto; width: auto; }
 .bm-form button { flex: none; }
+
+/* CA rows and whale-volume cards */
+.ca { display: flex; align-items: center; gap: 8px; margin-top: 4px; min-width: 0; }
+.ca span { font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: .05em; }
+.ca code { font-family: var(--mono); font-size: 12px; color: #dfe1e7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ca.big { background: #07080a; border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; }
+.ca.big code { font-size: 13.5px; color: #fff; flex: 1; }
+.cp { flex: none; }
+.whhot { border: 1px solid rgba(242, 71, 95, .45); background: linear-gradient(180deg, rgba(242, 71, 95, .1), rgba(242, 71, 95, .02)); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; box-shadow: 0 0 24px rgba(242, 71, 95, .12); }
+.whhot .whk { color: #fff; background: var(--hot); }
+.hh-top { display: flex; align-items: center; gap: 10px; }
+.hh-top img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.hh-top .grow { flex: 1; min-width: 0; }
+.hh-top b { font-size: 16px; }
+.hh-sol { text-align: right; font-family: var(--mono); font-size: 20px; font-weight: 600; color: #fff; }
+.hh-sol span { display: block; font-family: var(--sans); font-size: 11px; color: var(--muted); font-weight: 400; }
+.hh-w { font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+
+/* Wallet cards on the map */
+.bm-tip .ct, .bm-card .ct { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 4px; }
+.bm-tip .ct b, .bm-card .ct b { font-size: 13.5px; margin-right: 4px; }
+.bdg { font-size: 10.5px; font-weight: 600; padding: 1px 6px; border-radius: 5px; background: var(--panel-3); color: #c9ccd4; }
+.bdg.amber { background: rgba(255, 181, 71, .14); color: #ffb547; }
+.bdg.green { background: rgba(50, 210, 150, .12); color: var(--accent); }
+.amber { color: #ffb547; }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; font-size: 12px; }
+.kv span { color: var(--muted); white-space: nowrap; }
+.kv b { font-weight: 500; text-align: right; }
+.bm-tip { width: 280px; max-width: none; }
+.bm-card { background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.bm-card .kvs { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 0; }
+.bm-card .btns { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.bm-card .lk, .bm-buy .lk { font-size: 12px; color: var(--muted); text-decoration: none; }
+.bm-card .lk:hover { color: var(--text); }
+.addr { display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 3px; }
+.addr code { font-family: var(--mono); font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.cn { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 0; }
+.cn .grow { flex: 1; }
+.cn .dir { color: var(--muted); }
+.lt { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; text-transform: uppercase; letter-spacing: .03em; }
+.lt.funded { color: #8f9bff; background: rgba(143, 155, 255, .12); }
+.lt.sol { color: #4cc3d1; background: rgba(76, 195, 209, .12); }
+.lt.token { color: #e7b54a; background: rgba(231, 181, 74, .12); }
+.lt.bundle { color: #f2475f; background: rgba(242, 71, 95, .12); }
+.bm-legend2 { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); }
+.bm-legend2 i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.bm-buy { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #121318; }
+.bm-buy img { width: 26px; height: 26px; border-radius: 50%; }
+.bm-buy .grow { flex: 1; min-width: 0; }
+.bm-coin .grow { min-width: 0; }
+.bm-legend .lp { width: 10px; height: 10px; border: 2px dashed #ffb547; border-radius: 50%; }
+.bm-legend .lg { width: 7px; height: 7px; background: #32d296; border-radius: 50%; border: 0; }
