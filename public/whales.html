@@ -18,6 +18,26 @@
 </header>
 
 <main class="whpage">
+  <section class="whcard whmap" data-pop="whale-map" data-pop-label="Bubble map" data-pop-size="1100x760">
+    <div class="whhead">
+      <b>Bubble map</b>
+      <form class="whtrace bm-form" id="bmForm">
+        <input id="bmQ" placeholder="Paste a coin address (CA) or a pump.fun / GMGN / DexScreener link" autocomplete="off" spellcheck="false">
+        <select id="bmTop" title="How many top holders"><option value="50">Top 50</option><option value="80" selected>Top 80</option><option value="150">Top 150</option></select>
+        <button>Map</button>
+      </form>
+    </div>
+    <div class="bm-body">
+      <div class="bm-wrap">
+        <canvas id="bm"></canvas>
+        <div class="bm-empty" id="bmEmpty"><b>See who really holds a coin.</b><span>Every bubble is a holder, sized by its share of the supply. Wallets that are connected (same funder, funded each other, passed the token, or bought in the same transaction) get the same colour and a line between them. One colour holding a big share = one group in control.</span></div>
+        <div class="bm-tip" id="bmTip" hidden></div>
+        <div class="bm-legend"><span><i class="lf"></i>funded by</span><span><i class="lb"></i>same-transaction buy</span><span><i class="lt"></i>token sent</span><span><i class="ls"></i>SOL sent</span><span><i class="lc"></i>pool / contract</span><span><i class="lh"></i>shared funder</span></div>
+      </div>
+      <aside class="bm-side" id="bmSide"></aside>
+    </div>
+  </section>
+
   <section class="whcol" data-pop="whale-moves" data-pop-label="Whale moves" data-pop-size="560x760">
     <div class="whhead"><b>Live moves</b><span class="muted small" id="whStatus">…</span><span class="grow"></span>
       <div class="segtabs" id="whTabs"><button data-f="all" class="on">All</button><button data-f="buy">Buys</button><button data-f="deploy">Deploys</button><button data-f="fund">Funding</button></div>
@@ -27,9 +47,9 @@
 
   <section class="whcol">
     <div class="whcard" data-pop="whale-trace" data-pop-label="Trace" data-pop-size="560x760">
-      <div class="whhead"><b>Trace</b><span class="muted small">a wallet → who funded it, hop by hop · a coin → its first buyers and their money</span></div>
+      <div class="whhead"><b>Trace a wallet</b><span class="muted small">who funded it, hop by hop (a coin here → its first buyers)</span></div>
       <form class="whtrace" id="whTraceForm">
-        <input id="whQ" placeholder="Paste a wallet or coin address (Solscan / GMGN links work too)" autocomplete="off" spellcheck="false">
+        <input id="whQ" placeholder="Paste a wallet address (Solscan / GMGN links work too)" autocomplete="off" spellcheck="false">
         <button>Trace</button>
       </form>
       <div id="whTrace"></div>
@@ -61,6 +81,7 @@
 </main>
 
 <div id="toasts" class="toasts"></div>
+<script src="/bubblemap.js"></script>
 <script src="/whales.js"></script>
 </body>
 </html>

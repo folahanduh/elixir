@@ -1050,6 +1050,15 @@ const server = http.createServer(async (req, res) => {
         }
         return json(res, 200, { ...whales.snapshot(), settings: whales.cfg, labels: whales.cfg.labels || {} });
       }
+      if (url.pathname === '/api/whales/map') {
+        const m = String(body.q || '').match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+        if (!m) return json(res, 400, { error: 'Paste a coin address (CA)' });
+        if (!cfg.keys.solanaRpc) return json(res, 400, { error: 'Add a Solana RPC (Helius) in API keys first' });
+        try {
+          const top = Math.max(20, Math.min(150, Number(body.top) || 80));
+          return json(res, 200, await whales.mapCoin(m[0], { top, progress: p => send('whale-map-progress', p) }));
+        } catch (e) { return json(res, 500, { error: e.message }); }
+      }
       if (url.pathname === '/api/whales/trace') {
         const q = String(body.q || '').trim().replace(/^https?:\/\/\S+\/(?=[1-9A-HJ-NP-Za-km-z]{32,44})/, '').replace(/[?#].*$/, '');
         if (!isWallet(q)) return json(res, 400, { error: 'Paste a Solana wallet or coin address' });

@@ -32,7 +32,7 @@
     const coin = e.mint ? `<div class="whcoin">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${e.symbol ? '$' + esc(e.symbol) : esc(short(e.mint))}</b>
       ${e.name ? `<span class="muted">${esc(e.name)}</span>` : ''}${e.marketCap ? `<span>mc ${usd(e.marketCap)}</span>` : ''}
       <span class="muted">${ageH == null ? 'no market yet' : ageH < 1 ? Math.max(0, Math.round(ageH * 60)) + 'm old' : ageH.toFixed(1) + 'h old'}</span>
-      <span class="lks"><a href="${esc(e.links?.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${esc(e.links?.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${esc(e.links?.dexscreener)}" target="_blank" rel="noopener">Chart</a><a href="#" data-trace-coin="${esc(e.mint)}">Trace buyers</a></span></div>` : '';
+      <span class="lks"><a href="${esc(e.links?.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${esc(e.links?.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${esc(e.links?.dexscreener)}" target="_blank" rel="noopener">Chart</a><a href="#" data-map="${esc(e.mint)}">Bubble map</a></span></div>` : '';
     const what = e.kind === 'fund' ? `<span class="muted">sent ${e.sol.toFixed(1)} SOL to a fresh wallet ${chip(e.to, '')}</span>` : '';
     return `<div class="whev ${esc(e.kind)}"><span class="whk">${kind}</span>
       <div class="whmain"><div class="whchain">${chain}</div>${what}${coin}</div>
@@ -130,13 +130,92 @@
     $('#whAdd textarea').value = ''; $('#whAdd').hidden = true;
   };
 
+  // ---------- bubble map ----------
+  const bm = window.BubbleMap($('#bm'), {
+    onSelect: n => paintSide(n),
+    onHover: (n, x, y) => {
+      const tip = $('#bmTip');
+      if (!n) { tip.hidden = true; return; }
+      const ls = mapData.links.filter(l => l.a === n.id || l.b === n.id);
+      tip.innerHTML = `<b>${esc(n.kind === 'hub' ? 'Funder (not a holder)' : n.label || (n.name !== short(n.wallet) ? n.name : 'Holder #' + n.rank))}</b>
+        ${n.kind === 'hub' ? `<div>funded ${n.funds} of the top holders</div>` : `<div>${n.pct.toFixed(3)}% of supply${n.rank ? ' · #' + n.rank : ''}${n.fresh ? ' · fresh wallet' : ''}</div>`}
+        ${n.cluster ? `<div>cluster ${n.cluster}</div>` : ''}${ls.length ? `<div class="muted">${ls.length} connection${ls.length > 1 ? 's' : ''}</div>` : ''}<div class="a">${esc(n.wallet)}</div>`;
+      tip.hidden = false;
+      const wrap = $('.bm-wrap').getBoundingClientRect();
+      tip.style.left = Math.min(x + 14, wrap.width - 290) + 'px'; tip.style.top = Math.min(y + 14, wrap.height - 120) + 'px';
+    },
+  });
+  let mapData = { nodes: [], links: [], clusters: [] }, mapping = null;
+  const pctS = p => (p >= 10 ? p.toFixed(1) : p >= 1 ? p.toFixed(2) : p.toFixed(3)) + '%';
+  function paintSide(sel) {
+    const d = mapData;
+    if (!d.mint) { $('#bmSide').innerHTML = ''; return; }
+    const col = c => bm.colors[(c - 1) % bm.colors.length];
+    const top10 = d.nodes.filter(n => n.kind === 'holder').slice(0, 10).reduce((s, n) => s + n.pct, 0);
+    const big = d.clusters[0];
+    let html = `<div class="bm-coin">${d.image ? `<img src="${esc(d.image)}" alt="" onerror="this.remove()">` : ''}<div><b>${d.symbol ? '$' + esc(d.symbol) : esc(short(d.mint))}</b> ${d.name ? `<span class="muted">${esc(d.name)}</span>` : ''}<div class="muted small">${d.holderCount.toLocaleString()} holders${d.partial ? '+' : ''}${d.marketCap ? ' · mc ' + usd(d.marketCap) : ''} · top ${d.shown} shown</div></div></div>
+      <div class="bm-sum">
+        <div class="${d.clusteredPct >= 20 ? 'warn' : ''}"><b>${pctS(d.clusteredPct)}</b><span>held by connected wallets</span></div>
+        <div class="${big && big.pct >= 10 ? 'warn' : ''}"><b>${big ? pctS(big.pct) : '—'}</b><span>biggest cluster${big ? ` (${big.wallets.length} wallets)` : ''}</span></div>
+        <div><b>${pctS(top10)}</b><span>top 10 holders</span></div>
+        <div><b>${pctS(d.contractPct)}</b><span>pools / curve</span></div>
+      </div>
+      <div class="lks"><a href="https://gmgn.ai/sol/token/${esc(d.mint)}" target="_blank" rel="noopener">GMGN</a><a href="https://axiom.trade/meme/${esc(d.mint)}" target="_blank" rel="noopener">Axiom</a><a href="https://solscan.io/token/${esc(d.mint)}#holders" target="_blank" rel="noopener">Solscan</a><a href="#" data-trace-coin="${esc(d.mint)}">Early buyers</a></div>`;
+    if (sel) {
+      const ls = d.links.filter(l => l.a === sel.id || l.b === sel.id);
+      const other = l => (l.a === sel.id ? l.b : l.a);
+      const nm = w => { const n = d.nodes.find(x => x.id === w); return n ? (n.label || n.name) : short(w); };
+      const what = { funded: 'funding', token: 'token sent', sol: 'SOL sent', bundle: 'bought in the same tx' };
+      html += `<div class="bm-detail"><b>${esc(sel.kind === 'hub' ? 'Shared funder' : sel.label || sel.name)}${sel.known ? ' <span class="tag">known</span>' : ''}</b>
+        <div>${sel.kind === 'hub' ? `Funded ${sel.funds} top holders` : `${pctS(sel.pct)} of supply · #${sel.rank}${sel.fresh ? ' · fresh wallet' : ''}`}${sel.cluster ? ` · cluster ${sel.cluster}` : ''}</div>
+        ${ls.length ? ls.slice(0, 12).map(l => `<div class="muted">${what[l.type] || l.type} ${l.a === sel.id ? '→' : '←'} <a href="#" data-bm="${esc(other(l))}">${esc(nm(other(l)))}</a>${l.sol ? ' · ' + l.sol.toFixed(2) + ' SOL' : ''}</div>`).join('') : '<div class="muted">No connections found to other top holders.</div>'}
+        <div class="a">${esc(sel.wallet)}</div>
+        <div class="lks"><a href="https://solscan.io/account/${esc(sel.wallet)}" target="_blank" rel="noopener">Solscan</a><a href="https://gmgn.ai/sol/address/${esc(sel.wallet)}" target="_blank" rel="noopener">GMGN</a><a href="#" data-trace="${esc(sel.wallet)}">Trace funding</a><a href="#" data-watch="${esc(sel.wallet)}">Watch</a><a href="#" data-label="${esc(sel.wallet)}">Name</a></div></div>`;
+    }
+    if (d.clusters.length) {
+      html += `<div class="bm-sec">CLUSTERS</div>` + d.clusters.slice(0, 12).map(c => `<div class="bm-row ${sel && sel.cluster === c.id ? 'on' : ''}" data-bm="${esc(c.wallets[0])}"><span class="dot" style="background:${col(c.id)}"></span><span class="grow">Cluster ${c.id} · ${c.wallets.length} wallets${c.hubs.length ? ' · shared funder' : ''}</span><span class="pct">${pctS(c.pct)}</span></div>`).join('');
+    } else html += `<div class="bm-sec">CLUSTERS</div><div class="muted">No connected holders found among the top ${d.shown}.</div>`;
+    html += `<div class="bm-sec">HOLDERS</div>` + d.nodes.filter(n => n.kind !== 'hub').map(n => `<div class="bm-row ${sel === n ? 'on' : ''}" data-bm="${esc(n.id)}"><span class="dot" style="background:${n.kind === 'contract' ? '#2a2d35' : n.cluster ? col(n.cluster) : '#3b3f4b'}"></span><span class="grow">#${n.rank} ${esc(n.label || n.name)}${n.fresh ? ' <span class="muted">· fresh</span>' : ''}</span><span class="pct">${pctS(n.pct)}</span></div>`).join('');
+    $('#bmSide').innerHTML = html;
+  }
+  async function mapCoin(q) {
+    const m = String(q || '').match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+    if (!m) return toast({ title: 'Paste a coin address' }, 2000);
+    $('#bmQ').value = m[0];
+    mapping = m[0];
+    $('#bmEmpty').hidden = true;
+    let prog = $('.bm-prog'); if (!prog) { prog = document.createElement('div'); prog.className = 'bm-prog'; $('.bm-wrap').append(prog); }
+    prog.hidden = false; prog.textContent = 'Reading holders…';
+    try {
+      const d = await post('/api/whales/map', { q: m[0], top: Number($('#bmTop').value) });
+      if (mapping !== m[0]) return;
+      mapData = d; bm.setData(d); paintSide(null);
+      history.replaceState(null, '', '?map=' + m[0]);
+    } catch (e) { toast({ title: e.message }, 4000); if (!mapData.mint) $('#bmEmpty').hidden = false; }
+    finally { if (mapping === m[0]) { prog.hidden = true; mapping = null; } }
+  }
+  $('#bmForm').onsubmit = e => { e.preventDefault(); mapCoin($('#bmQ').value); };
+  $('#bmSide').addEventListener('click', e => {
+    const r = e.target.closest('[data-bm]');
+    if (!r) return;
+    e.preventDefault(); e.stopPropagation();
+    const n = mapData.nodes.find(x => x.id === r.dataset.bm);
+    bm.select(r.dataset.bm); paintSide(n);
+  });
+  document.addEventListener('click', e => { const a = e.target.closest('[data-map]'); if (a) { e.preventDefault(); mapCoin(a.dataset.map); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+
   // ---------- live ----------
   const es = window.nrES || (window.nrES = new EventSource('/api/events'));
   es.addEventListener('hello', e => { const d = JSON.parse(e.data).whales; if (!d) return; events = d.events || []; $('#whStatus').textContent = d.status; render(); });
   es.addEventListener('whale', e => { const ev = JSON.parse(e.data); events = [ev, ...events.filter(x => !(x.id === ev.id && x.kind === ev.kind))].slice(0, 300); render(); });
   es.addEventListener('whale-status', e => { $('#whStatus').textContent = JSON.parse(e.data).status; });
+  es.addEventListener('whale-map-progress', e => {
+    const p = JSON.parse(e.data), el = $('.bm-prog');
+    if (el && !el.hidden && p.mint === mapping) el.textContent = p.total ? `${p.step}… ${p.done}/${p.total}` : p.step + '…';
+  });
   post('/api/whales', {}).then(d => { paintList(d); if (!events.length) { events = d.events || []; render(); } }).catch(() => {});
   render();
-  const q = new URLSearchParams(location.search).get('trace');
-  if (q) trace(q);
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('trace')) trace(qs.get('trace'));
+  if (qs.get('map')) mapCoin(qs.get('map'));
 })();
