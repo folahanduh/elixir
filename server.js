@@ -158,7 +158,14 @@ function readConfig() {
   c.telegram.chatId = process.env.TELEGRAM_CHAT_ID || c.telegram.chatId || '';
   c.keys.deepgram = process.env.DEEPGRAM_API_KEY || c.keys.deepgram || '';
   c.keys.anthropic = process.env.ANTHROPIC_API_KEY || c.keys.anthropic || '';
-  c.keys.solanaWs = process.env.SOLANA_WS_URL || c.keys.solanaWs || '';
+  // A bare Helius key (UUID) pasted anywhere → proper URLs. (A bare key as the RPC URL broke every wallet lookup.)
+  const HELIUS_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const asWs = v => (HELIUS_KEY.test(v) ? 'wss://mainnet.helius-rpc.com/?api-key=' + v : /^(wss?|https?):\/\//i.test(v) ? v.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:') : '');
+  const asHttp = v => (HELIUS_KEY.test(v) ? 'https://mainnet.helius-rpc.com/?api-key=' + v : /^(wss?|https?):\/\//i.test(v) ? v.replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:') : '');
+  for (const k of ['SOLANA_WS_URL', 'SOLANA_RPC_URL']) if (process.env[k]) process.env[k] = process.env[k].trim();
+  c.keys.solanaWs = asWs(process.env.SOLANA_WS_URL || c.keys.solanaWs || '') || (HELIUS_KEY.test(process.env.SOLANA_RPC_URL || '') ? asWs(process.env.SOLANA_RPC_URL) : '');
+  if (c.keys.solanaRpc) c.keys.solanaRpc = asHttp(c.keys.solanaRpc);
+  if (process.env.SOLANA_RPC_URL) process.env.SOLANA_RPC_URL = asHttp(process.env.SOLANA_RPC_URL);
   // No key: Solana's free public RPC, so KOL wallets and rug checks work out of the box
   // (rate-limited; a free Helius key is faster and copes with big wallet lists).
   c.keys.solanaPublic = !c.keys.solanaWs && !process.env.SOLANA_RPC_URL && !c.keys.solanaRpc;
@@ -960,6 +967,7 @@ const server = http.createServer(async (req, res) => {
           // Helius: accept the bare API key (a UUID) or the https:// RPC link, not just the wss:// URL.
           if (k === 'SOLANA_WS_URL' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) val = 'wss://mainnet.helius-rpc.com/?api-key=' + val;
           if (k === 'SOLANA_WS_URL') val = val.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:');
+          if (k === 'SOLANA_RPC_URL') val = require('./lib/keys').rpcUrl(val);
           if (/[\r\n]/.test(val) || val.length > 600) return json(res, 400, { error: `${k} looks wrong (too long or has line breaks)` });
           changes[k] = val;
         }

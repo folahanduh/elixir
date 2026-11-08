@@ -160,3 +160,4 @@ section.whcol:first-child, .whcard { background: var(--panel); border: 1px solid
 .bm-coin .grow { min-width: 0; }
 .bm-legend .lp { width: 10px; height: 10px; border: 2px dashed #ffb547; border-radius: 50%; }
 .bm-legend .lg { width: 7px; height: 7px; background: #32d296; border-radius: 50%; border: 0; }
+.bm-wrap, .bm-side { height: clamp(380px, calc(100vh - 210px), 640px); }

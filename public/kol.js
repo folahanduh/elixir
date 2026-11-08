@@ -114,6 +114,15 @@
     panel.querySelector('.kolp-st').title = `${d.active} active · ${d.dormant} dormant · ${d.wallets} total (${d.scanned} activity-checked)`;
   };
 
+  // Status in the header: short, coloured (red on errors, green when live); the full text is in the tooltip.
+  function setSt(s) {
+    const el = panel.querySelector('.kolp-st');
+    const bad = /error|fail|add a Solana/i.test(s || ''), ok = /^live/i.test(s || '');
+    el.textContent = bad ? (/add a Solana/i.test(s) ? 'add a Solana RPC in API keys' : 'RPC error · retrying') : s;
+    el.title = s || '';
+    el.classList.toggle('bad', bad); el.classList.toggle('ok', ok);
+    el.dataset.full = s || '';
+  }
   function row(ev) {
     const side = ev.side ? ev.side.toUpperCase() : '···';
     const pending = ev.stage === 'processed';
@@ -138,10 +147,13 @@
   function render() { if (!frame) frame = setTimeout(() => { frame = 0; draw(); }, 250); } // at most 4 redraws a second
   function draw() {
     const list = [...events.values()].sort((a, b) => b.seenAt - a.seenAt).filter(e => !buysOnly || e.side === 'buy').slice(0, 30);
-    const st = panel.querySelector('.kolp-st').textContent;
+    const st = panel.querySelector('.kolp-st').dataset.full || '';
+    const bad = /error|fail|add a Solana/i.test(st);
     const why = /checking/.test(st) ? `First run: checking which of your wallets traded recently (${h(st)}). Active ones go live as they're found.`
-      : /RPC|add a Solana/.test(st) ? h(st) : 'Waiting for KOL trades… The latest trades of your most active wallets load here in a moment.';
-    panel.querySelector('.kolp-list').innerHTML = list.length ? list.map(row).join('') : `<div class="kolp-empty">${why}</div>`;
+      : /add a Solana/i.test(st) ? 'Add a Solana RPC (a free Helius key works) under <b>API keys</b> to track wallets.'
+      : bad ? `<b>Can't reach your Solana RPC.</b> ${h(st.replace(/^wallet check: /, ''))}<br>Check the Helius key under <b>API keys</b> (press Test).`
+      : 'Waiting for KOL trades… The latest trades of your most active wallets load here in a moment.';
+    panel.querySelector('.kolp-list').innerHTML = list.length ? list.map(row).join('') : `<div class="kolp-empty ${bad ? 'bad' : ''}">${why}</div>`;
   }
 
   const es = window.nrES || (window.nrES = new EventSource('/api/events'));
@@ -150,7 +162,7 @@
     if (!d) return;
     events.clear();
     for (const ev of d.events) events.set(ev.id, ev);
-    panel.querySelector('.kolp-st').textContent = d.status;
+    setSt(d.status);
     dormant = d.dormantList || [];
     paintCounts(d);
     render();
@@ -162,7 +174,7 @@
     render();
   });
   es.addEventListener('kol-drop', e => { events.delete(JSON.parse(e.data).id); render(); });
-  es.addEventListener('kol-status', e => { const d = JSON.parse(e.data); panel.querySelector('.kolp-st').textContent = d.status; paintCounts(d); if (!events.size) render(); });
+  es.addEventListener('kol-status', e => { const d = JSON.parse(e.data); setSt(d.status); paintCounts(d); if (!events.size) render(); });
 
   // Click a coin: hand it to the page's own copy-and-check if it has one.
   panel.addEventListener('click', e => {

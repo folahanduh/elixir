@@ -216,7 +216,19 @@
   const bar = document.createElement('footer');
   bar.className = 'sbar';
   bar.innerHTML = `<span class="sbar-live"><i></i><b>Connecting…</b></span><span class="sbar-items"></span><span class="sbar-upd"></span><span class="grow"></span>
-    <a href="https://x.com" target="_blank" rel="noopener" class="sbar-l">X</a><span class="sbar-tg"></span><span class="sbar-l sbar-clock"></span>`;
+    <span class="sbar-zoom" title="Text size"><button type="button" data-z="-1">A−</button><button type="button" data-z="0" title="Reset">A</button><button type="button" data-z="1">A+</button></span><a href="https://x.com" target="_blank" rel="noopener" class="sbar-l">X</a><span class="sbar-tg"></span><span class="sbar-l sbar-clock"></span>`;
+  // Text size (A− / A / A+): scales the whole page, remembered per browser.
+  const ZOOMS = [0.9, 1, 1.1, 1.2, 1.32];
+  const applyZoom = z => { document.documentElement.style.zoom = String(z); };
+  let zi = (() => { try { const v = Number(localStorage.getItem('nr.zoom')); return ZOOMS.includes(v) ? ZOOMS.indexOf(v) : 1; } catch { return 1; } })();
+  applyZoom(ZOOMS[zi]);
+  bar.querySelector('.sbar-zoom').addEventListener('click', e => {
+    const b = e.target.closest('[data-z]'); if (!b) return;
+    const d = Number(b.dataset.z);
+    zi = d === 0 ? 1 : Math.max(0, Math.min(ZOOMS.length - 1, zi + d));
+    applyZoom(ZOOMS[zi]);
+    try { localStorage.setItem('nr.zoom', String(ZOOMS[zi])); } catch {}
+  });
   document.body.append(bar);
   let up = false, latency = null;
   const paintBar = () => {
