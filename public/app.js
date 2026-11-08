@@ -86,14 +86,12 @@ function renderPills(disconnected) {
   }
   $('#pills').innerHTML = [
     disconnected ? stat('Offline', 'server · retrying', 'bad') : '',
-    stat(tweets, 'Tweets in feed'),
-    stat(plays.length, 'Plays tracking', plays.length ? 'up' : ''),
-    stat(deploys, 'Deploys found', deploys ? 'up' : ''),
+    stat(tweets, 'Tweets'),
+    stat(plays.length, 'Plays', plays.length ? 'up' : ''),
+    stat(deploys, 'Deploys', deploys ? 'up' : ''),
     stat(state.alertTotal || 0, 'Alerts'),
     stat(esc(providerName), c.provider === 'twitterapi.io' || c.provider === 'x-api'
       ? (s.lastPollError ? 'poll error' : 'polled ' + (s.lastPollAt ? ago(s.lastPollAt) + ' ago' : '…')) : 'Source', s.lastPollError ? 'bad' : ''),
-    stat(bridgeOn ? 'On' : 'Off', 'X bridge', bridgeOn ? 'up' : ''),
-    stat(`${(c.accounts || []).length} · ${(c.watchlist || []).length}`, 'Accounts · words'),
   ].join('');
 }
 setInterval(() => renderPills(), 5000);
@@ -553,7 +551,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { st
 $('#clearAlerts').onclick = () => { $('#alerts').innerHTML = '<span class="muted placeholder">No alerts yet.</span>'; };
 
 const soundBtn = $('#soundBtn');
-const paintSound = () => soundBtn.textContent = state.sound ? 'Sound: on' : 'Sound: off';
+const paintSound = () => { soundBtn.innerHTML = state.sound ? '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>' : '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6M21 9l-5 6"/></svg>'; soundBtn.title = 'Alert sound: ' + (state.sound ? 'on' : 'off'); soundBtn.classList.toggle('off', !state.sound); };
 paintSound();
 soundBtn.onclick = () => { state.sound = !state.sound; lsSet('sound', state.sound ? '1' : '0'); paintSound(); beep('open'); };
 $('#notifBtn').onclick = async () => {

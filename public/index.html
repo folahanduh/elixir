@@ -16,10 +16,9 @@
   <div class="ptitle"><span class="pt-ico"><span class="dot" id="liveDot"></span></span><div><b>Live feed</b><small>Tweets · plays · deploys</small></div></div>
   <div class="pills" id="pills"></div>
   <div class="actions">
-    <button id="soundBtn" class="ghost" title="Toggle alert sound">Sound: on</button>
-    <button id="notifBtn" class="ghost" title="Desktop notifications">Notifications</button>
-    <button id="testBtn" class="ghost" title="Fire a test alert">Test alert</button>
-    <button id="settingsBtn">Settings</button>
+    <button id="soundBtn" class="ghost ibtn" title="Alert sound: on"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+    <button id="notifBtn" class="ghost ibtn" title="Desktop notifications"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></button>
+    <button id="settingsBtn" class="ghost ibtn" title="Settings"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </div>
 </header>
 
@@ -134,6 +133,8 @@
       New tweets stream in here as they appear.
     </div>
     <div class="row end">
+      <button type="button" class="ghost" id="testBtn" title="Fire a test alert (sound, pop-up, Telegram/Discord)">Send test alert</button>
+      <span class="grow"></span>
       <button value="cancel" class="ghost">Cancel</button>
       <button id="saveSettings" value="save">Save</button>
     </div>

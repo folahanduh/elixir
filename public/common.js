@@ -54,7 +54,7 @@ function desktopNotify(a) {
 
 function setupHeaderButtons() {
   const sb = $('#soundBtn');
-  const paint = () => sb.textContent = ui.sound ? 'Sound: on' : 'Sound: off';
+  const paint = () => { sb.innerHTML = ui.sound ? '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>' : '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6M21 9l-5 6"/></svg>'; sb.title = 'Alert sound: ' + (ui.sound ? 'on' : 'off'); sb.classList.toggle('off', !ui.sound); };
   paint();
   sb.onclick = () => { ui.sound = !ui.sound; lsSet('sound', ui.sound ? '1' : '0'); paint(); beep('open'); };
   $('#notifBtn').onclick = async () => {

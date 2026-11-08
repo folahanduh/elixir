@@ -353,7 +353,7 @@
     addPopButtons();
     new MutationObserver(() => addPopButtons()).observe(document.body, { childList: true, subtree: true });
     // Whole page
-    document.querySelector('.top .actions')?.insertAdjacentHTML('beforeend', `<button type="button" class="ghost popbtn-page" data-popbtn="page" data-size="${page === 'streams' ? '900x900' : '1100x900'}" data-label="${h(document.title)}" title="Pop out this page">${popIcon}<span>Pop out</span></button>`);
+    document.querySelector('.top .actions')?.insertAdjacentHTML('beforeend', `<button type="button" class="ghost ibtn popbtn-page" data-popbtn="page" data-size="${page === 'streams' ? '900x900' : '1100x900'}" data-label="${h(document.title)}" title="Pop out this page">${popIcon}</button>`);
     bar.insertAdjacentHTML('beforeend', `<a href="#" class="sbar-l" data-popbtn="page" data-size="1100x900" data-label="Elixir">Pop out</a>`);
   });
   // In a pop-out of one panel: move that panel out on its own (it keeps all its live behaviour).
