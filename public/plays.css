@@ -1,0 +1,31 @@
+/* Plays page */
+.playpage { padding: 18px 24px 60px; max-width: 1300px; }
+.plbar { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.plbar .grow { flex: 1; }
+.plbar .segtabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin: 0; }
+.plbar .segtabs button { background: transparent; color: var(--muted); border-radius: 8px; padding: 7px 14px; font-weight: 500; }
+.plbar .segtabs button:hover { background: var(--panel-2); color: var(--text); }
+.plbar .segtabs button.on { background: var(--panel-3); color: var(--text); }
+.plbar .segtabs span { color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
+
+.plist { display: grid; grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 760px) { .plist { grid-template-columns: 1fr; } .playpage { padding: 14px 12px 60px; } }
+
+.pcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pcard.up { border-color: rgba(50, 210, 150, .35); box-shadow: inset 3px 0 0 var(--accent); }
+.pcard.mid { box-shadow: inset 3px 0 0 var(--vip); }
+.pc-src { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.pc-src b { font-size: 14px; }
+.pc-src .grow { flex: 1; }
+.pc-st { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; background: var(--panel-3); color: var(--muted); }
+.pc-st.live { color: var(--accent); background: rgba(50, 210, 150, .1); }
+.pc-text { margin: 0; font-size: 14.5px; line-height: 1.5; color: #dfe1e7; }
+.pc-coin { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 12px; background: #0b0c0f; border: 1px solid var(--line-2); border-radius: 10px; }
+.pc-chart { width: 100%; height: 320px; border: 0; border-radius: 10px; background: #000; }
+.pc-wait { color: var(--muted); font-size: 13px; padding: 8px 0; }
+.pc-deps { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.pc-deps th { text-align: left; font-weight: 500; color: var(--muted); font-size: 11px; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.pc-deps td { padding: 6px; border-bottom: 1px solid #121318; }
+.pc-deps .num { font-family: var(--mono); text-align: right; }
+.pc-deps .lks { text-align: right; white-space: nowrap; }
+.pc-deps .lk { margin-left: 3px; }

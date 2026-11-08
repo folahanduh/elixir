@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plays · Elixir</title>
+<link rel="preload" href="/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/plays.css">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+</head>
+<body data-page="plays">
+<script src="/shell.js"></script>
+<header class="top">
+  <div class="ptitle"><span class="pt-ico"><span class="dot" id="liveDot"></span></span><div><b>Plays</b><small>Tweets and streams that turned into coins</small></div></div>
+  <div class="pills" id="pills"></div>
+  <div class="actions"></div>
+</header>
+
+<main class="playpage">
+  <div class="plbar">
+    <div class="segtabs" id="plTabs">
+      <button data-f="active" class="on">Activated <span id="nActive"></span></button>
+      <button data-f="all">All <span id="nAll"></span></button>
+      <button data-f="ended">Ended <span id="nEnded"></span></button>
+    </div>
+    <span class="grow"></span>
+    <span class="muted small" id="plHint">A play activates when one of its coins gets real volume.</span>
+  </div>
+  <div id="plays" class="plist"></div>
+</main>
+
+<div id="toasts" class="toasts"></div>
+<script src="/plays.js"></script>
+</body>
+</html>

@@ -91,7 +91,7 @@
     <nav class="sb-nav">
       <a href="/" data-k="feed">${svg('feed')}Live feed</a>
       <a href="/streams.html" data-k="streams">${svg('streams')}Streams</a>
-      <a href="/#plays" data-k="plays">${svg('plays')}Plays<span class="sb-n" data-n="plays"></span></a>
+      <a href="/plays.html" data-k="plays">${svg('plays')}Plays<span class="sb-n" data-n="plays"></span></a>
       <a href="#" data-k="kols">${svg('kols')}KOL wallets<span class="sb-n" data-n="kols"></span></a>
       <a href="/settings.html#accounts" data-k="accounts">${svg('users')}Accounts<span class="sb-n" data-n="accounts"></span></a>
       <a href="/settings.html#keywords" data-k="keywords">${svg('hash')}Keywords<span class="sb-n" data-n="keywords"></span></a>
@@ -163,9 +163,7 @@
     const n = ['DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY'].filter(k => ks[k]?.set).length;
     sb.querySelector('[data-n="keys"]').textContent = n + '/2';
   };
-  sb.querySelector('[data-k="plays"]').addEventListener('click', e => {
-    const t = document.querySelector('#tabs [data-f="plays"]'); if (t) { e.preventDefault(); t.click(); }
-  });
+  // Plays has its own page now.
 
   // Live list: running streams and tracked plays, newest first.
   const streams = new Map(), plays = new Map();

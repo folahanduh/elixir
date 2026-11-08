@@ -124,6 +124,15 @@ In Chrome and Edge you can also pick **Float on top**, which keeps the window ab
 
 All Elixir windows share one live connection, so pop-outs don't slow anything down. Only one window beeps for each alert.
 
+## Plays page
+
+**Plays** in the sidebar has its own page. Each play is a card showing:
+- the tweet or stream line that started it
+- its top coin, live: image, ticker, market cap, 5-minute volume and trades, and a verdict (**Took off / Getting volume / No traction yet**), with the live chart
+- the 1st/2nd/3rd deploys underneath
+
+**Activated** (the default tab) only shows plays whose coins actually got volume. **All** and **Ended** show the rest. Charts open by themselves on plays that took off. Pop the page out next to your terminal with ⧉.
+
 ## 1. Twitter plays: 1st / 2nd / 3rd deploys, ranked by real volume
 
 When a big play lands, the tweet gets a **🎯 PLAY** panel right beside it:
