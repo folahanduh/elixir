@@ -255,3 +255,19 @@ mark.k.name { font-weight: 500; background: transparent; text-decoration: underl
 .sess-head .st { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sess-head > button, .sess-head > a, .sess-head > .more { flex: none; }
 @media (max-width: 1100px) { .sess-head { flex-wrap: wrap; } }
+
+/* coins named after what was said, under the sentence */
+.cmatch { display: flex; flex-direction: column; gap: 4px; margin-top: 7px; }
+.cm { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 5px 8px; background: #0d0e12; border: 1px solid #22242b; border-radius: 9px; font-size: 13px; width: fit-content; max-width: 100%; }
+.cm-img { position: relative; width: 22px; height: 22px; flex: none; display: grid; }
+.cm-img > * { grid-area: 1 / 1; width: 100%; height: 100%; border-radius: 6px; }
+.cm-img img { object-fit: cover; z-index: 1; }
+.cm-img i { display: grid; place-items: center; font: 600 9px/1 var(--sans); font-style: normal; color: var(--tx-dim); background: #1a1c22; }
+.cm-t { color: var(--coin); font-weight: 600; cursor: pointer; }
+.cm-n { color: var(--tx-dim); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-mc { font-family: var(--mono); font-size: 12.5px; color: var(--tx); }
+.cm-age { font-size: 12px; color: var(--tx-faint); }
+.cm-l { display: inline-flex; gap: 4px; margin-left: 2px; }
+.cm-l a, .cm-l button { font: 500 11.5px/1 var(--sans); padding: 5px 8px; border-radius: 6px; background: #16171c; border: 1px solid #2a2d35; color: #c9cbd3; text-decoration: none; height: auto; }
+.cm-l a:hover, .cm-l button:hover { color: var(--text); border-color: #3a3e48; background: #1b1c22; }
+.tg.COIN { color: var(--coin); }

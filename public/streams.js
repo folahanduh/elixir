@@ -227,12 +227,35 @@ function aiHTML(seg) {
   return `<span class="ai-note">Claude: ${esc(seg.ai.why)} <span class="sc">funny ${seg.ai.funny} · meme ${seg.ai.meme} · crypto ${seg.ai.crypto}</span></span>`;
 }
 
+// Coins named after what was said: tiny image, ticker, market cap, age, and where to open them.
+const mc$ = n => n == null ? '' : '$' + (n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n));
+const age$ = m => m == null ? '' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd';
+function coinMatchHTML(seg) {
+  if (!seg.coinMatches?.length) return '';
+  return `<div class="cmatch">${seg.coinMatches.map(f => f.coins.map(c => `<div class="cm">
+    <span class="cm-img">${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<i>${esc((c.symbol || '?').slice(0, 2))}</i></span>
+    <b class="cm-t" data-word="${esc(c.symbol || '')}" title="${esc(c.name || '')}">$${esc(c.symbol || '?')}</b>
+    <span class="cm-n">${esc(c.name || '')}</span>
+    <span class="cm-mc">${esc(mc$(c.marketCap))}</span>
+    <span class="cm-age">${esc(age$(c.ageMin))}${c.pad ? ' · ' + esc(c.pad) : ''}</span>
+    <span class="cm-l"><a href="${esc(c.links.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${esc(c.links.gmgn)}" target="_blank" rel="noopener">GMGN</a><button type="button" class="cm-fomo" data-ca="${esc(c.mint)}" title="Copy the contract address and open Fomo">Fomo</button></span>
+  </div>`).join('')).join('')}</div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.cm-fomo'); if (!b) return;
+  const ca = b.dataset.ca;
+  navigator.clipboard?.writeText(ca).catch(() => {});
+  const tpl = S.config?.links?.fomo;
+  window.open(tpl ? tpl.replace('{mint}', encodeURIComponent(ca)) : 'https://fomo.family', '_blank', 'noopener');
+  toast({ kind: 'fresh', title: 'Contract address copied', text: 'Paste it in Fomo to open the coin.' }, 3000);
+});
+
 function lineHTML(seg) {
   const extra = seg.highlight ? `<div class="meta2">${tagsHTML(seg)}<span class="score">${seg.score}</span>${seg.reasons?.length ? `<span class="why">${esc(seg.reasons.slice(0, 2).join(' · '))}</span>` : ''}${seg.notes?.length ? `<span class="why">chat: ${esc(seg.notes[seg.notes.length - 1])}</span>` : ''}</div>${seg.ai ? `<div class="meta2">${aiHTML(seg)}</div>` : ''}${seg.dex && Object.keys(seg.dex).length ? `<div class="meta2">${coinsHTML(seg)}</div>` : ''}` : '';
   const s = S.sessions.get(seg.sid);
   const tools = `<span class="ln-tools">${s?.canClip ? `<button class="ghost small" data-clipseg="${esc(seg.id)}" title="Clip this moment">clip</button>` : ''}${seg.highlight ? `<button class="ghost small" data-playseg="${esc(seg.id)}" title="Track as a play: deploys, tickers, vamps">track</button>` : ''}</span>`;
   const chip = s ? spkChip(s, seg.speaker) : '';
-  return `<span class="ts" title="${esc(hms(seg.offset))} into the stream">${esc(clock(seg.t))}</span><div><div class="tx">${chip}${gaps(markText(seg.text, seg.keywords))}${tools}</div>${extra}</div>`;
+  return `<span class="ts" title="${esc(hms(seg.offset))} into the stream">${esc(clock(seg.t))}</span><div><div class="tx">${chip}${gaps(markText(seg.text, [...(seg.keywords || []), ...(seg.coinMatches || []).map(f => ({ text: f.phrase, kind: 'coinable' }))]))}${tools}</div>${coinMatchHTML(seg)}${extra}</div>`;
 }
 
 function upsertSeg(seg, quiet) {

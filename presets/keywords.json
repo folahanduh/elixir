@@ -1,0 +1,65 @@
+{
+  "about": "Default keywords: added once (new installs and existing ones). Remove any in Settings \u2192 Keywords and they stay removed.",
+  "keywords": [
+    {
+      "word": "coin",
+      "match": "partial"
+    },
+    {
+      "word": "deploy",
+      "match": "partial"
+    },
+    {
+      "word": "inu",
+      "match": "word"
+    },
+    {
+      "word": "baby",
+      "match": "partial"
+    },
+    {
+      "word": "justice",
+      "match": "partial"
+    },
+    {
+      "word": "rip",
+      "match": "partial"
+    },
+    {
+      "word": "dead",
+      "match": "partial"
+    },
+    {
+      "word": "token",
+      "match": "partial"
+    },
+    {
+      "word": "dog",
+      "match": "partial"
+    },
+    {
+      "word": "doggy",
+      "match": "partial"
+    },
+    {
+      "word": "named",
+      "match": "partial"
+    },
+    {
+      "word": "called",
+      "match": "partial"
+    },
+    {
+      "word": "introducing",
+      "match": "partial"
+    },
+    {
+      "word": "asteroid",
+      "match": "partial"
+    },
+    {
+      "word": "trump",
+      "match": "partial"
+    }
+  ]
+}

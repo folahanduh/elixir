@@ -69,6 +69,17 @@ function seedPresets() {
     disk.accounts = disk.accounts.filter(a => a.toLowerCase() !== h.toLowerCase());
     disk.vip = disk.vip.filter(a => a.toLowerCase() !== h.toLowerCase());
   }
+  // Default keywords (presets/keywords.json): added once.
+  const kwPreset = read('keywords.json');
+  if (kwPreset && !seeded.keywords) {
+    const OLD = ['doge', 'pepe', 'frog', 'cat', 'hamster', 'penguin', 'grok', 'x money'];
+    const oldDemo = Array.isArray(disk.watchlist) && disk.watchlist.length === OLD.length && OLD.every(w => disk.watchlist.includes(w));
+    const cur = Array.isArray(disk.keywords) ? disk.keywords : oldDemo ? [] : (disk.watchlist || []).map(w => ({ word: w, match: 'word' }));
+    const have = new Set(cur.map(k => String(typeof k === 'string' ? k : k.word).toLowerCase()));
+    disk.keywords = [...cur, ...kwPreset.keywords.filter(k => !have.has(k.word))];
+    delete disk.watchlist;
+    seeded.keywords = true;
+  }
   // The first versions shipped a demo watchlist of generic words (cat, frog, grok…) that pinged constantly.
   // If it's still exactly that list, clear it: your watchlist should only hold words you care about.
   const OLD_DEMO = ['doge', 'pepe', 'frog', 'cat', 'hamster', 'penguin', 'grok', 'x money'];
@@ -137,7 +148,7 @@ function publicConfig() {
     provider: DEMO ? 'demo' : activeProvider(),
     accounts: cfg.accounts, vip: cfg.vip, watchlist: cfg.watchlist, ignore: cfg.ignore,
     pollSeconds: cfg.pollSeconds, chains: cfg.chains, includeReplies: cfg.includeReplies,
-    notify: cfg.notify === 'all' ? 'all' : 'important', keywords: cfg.keywords, trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId), discord: Boolean(cfg.discordWebhook),
+    links: { fomo: (cfg.links && cfg.links.fomo) || '' }, notify: cfg.notify === 'all' ? 'all' : 'important', keywords: cfg.keywords, trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId), discord: Boolean(cfg.discordWebhook),
     streams: { highlightScore: cfg.streams.highlightScore, pingScore: cfg.streams.pingScore, watch: cfg.streams.watch, language: cfg.streams.language },
     filter: activePreset(cfg),
     keys: keyStatus(),
@@ -301,6 +312,12 @@ async function ingest(raw) {
     watchlist: cfg.watchlist, ignore: cfg.ignore, max: source === 'stream' ? 5 : 6,
   });
   const vip = source === 'x' && cfg.vip.map(v => v.toLowerCase()).includes(author.toLowerCase());
+  // Tweets: only coin-shaped words count — $TICKERs, "quoted names", names after "named / RIP / justice for…",
+  // and your keywords. Plain capitalised words (places, people in the news) were just noise.
+  if (source !== 'stream') {
+    const strong = c => c.watch || c.reasons.some(r => r === 'cashtag' || r === 'quoted' || r === 'pattern' || r === 'watchlist');
+    candidates.splice(0, candidates.length, ...candidates.filter(strong));
+  }
   const kwHits = kw.keywordHits(text, cfg.keywords);
   const muted = Boolean(cfg.accountMeta[author.toLowerCase()]?.muted);
   const watch = muted ? [] : kwHits.filter(k => !k.muted).map(k => k.word);
@@ -400,6 +417,17 @@ const streams = new StreamManager({
         .then(item => { if (item && session.kind !== 'demo') plays.considerStream(item, seg, session); })
         .catch(() => {});
     }
+  },
+  // A streamer said something there's a coin for: ping, put it in the feed, and track it as a play.
+  onCoins(seg, session, found) {
+    const c = found[0].coins[0];
+    const mc = c.marketCap ? ` · $${c.marketCap >= 1e6 ? (c.marketCap / 1e6).toFixed(2) + 'M' : Math.round(c.marketCap / 1000) + 'K'}` : '';
+    const item = { id: 'seg-' + seg.id, source: 'stream', author: session.label, text: seg.text, url: session.url || '' };
+    alert({ kind: 'fresh', title: `LIVE COIN · ${session.label} said “${found[0].phrase}” → $${c.symbol}${mc}`, item, word: found[0].phrase, streamId: session.id, segId: seg.id, tags: ['WATCH'], important: true });
+    if (session.kind === 'demo') return;
+    ingest({ source: 'stream', id: 'seg-' + seg.id, author: session.label, text: seg.text, url: session.url, createdAt: seg.t, tags: seg.tags, noAlert: true, via: 'stream' })
+      .then(it => plays.considerStream(it || items.find(x => x.id === 'seg-' + seg.id), { ...seg, pinged: true, keywords: [...(seg.keywords || []), ...found.map(f => ({ text: f.phrase, kind: 'coinable' }))] }, session))
+      .catch(() => {});
   },
   onPing(seg, session, title, kind) {
     const item = { id: 'seg-' + seg.id, source: 'stream', author: session.label, text: seg.text, url: session.url || '' };
