@@ -69,6 +69,22 @@ function seedPresets() {
     disk.accounts = disk.accounts.filter(a => a.toLowerCase() !== h.toLowerCase());
     disk.vip = disk.vip.filter(a => a.toLowerCase() !== h.toLowerCase());
   }
+  // Built-in KOL / dev wallets (presets/wallets.json): added once, removed ones stay removed.
+  const walPreset = read('wallets.json');
+  if (walPreset) {
+    seeded.wallets = seeded.wallets || [];
+    const done = new Set(seeded.wallets);
+    disk.kols = disk.kols || {};
+    disk.kols.wallets = Array.isArray(disk.kols.wallets) ? disk.kols.wallets : [];
+    const have = new Set(disk.kols.wallets.map(w => w.wallet));
+    let addedW = 0;
+    for (const w of walPreset.wallets || []) {
+      if (done.has(w.wallet)) continue;
+      seeded.wallets.push(w.wallet);
+      if (!have.has(w.wallet)) { disk.kols.wallets.push({ toast: false, groups: [], color: null, ...w }); addedW++; }
+    }
+    if (addedW) console.log(`  Added ${addedW} preset KOL wallets.`);
+  }
   // Default keywords (presets/keywords.json): added once.
   const kwPreset = read('keywords.json');
   if (kwPreset && !seeded.keywords) {

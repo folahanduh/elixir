@@ -191,7 +191,7 @@ Any other launchpad can be added the same way.
 
 ## 2. KOL wallets (top-left panel)
 
-The panel sits at the top-left of the main column on both pages. Click **KOLs** in the header (or **KOL wallets** in the sidebar) to show or hide it. It lists what tracked wallets are buying and selling. Buy rows are tinted green and sell rows red. Each row shows the wallet's emoji, and its name in the wallet's highlight colour.
+It comes with **1,308 KOL and dev wallets** already loaded (`presets/wallets.json`), so it works straight away. Add your own with **Import**, and remove any you don't want (removed ones stay removed). The panel sits at the top-left of the main column on both pages. Click **KOLs** in the header (or **KOL wallets** in the sidebar) to show or hide it. It lists what tracked wallets are buying and selling. Buy rows are tinted green and sell rows red. Each row shows the wallet's emoji, and its name in the wallet's highlight colour.
 
 - **How fast:** each wallet is streamed from a Solana RPC websocket at "processed" commitment. You see the swap within about half a second of it landing in a block. That's before it's confirmed, and usually several seconds before GMGN or Axiom show it.
 - **First, from the logs:** the row appears straight away as e.g. `alpha  BUY  Pump · landing…`.
