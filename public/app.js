@@ -44,6 +44,8 @@ function connect() {
     renderLiveStreams();
     $('#liveDot').classList.add('live');
     if (location.hash === '#keys' && !$('#settings').open) openKeys();
+    if (location.hash === '#plays') $('#tabs [data-f="plays"]')?.click();
+    if (['#alerts', '#playbook', '#kols'].includes(location.hash)) setTimeout(() => window.elixirGo?.(location.hash.slice(1)), 300);
     if (location.hash === '#settings' && !$('#settings').open) $('#settingsBtn').click();
   });
   es.addEventListener('item', e => addItem(JSON.parse(e.data))); // its play panel is drawn when the card lands
@@ -365,7 +367,7 @@ function flushCards() {
   feed.prepend(frag);
   if (keepY != null) window.scrollTo(0, keepY + (feed.scrollHeight - before));
   // Not paused: follow the newest tweet (matters most in a small pop-out window).
-  else if (!$('#pauseFeed').checked && !batch.every(([, q]) => q) && window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' });
+  else if (document.documentElement.classList.contains('pop-view') && !$('#pauseFeed').checked && !batch.every(([, q]) => q) && window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' });
   while (feed.children.length > 150) { const last = feed.lastElementChild; state.items.delete(last.id.slice(3)); last.remove(); }
   $('#feedEmpty').hidden = state.items.size > 0;
   for (const [it] of batch) { const p = state.plays.get(it.id); if (p && document.getElementById('it-' + it.id)) renderPlay(p); }
@@ -397,9 +399,20 @@ $('#tabs').addEventListener('click', e => {
   applyFilter();
 });
 function applyFilter() {
+  let shown = 0;
   for (const it of state.items.values()) {
     const el = document.getElementById('it-' + it.id);
-    if (el) el.hidden = !visible(it);
+    if (el) { el.hidden = !visible(it); if (!el.hidden) shown++; }
+  }
+  const empty = $('#feedEmpty');
+  if (state.filter === 'plays' && !shown) {
+    empty.hidden = false;
+    empty.innerHTML = '<b>No plays yet.</b> A play starts by itself when a tracked account tweets something coin-able and coins start deploying, or when a streamer says something there\'s a coin for. Press <b>Track play</b> on any tweet to start one yourself. Each play lists the 1st/2nd/3rd deploys ranked by real volume and pings at 20K/50K/100K.';
+  } else if (state.filter === 'hot' && !shown) {
+    empty.hidden = false; empty.textContent = 'No alerts in the feed yet.';
+  } else {
+    empty.hidden = state.items.size > 0;
+    if (!empty.dataset.orig) empty.dataset.orig = empty.innerHTML; else empty.innerHTML = empty.dataset.orig;
   }
 }
 

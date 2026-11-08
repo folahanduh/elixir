@@ -121,7 +121,7 @@
     else location.href = '/?q=' + encodeURIComponent(v);
   };
   const kolBtn = () => document.querySelector('.kolp-toggle');
-  sb.querySelector('[data-k="kols"]').onclick = e => { e.preventDefault(); if (kolBtn()) kolBtn().click(); else location.href = '/'; };
+  sb.querySelector('[data-k="kols"]').onclick = e => { e.preventDefault(); if (!go('kols')) location.href = '/#kols'; };
   for (const k of ['accounts', 'keywords']) sb.querySelector(`[data-k="${k}"]`).addEventListener('click', e => {
     if (page !== 'settings') return;
     e.preventDefault(); location.hash = k;
@@ -137,8 +137,21 @@
     const el = document.getElementById(page === 'streams' ? 'urlIn' : 'pasteText');
     el?.scrollIntoView({ block: 'center', behavior: 'smooth' }); el?.focus();
   };
-  const jump = id => { const el = document.getElementById(id); if (el) { el.closest('.panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return true; } };
-  for (const [k, id] of [['book', 'playbook'], ['alerts', 'alerts']]) sb.querySelector(`[data-k="${k}"]`).addEventListener('click', e => { if (jump(id)) e.preventDefault(); });
+  // Go to a panel on this page: open it if needed, scroll it into view and flash it so you see where it is.
+  function go(what) {
+    let el;
+    if (what === 'kols') {
+      el = document.querySelector('.kolp');
+      if (!el) return false;
+      if (el.hidden) kolBtn()?.click();
+    } else el = document.getElementById(what)?.closest('.panel');
+    if (!el) return false;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.remove('flash-panel'); void el.offsetWidth; el.classList.add('flash-panel');
+    return true;
+  }
+  window.elixirGo = go;
+  for (const [k, id] of [['book', 'playbook'], ['alerts', 'alerts']]) sb.querySelector(`[data-k="${k}"]`).addEventListener('click', e => { if (go(id)) e.preventDefault(); });
   sb.querySelector('[data-k="keys"]').addEventListener('click', e => { if (typeof window.openKeys === 'function') { e.preventDefault(); window.openKeys(); } });
   const paintCounts = c => {
     if (!c) return;

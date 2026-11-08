@@ -314,7 +314,7 @@ async function ingest(raw) {
   const vip = source === 'x' && cfg.vip.map(v => v.toLowerCase()).includes(author.toLowerCase());
   // Tweets: only coin-shaped words count — $TICKERs, "quoted names", names after "named / RIP / justice for…",
   // and your keywords. Plain capitalised words (places, people in the news) were just noise.
-  if (source !== 'stream') {
+  {
     const strong = c => c.watch || c.reasons.some(r => r === 'cashtag' || r === 'quoted' || r === 'pattern' || r === 'watchlist');
     candidates.splice(0, candidates.length, ...candidates.filter(strong));
   }

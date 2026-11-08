@@ -621,3 +621,6 @@ html.pop-view .card .chips { gap: 4px; }
 html.pop-view .card .cand { font-size: 12px; padding: 2px 3px 2px 7px; }
 html.pop-view .card .meta { font-size: 11.5px; }
 html.pop-view .card.has-play { grid-template-columns: 1fr; }
+
+.flash-panel { animation: flashPanel 1.2s ease-out; }
+@keyframes flashPanel { 0% { box-shadow: 0 0 0 2px var(--primary); } 100% { box-shadow: 0 0 0 2px transparent; } }
