@@ -656,6 +656,7 @@ $('#settingsForm').addEventListener('submit', async e => {
 // ---------- API keys ----------
 const KEY_ROWS = [
   ['SOLANA_WS_URL', 'Solana RPC websocket', 'Optional: works on the free public RPC; Helius is faster for big wallet lists', 'https://dashboard.helius.dev', 'Free at Helius → paste your API key or the RPC URL', 'wss://mainnet.helius-rpc.com/?api-key=…'],
+  ['SOLSCAN_API_KEY', 'Solscan Pro API', 'Whales: wallet names (exchanges, funds) and instant "funded by" lookups. Works without it, just slower and unlabelled', 'https://pro-api.solscan.io', 'Solscan → API plans → API key (Pro API, paid)', 'eyJhbGci…'],
   ['DEEPGRAM_API_KEY', 'Deepgram', 'Live stream transcription from a link', 'https://console.deepgram.com', 'Free credit → API Keys → Create', ''],
   ['ANTHROPIC_API_KEY', 'Anthropic (Claude)', 'Funny / meme-worthy judging, ticker & image ideas', 'https://console.anthropic.com/settings/keys', 'Pay per use → API Keys → Create', 'sk-ant-…'],
   ['TWITTERAPI_IO_KEY', 'twitterapi.io', 'Pull tweets by API (instead of the free browser bridge)', 'https://twitterapi.io', 'Paid · Dashboard → API key', ''],

@@ -20,6 +20,7 @@ const { searchImages } = require('./lib/imagesearch');
 const { checkCoin, activePreset } = require('./lib/filters');
 const { padsFrom, classify } = require('./lib/launchpads');
 const { KolWatcher, isWallet, parseWalletList } = require('./lib/kols');
+const { WhaleWatcher } = require('./lib/whales');
 const { RiskEngine } = require('./lib/risk');
 const updater = require('./lib/update');
 const kw = require('./lib/keywords');
@@ -194,7 +195,7 @@ function publicConfig() {
 }
 
 // ---------- API keys (Settings → API keys writes .env; values never go back to the page) ----------
-const KEY_ENVS = ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'SOLANA_WS_URL', 'SOLANA_RPC_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY', 'TWITTERAPI_IO_KEY', 'X_BEARER_TOKEN', 'X_BEARER_TOKEN_2', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'DISCORD_WEBHOOK_URL'];
+const KEY_ENVS = ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'SOLANA_WS_URL', 'SOLANA_RPC_URL', 'DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY', 'TWITTERAPI_IO_KEY', 'X_BEARER_TOKEN', 'X_BEARER_TOKEN_2', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'DISCORD_WEBHOOK_URL', 'SOLSCAN_API_KEY'];
 function keyStatus() {
   const out = {};
   for (const k of KEY_ENVS) {
@@ -228,6 +229,11 @@ async function testKey(k) {
       const r = await fetch(cfg.keys.solanaRpc, { ...T, method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getSlot' }) });
       const j = await r.json().catch(() => ({}));
       return j.result ? { ok: true, msg: `connected · slot ${j.result}` } : { ok: false, msg: j.error?.message || `HTTP ${r.status}` };
+    }
+    if (k === 'SOLSCAN_API_KEY') {
+      const r = await fetch('https://pro-api.solscan.io/v2.0/account/metadata?address=So11111111111111111111111111111111111111112', { ...T, headers: { token: v } });
+      const j = await r.json().catch(() => ({}));
+      return r.ok && j.success !== false ? { ok: true, msg: 'works' } : { ok: false, msg: `${r.status} ${j.errors?.message || j.message || ''}`.trim() + (r.status === 401 || r.status === 403 ? ' · the Pro API needs a paid Solscan plan' : '') };
     }
     if (k === 'DEEPGRAM_API_KEY') { const r = await fetch('https://api.deepgram.com/v1/projects', { ...T, headers: { authorization: 'Token ' + v } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
     if (k === 'ANTHROPIC_API_KEY') { const r = await fetch('https://api.anthropic.com/v1/models?limit=1', { ...T, headers: { 'x-api-key': v, 'anthropic-version': '2023-06-01' } }); return r.ok ? { ok: true, msg: 'works' } : fail(r); }
@@ -272,7 +278,7 @@ function send(event, data) {
   const mux = `data: {"e":${JSON.stringify(event)},"d":${json}}\n\n`; // one stream shared by every Elixir window
   for (const res of clients) res.write(res.mux ? mux : named);
 }
-const helloPayload = () => ({ version: VERSION, config: publicConfig(), status: statusPayload(), items: items.slice(-150), trends: trendsSnapshot(), streams: streams.snapshot(), plays: plays.list(), playStats: plays.stats(), kols: kols.snapshot(), riskMemory: risk.memorySummary() });
+const helloPayload = () => ({ version: VERSION, config: publicConfig(), status: statusPayload(), items: items.slice(-150), trends: trendsSnapshot(), streams: streams.snapshot(), plays: plays.list(), playStats: plays.stats(), kols: kols.snapshot(), whales: whales.snapshot(), riskMemory: risk.memorySummary() });
 
 // Same word looked up again within a minute: reuse the answer. Max 4 lookups at a time.
 const lookupCache = new Map();
@@ -546,6 +552,18 @@ const kols = new KolWatcher({
   },
 });
 
+// ---------- Whales: money moving into fresh wallets before a launch ----------
+const whales = new WhaleWatcher({
+  getConfig: () => cfg,
+  send,
+  tokenInfo: mint => dex.tokenInfo(mint),
+  kolList: () => cfg.kols?.wallets || [],
+  onAlert(ev, title, important) {
+    alert({ kind: 'whale', title, important, item: { id: 'whale-' + ev.id + '-' + ev.kind, source: 'whale', author: (ev.chain?.[0]?.name) || 'whale', text: title, url: ev.links?.gmgn || ev.links?.tx || '' } });
+  },
+});
+kols.onOther = (wallet, sig, logs) => whales.fromKol(wallet, sig, logs);
+
 /**
  * Which alerts are worth a ping (sound, pop-up, phone). Everything else is listed silently in Alerts.
  * Important = your watchlist words, coins actually launching or running, KOL clusters, streams going live.
@@ -554,7 +572,7 @@ function isImportant(a) {
   if (cfg.notify === 'all') return true;
   const t = String(a.title || '');
   if (/^Test alert/.test(t)) return true;
-  if (/^(LIVE|SOON|KOL CLUSTER|BACK ONLINE|FILTER PASS) ·/.test(t)) return true;
+  if (/^(LIVE|SOON|KOL CLUSTER|BACK ONLINE|FILTER PASS|WHALE BUY|WHALE DEPLOY) ·/.test(t)) return true;
   if (/^DEPLOY · 1st /.test(t)) return true;                       // the first coin for a play
   if (/^\d+(K|M) · /.test(t)) return !/^20K/.test(t) || /stream/.test(t); // mcap milestones (20K only for stream coins)
   if (a.streamId) return (a.tags || []).includes('WATCH');          // stream lines: only your watchlist words
@@ -1002,6 +1020,46 @@ const server = http.createServer(async (req, res) => {
         cfg = readConfig();
         kols.restart();
         return json(res, 200, { ...kols.snapshot(), imported, list: cfg.kols.wallets || [] });
+      }
+      if (url.pathname === '/api/whales') {
+        // ops: add {text} ("name address" lines), remove {wallet}, label {wallet,name}, settings {...}
+        const op = String(body.op || 'list');
+        if (op !== 'list') {
+          saveDisk(disk => {
+            const wh = disk.whales = { ...(disk.whales || {}) };
+            wh.wallets = Array.isArray(wh.wallets) ? wh.wallets : [];
+            if (op === 'add') {
+              for (const line of String(body.text || '').split(/[\r\n]+/)) {
+                const parts = line.trim().split(/[\s,]+/).filter(Boolean);
+                const wallet = parts.find(p => isWallet(p));
+                if (!wallet || wh.wallets.some(w => w.wallet === wallet)) continue;
+                wh.wallets.push({ wallet, name: parts.filter(p => p !== wallet).join(' ').slice(0, 40) || wallet.slice(0, 4) + '…' + wallet.slice(-4) });
+              }
+            }
+            if (op === 'remove') wh.wallets = wh.wallets.filter(w => w.wallet !== body.wallet);
+            if (op === 'label' && isWallet(body.wallet)) { wh.labels = { ...(wh.labels || {}) }; if (body.name) wh.labels[body.wallet] = String(body.name).slice(0, 40); else delete wh.labels[body.wallet]; }
+            if (op === 'settings') {
+              const num = (k, lo, hi) => { if (k in body) wh[k] = Math.max(lo, Math.min(hi, Number(body[k]) || lo)); };
+              num('minSol', 1, 100000); num('bigSol', 1, 1000000); num('minBuySol', 0.1, 10000); num('maxAgeHours', 1, 720); num('followHours', 1, 720);
+              if ('enabled' in body) wh.enabled = Boolean(body.enabled);
+              if ('watchKols' in body) wh.watchKols = Boolean(body.watchKols);
+            }
+          });
+          cfg = readConfig();
+          whales.restart();
+        }
+        return json(res, 200, { ...whales.snapshot(), settings: whales.cfg, labels: whales.cfg.labels || {} });
+      }
+      if (url.pathname === '/api/whales/trace') {
+        const q = String(body.q || '').trim().replace(/^https?:\/\/\S+\/(?=[1-9A-HJ-NP-Za-km-z]{32,44})/, '').replace(/[?#].*$/, '');
+        if (!isWallet(q)) return json(res, 400, { error: 'Paste a Solana wallet or coin address' });
+        if (!cfg.keys.solanaRpc) return json(res, 400, { error: 'Add a Solana RPC (Helius) in API keys first' });
+        try {
+          // A coin (mint) or a wallet? A mint has token supply.
+          let isMint = Boolean(body.coin);
+          if (!body.wallet && !isMint) { try { const s = await whales.rpc('getTokenSupply', [q]); isMint = Boolean(s?.value); } catch {} }
+          return json(res, 200, isMint ? { type: 'coin', ...(await whales.traceCoin(q)) } : { type: 'wallet', ...(await whales.traceWallet(q)) });
+        } catch (e) { return json(res, 500, { error: e.message }); }
       }
       if (url.pathname === '/api/kols/list') return json(res, 200, { list: cfg.kols.wallets || [], enabled: cfg.kols.enabled !== false });
 

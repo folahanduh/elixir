@@ -8,10 +8,12 @@ Spots memecoin plays the moment they happen, on X and on live streams, then chec
 - **Feed:** tweets from the accounts you track. Play words are pulled out and coin-checked. Big plays get a panel with the 1st/2nd/3rd deploys ranked by real volume, rug/bundle checks, and ticker, image and vamp ideas.
 - **Streams:** live transcripts of Twitch, YouTube, X broadcasts and Spaces, Kick, pump.fun, or any browser tab. It shows who's speaking, and funny moments, crypto talk and coin-able names get highlighted and pinged.
 - **KOL wallets:** see what tracked wallets buy about half a second after it lands on-chain. Import your Axiom list. Dormant wallets are hidden and ping you when they come back.
+- **Whales:** catch big money moving into fresh wallets before a launch: live pings when a whale-funded wallet buys a brand-new coin or deploys one, plus a trace tool (who funded this wallet, who were this coin's first buyers).
 
 > **Read-only.** It never asks for a private key, never trades, and only listens on your own computer (127.0.0.1). Nothing here is financial advice. Memecoins are mostly rugs, so use it at your own risk.
 
 ---
+
 
 ## Quick start (about 2 minutes)
 
@@ -229,6 +231,16 @@ It comes with **1,308 KOL and dev wallets** already loaded (`presets/wallets.jso
   - `scanRps` (lookups per second, default 5; lower it if your RPC rate-limits)
   - `subsPerSocket` (default 250; subscriptions are spread over several websocket connections)
 - A free Helius key copes with the activity checks. Hundreds of live subscriptions may need a paid plan, depending on the provider.
+
+## Whales: catch money moving in before a launch
+
+Sidebar → **Whales**. Big launches usually start the same way: a whale or the team sends SOL to a brand-new wallet, and that wallet deploys the coin or buys it in its first minutes. Elixir watches for exactly that:
+
+- **Live moves.** Your whale wallets (and every live KOL wallet) are watched. A transfer of 25+ SOL to a *fresh* wallet (10 transactions or fewer) means that wallet gets followed for 48 h, along with anything it funds, up to 3 hops. If a followed wallet **buys a coin under 24 h old** or **deploys a coin**, you get pinged with the money trail: `Whale → fresh wallet → bought $X`.
+- **Trace.** Paste a wallet to see who funded it, hop by hop, until it reaches a wallet you know (an exchange, a KOL, a whale). Paste a coin to see its biggest early buyers and where their money came from. Buyers funded by the same wallet are flagged as one group.
+- **Rules.** Every threshold can be changed on the page.
+
+It runs on your Solana RPC (Helius). A **Solscan Pro API key** (`SOLSCAN_API_KEY`, under API keys) is optional: it adds wallet names (exchanges, funds) and finds the first funder of old wallets in one call. Solscan's Pro API is a paid plan.
 
 ## 3. Live streams: pinpoint transcription
 

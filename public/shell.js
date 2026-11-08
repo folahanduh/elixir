@@ -68,6 +68,7 @@
     streams: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
     plays: '<path d="M4 18 9 12l4 3 7-9"/><path d="M15 6h5v5"/>',
     kols: '<path d="M3 7h18v11H3z"/><path d="M16 12h5M3 7l3-3h12l3 3"/>',
+    whale: '<path d="M3 13c0 4 4 6 9 6 4 0 7-2 8-5l1-4c-2 0-3 1-4 2-1-3-4-5-8-5-3 0-6 2-6 6z"/><path d="M8 12h.01M17 7c0-2 1-3 3-3"/>',
     book: '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>',
     bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
     gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
@@ -93,6 +94,7 @@
       <a href="/streams.html" data-k="streams">${svg('streams')}Streams</a>
       <a href="/plays.html" data-k="plays">${svg('plays')}Plays<span class="sb-n" data-n="plays"></span></a>
       <a href="#" data-k="kols">${svg('kols')}KOL wallets<span class="sb-n" data-n="kols"></span></a>
+      <a href="/whales.html" data-k="whales">${svg('whale')}Whales<span class="sb-n" data-n="whales"></span></a>
       <a href="/settings.html#accounts" data-k="accounts">${svg('users')}Accounts<span class="sb-n" data-n="accounts"></span></a>
       <a href="/settings.html#keywords" data-k="keywords">${svg('hash')}Keywords<span class="sb-n" data-n="keywords"></span></a>
       <a href="/#playbook" data-k="book">${svg('book')}Playbook</a>

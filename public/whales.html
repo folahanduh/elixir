@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Whales · Elixir</title>
+<link rel="preload" href="/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/whales.css">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+</head>
+<body data-page="whales">
+<script src="/shell.js"></script>
+<header class="top">
+  <div class="ptitle"><span class="pt-ico"><span class="dot" id="liveDot"></span></span><div><b>Whales</b><small>Big money moving into fresh wallets before a launch</small></div></div>
+  <div class="pills" id="whPills"></div>
+  <div class="actions"></div>
+</header>
+
+<main class="whpage">
+  <section class="whcol" data-pop="whale-moves" data-pop-label="Whale moves" data-pop-size="560x760">
+    <div class="whhead"><b>Live moves</b><span class="muted small" id="whStatus">…</span><span class="grow"></span>
+      <div class="segtabs" id="whTabs"><button data-f="all" class="on">All</button><button data-f="buy">Buys</button><button data-f="deploy">Deploys</button><button data-f="fund">Funding</button></div>
+    </div>
+    <div id="whMoves" class="whlist"></div>
+  </section>
+
+  <section class="whcol">
+    <div class="whcard" data-pop="whale-trace" data-pop-label="Trace" data-pop-size="560x760">
+      <div class="whhead"><b>Trace</b><span class="muted small">a wallet → who funded it, hop by hop · a coin → its first buyers and their money</span></div>
+      <form class="whtrace" id="whTraceForm">
+        <input id="whQ" placeholder="Paste a wallet or coin address (Solscan / GMGN links work too)" autocomplete="off" spellcheck="false">
+        <button>Trace</button>
+      </form>
+      <div id="whTrace"></div>
+    </div>
+
+    <div class="whcard">
+      <div class="whhead"><b>Whales you watch</b><span class="muted small" id="whCount"></span><span class="grow"></span><button class="ghost small" id="whAddBtn">+ Add</button></div>
+      <form class="whadd" id="whAdd" hidden>
+        <textarea rows="4" spellcheck="false" placeholder="One per line:  name  wallet-address&#10;e.g.  team wallet  7xKX…Ab3d"></textarea>
+        <div class="whrow"><span class="muted small">Your KOL wallets are watched for big transfers too.</span><span class="grow"></span><button class="ghost small" type="button" id="whAddCancel">Cancel</button><button class="small">Add</button></div>
+      </form>
+      <div id="whList" class="whwallets"></div>
+    </div>
+
+    <div class="whcard">
+      <div class="whhead"><b>Rules</b></div>
+      <form class="whrules" id="whRules">
+        <label>Fresh wallet funded with at least <input type="number" name="minSol" min="1" step="1"> SOL</label>
+        <label>Ping on every funding of <input type="number" name="bigSol" min="1" step="1"> SOL or more</label>
+        <label>Buys of at least <input type="number" name="minBuySol" min="0.1" step="0.1"> SOL</label>
+        <label>…into coins younger than <input type="number" name="maxAgeHours" min="1" step="1"> hours</label>
+        <label>Follow funded wallets for <input type="number" name="followHours" min="1" step="1"> hours</label>
+        <label class="chk"><input type="checkbox" name="watchKols"> Watch KOL wallets for big transfers</label>
+        <label class="chk"><input type="checkbox" name="enabled"> Whale tracking on</label>
+      </form>
+      <p class="hint small" id="whKeyHint"></p>
+    </div>
+  </section>
+</main>
+
+<div id="toasts" class="toasts"></div>
+<script src="/whales.js"></script>
+</body>
+</html>
