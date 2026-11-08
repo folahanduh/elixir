@@ -552,7 +552,7 @@ function paintWatch() {
     <div class="wl" title="${w.checkedAt ? 'checked ' + clock(w.checkedAt) : 'not checked yet'}">
       ${srcAvatar(w.profile, w.label || w.url, 28)}
       <div title="${esc(w.url)}"><b>${esc(w.label || w.profile?.name || w.url)}</b>${w.live ? ' <span class="livetag">Live</span>' : ''}<div class="u">${esc(shortSrc(w.url))}</div></div>
-      <button type="button" class="ghost small wl-wallet ${w.wallet ? 'on' : ''}" data-wallet="${i}" title="${w.wallet ? 'Wallet: ' + esc(w.wallet) : 'Link this streamer\'s wallet: when they say “the coin I\'m in”, Elixir shows what they bought'}">${w.wallet ? 'wallet ✓' : '+ wallet'}</button>
+      <button type="button" class="ghost small wl-wallet ${w.wallet || w.walletName ? 'on' : ''}" data-wallet="${i}" title="${w.wallet ? 'Wallet: ' + esc(w.wallet) : w.walletName ? 'Wallets named ' + esc(w.walletName) + '… in your KOL list' : 'Link this streamer\'s wallet: when they say “the coin I\'m in”, Elixir shows what they bought'}">${w.wallet ? 'wallet ✓' : w.walletName ? 'wallets: ' + esc(w.walletName) : '+ wallet'}</button>
       <label title="Start transcribing automatically when it goes live"><input type="checkbox" data-auto="${i}" ${w.auto !== false ? 'checked' : ''}> auto</label>
       <button class="ghost small wl-x" data-del="${i}" title="Remove">×</button>
     </div>`).join('') : '<span class="muted small">No channels yet.</span>';
@@ -565,11 +565,11 @@ $('#watchList').addEventListener('click', e => {
   const wb = e.target.closest('[data-wallet]');
   if (wb) {
     const list = (S.config?.streams?.watch || []).slice(), i = Number(wb.dataset.wallet);
-    const v = prompt('Solana wallet address for ' + (list[i]?.label || 'this streamer') + ' (leave empty to unlink):', list[i]?.wallet || '');
+    const v = prompt('Wallet for ' + (list[i]?.label || 'this streamer') + ': paste an address, or type the name used in your KOL list (e.g. dv for dv, dv2, dv3, DV NEW). Leave empty to unlink.', list[i]?.wallet || list[i]?.walletName || '');
     if (v === null) return;
-    const addr = v.trim();
-    if (addr && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr)) return toast({ title: 'That doesn\'t look like a Solana wallet address' });
-    list[i] = { ...list[i], wallet: addr || undefined };
+    const val = v.trim();
+    const isAddr = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(val);
+    list[i] = { ...list[i], wallet: isAddr ? val : undefined, walletName: !isAddr && val ? val : undefined };
     saveWatch(list);
     return;
   }

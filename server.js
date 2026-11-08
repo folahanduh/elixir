@@ -86,6 +86,13 @@ function seedPresets() {
   if (!seeded.watchlistCleared && Array.isArray(disk.watchlist) && disk.watchlist.length === OLD_DEMO.length && OLD_DEMO.every(w => disk.watchlist.includes(w))) disk.watchlist = [];
   seeded.watchlistCleared = true;
   disk.streams = disk.streams || {}; disk.streams.watch = disk.streams.watch || [];
+  seeded.walletNames = seeded.walletNames || [];
+  for (const w of st?.watch || []) {
+    if (!w.walletName || seeded.walletNames.includes(w.url)) continue;
+    seeded.walletNames.push(w.url);
+    const mine = disk.streams.watch.find(x => x.url === w.url);
+    if (mine && !mine.wallet && !mine.walletName) mine.walletName = w.walletName;
+  }
   for (const w of st?.watch || []) {
     if (seeded.streams.includes(w.url)) continue;
     seeded.streams.push(w.url);
@@ -430,15 +437,15 @@ const streams = new StreamManager({
       .catch(() => {});
   },
   async onWalletMention(seg, session) {
-    const w = (cfg.streams.watch || []).find(x => x.url && x.url === session.url && x.wallet)?.wallet
-      || kols.walletNamed(session.label, session.profile?.name, session.profile?.handle);
-    if (!w) {
+    const link = (cfg.streams.watch || []).find(x => x.url && x.url === session.url) || {};
+    const wallets = kols.walletsFor({ address: link.wallet, name: link.walletName, names: [session.label, session.profile?.name, session.profile?.handle] });
+    if (!wallets.length) {
       seg.walletNote = `Said they're in a coin. Link ${session.profile?.name || session.label}'s wallet (Streams → Auto-watch → wallet) to see which one.`;
       streams.send('stream-seg', seg);
       return;
     }
     let buys = [];
-    try { buys = await kols.recentBuys(w); } catch {}
+    try { buys = await kols.recentBuysMany(wallets); } catch {}
     const coins = [];
     for (const b of buys) {
       let info = null;
@@ -979,7 +986,7 @@ const server = http.createServer(async (req, res) => {
         if (Array.isArray(body.watch)) {
           disk.streams.watch = body.watch
             .filter(w => /^https:\/\/\S+$/i.test(String(w.url || '')))
-            .map(w => ({ url: String(w.url).trim(), label: String(w.label || '').slice(0, 40), auto: w.auto !== false, ...(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(String(w.wallet || '')) ? { wallet: String(w.wallet) } : {}) }))
+            .map(w => ({ url: String(w.url).trim(), label: String(w.label || '').slice(0, 40), auto: w.auto !== false, ...(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(String(w.wallet || '')) ? { wallet: String(w.wallet) } : {}), ...(w.walletName ? { walletName: String(w.walletName).slice(0, 30) } : {}) }))
             .slice(0, 30);
         }
         for (const k of ['highlightScore', 'pingScore']) if (k in body) disk.streams[k] = Math.max(1, Math.min(30, Number(body[k]) || 4));

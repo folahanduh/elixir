@@ -1,5 +1,5 @@
 {
-  "about": "Live channels Elixir auto-watches out of the box. Deliberately short: only streams that move markets or spawn memecoin plays. 'auto': true transcribes as soon as it goes live; false just pings you. Scheduled streams from these channels show under Upcoming. 24/7 news channels are left out (always live, so they'd transcribe nonstop). X live broadcasts and Spaces from VIP accounts (Elon, Trump, Ansem\u2026) start automatically from their tweets.",
+  "about": "Live channels Elixir auto-watches out of the box. Deliberately short: only streams that move markets or spawn memecoin plays. 'auto': true transcribes as soon as it goes live; false just pings you. Scheduled streams from these channels show under Upcoming. 24/7 news channels are left out (always live, so they'd transcribe nonstop). X live broadcasts and Spaces from VIP accounts (Elon, Trump, Ansem\u2026) start automatically from their tweets. 'walletName' links a streamer to wallets in your KOL list by name (dv \u2192 dv, dv2, dv3, DV NEW): when they say 'the coin I'm in', Elixir shows what those wallets just bought.",
   "watch": [
     {
       "url": "https://www.youtube.com/@WhiteHouse/live",
@@ -24,7 +24,8 @@
     {
       "url": "https://www.twitch.tv/dvces",
       "label": "DVCES",
-      "auto": true
+      "auto": true,
+      "walletName": "dv"
     },
     {
       "url": "https://www.youtube.com/@MarketBubble/live",
