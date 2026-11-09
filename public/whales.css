@@ -171,3 +171,11 @@ section.whcol:first-child, .whcard { background: var(--panel); border: 1px solid
 .bm-guide span { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
 .whcard, section.whcol:first-child { padding: 14px 16px; }
 #whPills .pill { border-radius: 6px; }
+
+/* Bubble map as its own page (sidebar → Bubble map) */
+html.view-map .whpage { grid-template-columns: 1fr; max-width: none; }
+html.view-map .whpage > section:not(.whmap) { display: none; }
+html.view-map #whPills { display: none; }
+html.view-map .whmap > .whhead b { display: none; }
+html.view-map .bm-body { grid-template-columns: minmax(0, 1fr) 360px; }
+html.view-map .bm-wrap, html.view-map .bm-side { height: calc(100vh - var(--sbar) - 60px - 110px); min-height: 420px; }

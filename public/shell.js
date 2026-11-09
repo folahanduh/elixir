@@ -68,6 +68,7 @@
     streams: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
     plays: '<path d="M4 18 9 12l4 3 7-9"/><path d="M15 6h5v5"/>',
     kols: '<path d="M3 7h18v11H3z"/><path d="M16 12h5M3 7l3-3h12l3 3"/>',
+    bubble: '<circle cx="9" cy="10" r="5"/><circle cx="17" cy="15" r="3.5"/><circle cx="16.5" cy="5.5" r="2"/><path d="M13.3 12.6 14.4 13.4"/>',
     whale: '<path d="M3 13c0 4 4 6 9 6 4 0 7-2 8-5l1-4c-2 0-3 1-4 2-1-3-4-5-8-5-3 0-6 2-6 6z"/><path d="M8 12h.01M17 7c0-2 1-3 3-3"/>',
     book: '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>',
     bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
@@ -94,6 +95,7 @@
       <a href="/streams.html" data-k="streams">${svg('streams')}Streams</a>
       <a href="/plays.html" data-k="plays">${svg('plays')}Plays<span class="sb-n" data-n="plays"></span></a>
       <a href="#" data-k="kols">${svg('kols')}KOL wallets<span class="sb-n" data-n="kols"></span></a>
+      <a href="/whales.html?view=map" data-k="map">${svg('bubble')}Bubble map</a>
       <a href="/whales.html" data-k="whales">${svg('whale')}Whales<span class="sb-n" data-n="whales"></span></a>
       <a href="/settings.html#accounts" data-k="accounts">${svg('users')}Accounts<span class="sb-n" data-n="accounts"></span></a>
       <a href="/settings.html#keywords" data-k="keywords">${svg('hash')}Keywords<span class="sb-n" data-n="keywords"></span></a>
@@ -109,7 +111,9 @@
       </div>
     </div>`;
   document.body.prepend(sb);
-  sb.querySelector(`[data-k="${page === 'settings' ? (location.hash === '#keywords' ? 'keywords' : 'accounts') : page}"]`)?.classList.add('on');
+  const navKey = page === 'settings' ? (location.hash === '#keywords' ? 'keywords' : 'accounts')
+    : page === 'whales' && new URLSearchParams(location.search).get('view') === 'map' ? 'map' : page;
+  sb.querySelector(`[data-k="${navKey}"]`)?.classList.add('on');
   document.body.classList.add('shell');
   const fold = () => document.body.classList.toggle('sb-folded', store.get('sbFold', '0') === '1');
   fold();

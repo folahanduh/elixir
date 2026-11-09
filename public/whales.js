@@ -23,6 +23,15 @@
   const chip = (w, name) => `<a class="wa ${name && name !== short(w) && !/^fresh /.test(name) ? 'named' : ''}" data-trace="${esc(w)}" title="${esc(w)} · click to trace">${esc(name && name !== short(w) ? name : short(w))}</a>`;
 
   let events = [], filter = 'all', solscan = false;
+  // Bubble map on its own (sidebar → Bubble map): just the map, full height.
+  const MAP_VIEW = new URLSearchParams(location.search).get('view') === 'map';
+  if (MAP_VIEW) {
+    document.documentElement.classList.add('view-map');
+    document.title = 'Bubble map · Elixir';
+    const t = document.querySelector('.ptitle b'), st = document.querySelector('.ptitle small');
+    if (t) t.textContent = 'Bubble map';
+    if (st) st.textContent = 'Who holds a coin, which wallets are connected, who funded them';
+  }
 
   // ---------- live moves ----------
   function evHTML(e) {
@@ -286,7 +295,7 @@
       mapData = d;
       bm.setData(decorate(d));
       paintSide(null);
-      history.replaceState(null, '', '?map=' + m[0]);
+      history.replaceState(null, '', '?' + (MAP_VIEW ? 'view=map&' : '') + 'map=' + m[0]);
     } catch (e) { toast({ title: e.message }, 4000); if (!mapData) $('#bmEmpty').hidden = false; }
     finally { if (mapping === m[0]) { prog.hidden = true; mapping = null; } }
   }
