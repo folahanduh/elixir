@@ -197,7 +197,7 @@ function publicConfig() {
   return {
     provider: DEMO ? 'demo' : activeProvider(),
     accounts: cfg.accounts, vip: cfg.vip, watchlist: cfg.watchlist, ignore: cfg.ignore,
-    pollSeconds: cfg.pollSeconds, chains: cfg.chains, includeReplies: cfg.includeReplies, openBrowser: cfg.openBrowser !== false, lensModel: cfg.lensModel === 'fastest' ? 'fastest' : 'best',
+    pollSeconds: cfg.pollSeconds, chains: cfg.chains, includeReplies: cfg.includeReplies, openBrowser: cfg.openBrowser !== false, lensModel: cfg.lensModel === 'best' ? 'best' : 'fastest',
     links: { fomo: (cfg.links && cfg.links.fomo) || '' }, notify: cfg.notify === 'all' ? 'all' : 'important', keywords: cfg.keywords, trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId), discord: Boolean(cfg.discordWebhook),
     streams: { highlightScore: cfg.streams.highlightScore, pingScore: cfg.streams.pingScore, watch: cfg.streams.watch, language: cfg.streams.language },
     filter: activePreset(cfg),
@@ -951,7 +951,7 @@ const server = http.createServer(async (req, res) => {
         if ('pollSeconds' in body) disk.pollSeconds = Math.max(2, Math.min(300, Number(body.pollSeconds) || 10));
         if ('includeReplies' in body) disk.includeReplies = Boolean(body.includeReplies);
         if ('openBrowser' in body) disk.openBrowser = Boolean(body.openBrowser);
-        if ('lensModel' in body) disk.lensModel = body.lensModel === 'fastest' ? 'fastest' : 'best';
+        if ('lensModel' in body) disk.lensModel = body.lensModel === 'best' ? 'best' : 'fastest';
         if ('notify' in body) disk.notify = body.notify === 'all' ? 'all' : 'important';
         if ('chains' in body) disk.chains = clean(body.chains);
         if (body.filter && typeof body.filter === 'object') {

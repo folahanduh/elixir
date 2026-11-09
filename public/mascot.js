@@ -357,7 +357,8 @@
     const rows = [
       ...flags.slice(0, 5).map(x => `<li class="${x.lvl === 'high' ? 'b' : 'm'}">${h(x.label)}</li>`),
       ...(k && !flags.length ? ['<li class="g">Mint & freeze authority revoked, no bundle or rug flags</li>'] : []),
-      ...(hd ? [`<li class="${hd.top1 >= 15 || hd.top10 >= 45 ? 'b' : hd.top10 <= 25 ? 'g' : 'm'}">Top holder ${hd.top1?.toFixed?.(1) ?? '?'}% · top 10 ${hd.top10?.toFixed?.(0) ?? '?'}%</li>`] : []),
+      ...(hd ? [`<li class="${hd.top1 >= 15 || hd.top10 >= 45 ? 'b' : hd.top10 <= 25 ? 'g' : 'm'}">${hd.top1 != null ? `Top holder ${hd.top1.toFixed(1)}% · ` : ''}Top 10 hold ${hd.top10?.toFixed?.(0) ?? '?'}%${f.holderCount ? ` · ${f.holderCount.toLocaleString('en')} holders` : ''}</li>`] : []),
+      ...(f.bondingCurvePct != null && !f.graduated ? [`<li class="m">On ${h(f.launchpad || 'the launchpad')}'s bonding curve · ${Math.round(f.bondingCurvePct)}% to graduation</li>`] : []),
       ...(f.liquidity != null ? [`<li class="${f.liquidity < 5000 ? 'b' : f.liquidity >= 50000 ? 'g' : 'm'}">Liquidity ${usd(f.liquidity)}</li>`] : []),
     ];
     return `<div class="mx-sec">RISK <span class="mx-chip ${cls}">${chip}</span></div><ul class="mx-risk">${rows.join('') || '<li class="m">Rug check service didn\'t answer in time</li>'}</ul>`;

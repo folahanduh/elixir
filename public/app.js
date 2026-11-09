@@ -627,7 +627,7 @@ $('#settingsBtn').onclick = () => {
   f.chains.value = (c.chains || []).join(', ');
   f.includeReplies.checked = !!c.includeReplies;
   f.openBrowser.checked = c.openBrowser !== false;
-  f.lensModel.value = c.lensModel || 'best';
+  f.lensModel.value = c.lensModel || 'fastest';
   f.notify.value = c.notify || 'important';
   const fp = c.filter || {};
   f.fLabel.value = fp.label || '';
