@@ -90,11 +90,24 @@
     .menu button { all: unset; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 7px; color: #e4e5ea; font-size: 13px; cursor: pointer; }
     .menu button:hover { background: #1c1d23; }
     .menu kbd { margin-left: auto; font-size: 10.5px; color: #8b909c; font-family: inherit; }
+    .hide { position: absolute; top: -4px; right: -10px; width: 17px; height: 17px; border-radius: 50%; background: #1c1d23; border: 1px solid rgba(255,255,255,.18); color: #c9ccd5; font-size: 12px; line-height: 15px; text-align: center; opacity: 0; transform: scale(.7); transition: opacity .15s, transform .15s; cursor: pointer; }
+    .mx:hover .hide { opacity: 1; transform: none; }
+    .hide:hover { background: #f2496a; border-color: #f2496a; color: #fff; }
+    .sec .chip { margin-left: 6px; letter-spacing: 0; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; }
+    .chip.g { color: #04140d; background: #2fd18b; } .chip.b { color: #fff; background: #f2496a; } .chip.m { color: #1b1400; background: #f0b84a; }
+    ul.risk { margin-top: 6px; padding: 8px 10px; border-radius: 9px; background: #16171c; border: 1px solid rgba(255,255,255,.12); }
+    ul.risk li { padding-left: 14px; color: #dfe1e7; }
+    ul.risk li::before { content: ""; position: absolute; left: 0; top: .55em; width: 7px; height: 7px; border-radius: 50%; background: #f0b84a; }
+    ul.risk li.g::before { background: #2fd18b; } ul.risk li.b::before { background: #f2496a; }
+    .rwait { display: flex; align-items: center; gap: 4px; margin-top: 6px; color: #8b909c; font-size: 12.5px; }
+    .rwait i { width: 5px; height: 5px; border-radius: 50%; background: #9a8fff; animation: dot 1s infinite ease-in-out; flex: none; }
+    .rwait i:nth-child(2) { animation-delay: .15s; } .rwait i:nth-child(3) { animation-delay: .3s; margin-right: 6px; }
+    .hidelink { float: right; color: #5f6471; text-decoration: none; cursor: pointer; } .hidelink:hover { color: #ff8da2; }
     @media (prefers-reduced-motion: reduce) { .legs, .legs .r { animation: none; } }
   `);
   root.adoptedStyleSheets = [sheet];
   root.innerHTML = `
-  <div class="mx" title="Elixir · tap or Alt+X: box a coin · hold and drag to move me · drag me onto a coin to research it · right-click: menu">
+  <div class="mx" title="Elixir · tap or Alt+X: box a coin · hold and drag to move me · drag me onto a coin to research it · × or right-click: hide me">
     <svg viewBox="0 0 64 92" aria-hidden="true">
       <defs>
         <linearGradient id="b" x1="20" y1="2" x2="44" y2="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#c3cbff"/><stop offset=".4" stop-color="#8b86ff"/><stop offset=".78" stop-color="#5b4df0"/><stop offset="1" stop-color="#3a2bc4"/></linearGradient>
@@ -111,6 +124,7 @@
       <path d="M29 43q3 2.2 6 0" fill="none" stroke="#120d3a" stroke-width="1.6" stroke-linecap="round"/></g>
       <path d="M32 1C29.5 4.5 13 22 13 37a19 19 0 0 0 38 0C51 22 34.5 4.5 32 1Z" fill="none" stroke="#211a7a" stroke-opacity=".5" stroke-width="1.3"/>
     </svg>
+    <span class="hide" title="Hide on every tab (Alt+Shift+X brings it back)">×</span>
   </div>`;
   document.documentElement.append(host); // on <html>: a transformed <body> can't drag it off-screen
   const mx = root.querySelector('.mx'), pupils = root.querySelector('.pupils'), face = root.querySelector('.face');
@@ -154,6 +168,7 @@
   let drag = null;
   mx.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
+    if (e.target.closest('.hide')) { e.preventDefault(); setHidden(true); return; }
     const r = mx.getBoundingClientRect();
     drag = { sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, t: Date.now(), moved: false };
     drag.hold = setTimeout(() => drag && mx.classList.add('held'), 220); // picked up
@@ -311,8 +326,15 @@
       if (!res.ok) return fill(`<div class="sum">${h(res.error)}</div>`);
       if (!res.data.found) return fill(`<div class="sum">${h(res.data.message)}</div>`);
       render(res.data, res.base, secs());
-      // 2) full answer (rug + holder checks, AI) replaces it
-      call('full').then(full => { if (id === askId && card && full?.ok && full.data.found) render(full.data, full.base, secs()); });
+      // 2) risk (rug + holders) first, 3) then the research (tweets, X search, AI) fills in below it
+      let done = false;
+      call('risk').then(rk => { if (id === askId && card && !done && rk?.ok && rk.data.found) render(rk.data, rk.base, secs()); });
+      call('full').then(full => {
+        if (id !== askId || !card) return;
+        done = true;
+        if (full?.ok && full.data.found) render(full.data, full.base, secs());
+        else { const w = card.querySelector('.rwait.research'); if (w) w.textContent = 'Research failed. Try again in a moment.'; }
+      });
     });
   }
   let askId = 0;
@@ -339,14 +361,37 @@
   function render(r, base, secs) {
     const f = r.facts, v = r.ai || r.rules, lbl = { good: 'Looks good', mixed: 'Mixed', avoid: 'Avoid' }[v.verdict];
     const pts = (a, c) => (a || []).slice(0, 4).map(t => `<li class="${c}">${h(t)}</li>`).join('');
-    const foot = r.stage === 'quick' ? `Answered in ${h(secs)}s · checking rugs, holders and writing the AI verdict…`
+    const quick = r.stage !== 'full';
+    const foot = quick ? (r.stage === 'quick' ? 'Checking rugs and holders…' : `Risk checked in ${h(secs)}s · researching…`)
       : `${r.ai ? `Claude's verdict from live data · ${h(secs)}s.` : `Rule-based · ${h(secs)}s (add an Anthropic key in Elixir for an AI verdict).`} Not financial advice.`;
     fill(`<div class="head">${/^https:\/\//.test(f.image || '') ? `<img src="${h(f.image)}" alt="">` : ''}<div class="grow"><b>${f.symbol ? '$' + h(f.symbol) : 'Coin'}</b><div class="sub">${h(f.name || '')}${f.marketCap ? ' · mc ' + usd(f.marketCap) : ''}${f.liquidity ? ' · liq ' + usd(f.liquidity) : ''}</div></div><span class="v ${h(v.verdict)}">${lbl}<em>${h(r.rules.score)}</em></span></div>
-      ${r.ai?.headline ? `<div class="hl">${h(r.ai.headline)}</div>` : ''}<p class="sum">${h(v.summary)}</p><ul>${pts(v.good, 'g')}${pts(v.bad, 'b')}</ul>
+      ${riskHTML(r)}
+      <div class="sec">RESEARCH</div>
+      ${quick ? `<div class="rwait research"><i></i><i></i><i></i>Researching why it's moving, the tweets behind it and the AI verdict…</div>` : `
+      ${r.ai?.headline ? `<div class="hl">${h(r.ai.headline)}</div>` : ''}<p class="sum">${h(v.summary)}</p><ul>${pts(v.good.filter(notRisk), 'g')}${pts(v.bad.filter(notRisk), 'b')}</ul>
       ${storyHTML(r)}
-      ${r.rules.info?.length ? `<div class="info">${r.rules.info.slice(0, 3).map(h).join(' · ')}</div>` : ''}
+      ${r.rules.info?.length ? `<div class="info">${r.rules.info.slice(0, 3).map(h).join(' · ')}</div>` : ''}`}
       <div class="links"><a href="${h(base)}/whales.html?view=map&map=${encodeURIComponent(f.mint)}" target="_blank" rel="noopener">Open in Elixir</a><a href="${h(r.links.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${h(r.links.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${h(r.links.rugcheck)}" target="_blank" rel="noopener">RugCheck</a><a href="${h(r.links.solscan)}" target="_blank" rel="noopener">Solscan</a></div>
-      <div class="foot">${foot}</div>`);
+      <div class="foot">${foot}<a class="hidelink" data-hide>Hide mascot</a></div>`);
+    card.querySelector('[data-hide]')?.addEventListener('click', () => setHidden(true));
+  }
+  // ---- risk first: rug checks + holders, in their own block at the top ----
+  const RISKY = /rugged|authority|bundle|holds \d|Top 10 holders own|Rug checks clean|Spread out: top 10/i;
+  const notRisk = t => !RISKY.test(t);
+  function riskHTML(r) {
+    const f = r.facts, k = f.risk, hd = f.holders;
+    if (!k && !hd && r.stage === 'quick') return '<div class="sec">RISK</div><div class="rwait"><i></i><i></i><i></i>Checking mint / freeze authority, bundles, dev history, top holders…</div>';
+    const flags = (k?.flags || []).map(x => { const [lvl, ...rest] = x.split(': '); return { lvl, label: rest.join(': ') }; });
+    const highs = flags.filter(x => x.lvl === 'high').length;
+    const hot = (hd?.top1 >= 15) || (hd?.top10 >= 45);
+    const [chip, cls] = !k && !hd ? ['Unavailable', 'm'] : highs ? [`${highs} red flag${highs > 1 ? 's' : ''}`, 'b'] : flags.length || hot ? ['Some risk', 'm'] : ['Clean', 'g'];
+    const rows = [
+      ...flags.slice(0, 5).map(x => `<li class="${x.lvl === 'high' ? 'b' : 'm'}">${h(x.label)}</li>`),
+      ...(k && !flags.length ? ['<li class="g">Mint & freeze authority revoked, no bundle or rug flags</li>'] : []),
+      ...(hd ? [`<li class="${hot ? 'b' : hd.top10 <= 25 ? 'g' : 'm'}">Top holder ${hd.top1?.toFixed?.(1) ?? '?'}% · top 10 ${hd.top10?.toFixed?.(0) ?? '?'}%</li>`] : []),
+      ...(f.liquidity != null ? [`<li class="${f.liquidity < 5000 ? 'b' : f.liquidity >= 50000 ? 'g' : 'm'}">Liquidity ${usd(f.liquidity)}</li>`] : []),
+    ];
+    return `<div class="sec">RISK <span class="chip ${cls}">${chip}</span></div><ul class="risk">${rows.join('') || '<li class="m">Rug check service didn\'t answer in time</li>'}</ul>`;
   }
   function openCard(html) {
     card?.remove();

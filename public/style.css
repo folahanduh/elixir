@@ -1061,3 +1061,22 @@ html.qb-off .qb { display: none !important; }
 .mx-menu button:hover { background: var(--panel-3) !important; }
 .mx-menu kbd { margin-left: auto; font-size: 10.5px; }
 .mascot[hidden] { display: none !important; }
+
+/* mascot: risk first */
+.mx-sec .mx-chip { margin-left: 6px; letter-spacing: 0; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; vertical-align: 1px; }
+.mx-chip.g { color: #04140d; background: var(--accent); } .mx-chip.b { color: #fff; background: #f2496a; } .mx-chip.m { color: #1b1400; background: #f0b84a; }
+.mx-risk { list-style: none; margin: 6px 0 0; padding: 8px 10px; border-radius: 9px; background: var(--panel-2); border: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 4px; }
+.mx-risk li { position: relative; padding-left: 14px; font-size: 12.5px; color: #dfe1e7; }
+.mx-risk li::before { content: ""; position: absolute; left: 0; top: .5em; width: 7px; height: 7px; border-radius: 50%; background: #f0b84a; }
+.mx-risk li.g::before { background: var(--accent); } .mx-risk li.b::before { background: #f2496a; }
+.mx-research-wait { display: flex; align-items: center; gap: 4px; margin-top: 6px; color: var(--muted); font-size: 12.5px; }
+.mx-research-wait span { width: 5px; height: 5px; border-radius: 50%; background: var(--brand-2); animation: mxDot 1s infinite ease-in-out; flex: none; }
+.mx-research-wait span:nth-child(2) { animation-delay: .15s; } .mx-research-wait span:nth-child(3) { animation-delay: .3s; margin-right: 6px; }
+@keyframes mxDot { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; transform: translateY(-3px); } }
+.mx-hidelink { float: right; color: var(--dim) !important; text-decoration: none; }
+.mx-hidelink:hover { color: #ff8da2 !important; }
+/* the × on the mascot */
+.mascot .mx-hide { position: absolute; top: -6px; right: -8px; width: 16px; height: 16px; border-radius: 50%; background: #1c1d23; border: 1px solid var(--line-2); color: #c9ccd5; font-size: 12px; line-height: 14px; text-align: center; opacity: 0; transform: scale(.7); transition: opacity .15s, transform .15s; cursor: pointer; font-family: system-ui, sans-serif; }
+.mascot:hover .mx-hide { opacity: 1; transform: none; }
+.mascot .mx-hide:hover { background: #f2496a; color: #fff; border-color: #f2496a; }
+@media (hover: none) { .mascot .mx-hide { opacity: .85; transform: none; } }

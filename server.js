@@ -1125,7 +1125,7 @@ const server = http.createServer(async (req, res) => {
           input.pageTitle = String(body.pageTitle || '').slice(0, 200);
           // stage "quick": an answer in a fraction of a second; "full": + rug/holder checks and the AI write-up
           const L = require('./lib/lens');
-          const out = await (body.stage === 'quick' ? L.quick : L.full)(input, { ...lensCtx(), pageUrl: input.pageUrl });
+          const out = await (body.stage === 'quick' ? L.quick : body.stage === 'risk' ? L.risk : L.full)(input, { ...lensCtx(), pageUrl: input.pageUrl });
           return json(res, 200, { ...out, ai: out.ai || null, aiAvailable: Boolean(cfg.keys.anthropic) });
         } catch (e) { return json(res, 500, { error: e.message }); }
       }

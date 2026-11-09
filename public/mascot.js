@@ -28,8 +28,8 @@
   const mx = document.createElement('button');
   mx.type = 'button';
   mx.className = 'mascot';
-  mx.title = 'Ask Elixir (tap or Alt+X): box a coin and I\'ll tell you if it looks good · hold and drag to move me · right-click: back to the header';
-  mx.innerHTML = SVG;
+  mx.title = 'Ask Elixir (tap or Alt+X): box a coin and I\'ll tell you if it looks good · hold and drag to move me · × or right-click: hide me';
+  mx.innerHTML = SVG + '<span class="mx-hide" title="Hide the mascot (Alt+Shift+X to bring it back)" aria-label="Hide mascot">×</span>';
   const home = document.querySelector('.top');
   if (!home) return;
   home.append(mx);
@@ -83,6 +83,7 @@
     targetEl?.classList.remove('mx-target'); targetEl = el; el?.classList.add('mx-target');
   }
   mx.addEventListener('pointerdown', e => {
+    if (e.target.closest('.mx-hide')) { e.preventDefault(); e.stopPropagation(); swallowClick = true; setHidden(true); return; }
     if (e.button !== 0) return;
     const r = mx.getBoundingClientRect();
     drag = { sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, t: Date.now(), moved: false };
@@ -247,12 +248,16 @@
       if (!q.found) return fill(`<div class="mx-msg">${h(q.message)}</div>`);
       render(q, ((performance.now() - t0) / 1000).toFixed(1));
     } catch (e) { if (id === askId) { mx.classList.remove('thinking'); fill(`<div class="mx-msg">${h(e.message)}</div>`); } return; }
-    // 2) full answer (rug + holder checks, Claude's write-up) replaces it when ready
+    // 2) the risk check (rug + holders) lands first, 3) then the research (tweets, X search, Claude) fills in below it
+    let done = false;
+    const secs = () => ((performance.now() - t0) / 1000).toFixed(1);
+    call('risk').then(r => { if (id === askId && card && !done && r.found) render(r, secs()); }).catch(() => {});
     try {
       const f = await call('full');
       if (id !== askId || !card) return;
-      if (f.found) render(f, ((performance.now() - t0) / 1000).toFixed(1));
-    } catch {}
+      done = true;
+      if (f.found) render(f, secs());
+    } catch { if (id === askId && card) card.querySelector('.mx-research-wait')?.replaceChildren('Research failed. Try again in a moment.'); }
   }
   let askId = 0;
   const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'] };
@@ -282,20 +287,41 @@
     mx.dataset.mood = verdict;
     const lbl = { good: 'Looks good', mixed: 'Mixed', avoid: 'Avoid' }[verdict];
     const pts = (arr, cls) => (arr || []).slice(0, 4).map(t => `<li class="${cls}">${h(t)}</li>`).join('');
-    const quick = r.stage === 'quick';
-    const foot = quick ? `<span class="mx-live"><i></i>Answered in ${h(secs)}s · checking rugs, holders${r.aiAvailable !== false ? ' and writing the AI verdict' : ''}…</span>`
+    const quick = r.stage !== 'full';
+    const foot = quick ? `<span class="mx-live"><i></i>${r.stage === 'quick' ? 'Checking rugs and holders' : `Risk checked in ${h(secs)}s · researching`}…</span>`
       : `${r.ai ? `Claude's verdict from live data · ${h(secs)}s.` : r.aiAvailable ? `Rule-based (Claude was unavailable) · ${h(secs)}s.` : `Rule-based · ${h(secs)}s. Add an Anthropic key in API keys for a written AI verdict.`} Not financial advice.`;
     fill(`<div class="mx-head">
         <img src="${h(window.coinImg ? window.coinImg(f.mint, f.image) : f.image || '')}" alt="" onerror="this.remove()">
         <div class="grow"><b>${f.symbol ? '$' + h(f.symbol) : 'Coin'}</b>${window.qbHTML ? window.qbHTML(f.mint, f.symbol) : ''}<div class="mx-sub">${h(f.name || '')}${f.marketCap ? ' · mc ' + usd(f.marketCap) : ''}${f.liquidity ? ' · liq ' + usd(f.liquidity) : ''}</div></div>
         <span class="mx-verdict ${verdict}">${lbl}<em>${r.rules.score}</em></span></div>
+      ${riskHTML(r)}
+      <div class="mx-sec">RESEARCH</div>
+      ${quick ? `<div class="mx-research-wait"><span></span><span></span><span></span> Researching why it's moving, the tweets behind it${r.aiAvailable !== false ? " and Claude's verdict" : ''}…</div>` : `
       ${r.ai?.headline ? `<div class="mx-hl">${h(r.ai.headline)}</div>` : ''}
       <p class="mx-sum">${h(v.summary)}</p>
-      <ul class="mx-pts">${pts(v.good, 'g')}${pts(v.bad, 'b')}</ul>
+      <ul class="mx-pts">${pts(v.good.filter(notRisk), 'g')}${pts(v.bad.filter(notRisk), 'b')}</ul>
       ${storyHTML(r)}
-      ${r.rules.info?.length ? `<div class="mx-info">${r.rules.info.slice(0, 3).map(h).join(' · ')}</div>` : ''}
+      ${r.rules.info?.length ? `<div class="mx-info">${r.rules.info.slice(0, 3).map(h).join(' · ')}</div>` : ''}`}
       <div class="mx-links"><a href="#" data-map="${h(f.mint)}" data-mxmap="${h(f.mint)}">Bubble map</a><a href="${h(r.links.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${h(r.links.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${h(r.links.rugcheck)}" target="_blank" rel="noopener">RugCheck</a><a href="${h(r.links.solscan)}" target="_blank" rel="noopener">Solscan</a></div>
-      <div class="mx-foot">${foot}</div>`);
+      <div class="mx-foot">${foot}<a href="#" class="mx-hidelink" data-mxhide>Hide mascot</a></div>`);
+  }
+  // ---- risk first: rug checks + holders, in their own block at the top ----
+  const RISKY = /rugged|authority|bundle|holds \d|Top 10 holders own|Rug checks clean|Spread out: top 10/i;
+  const notRisk = t => !RISKY.test(t);
+  function riskHTML(r) {
+    const f = r.facts, k = f.risk, hd = f.holders;
+    if (!k && !hd && r.stage === 'quick') return `<div class="mx-sec">RISK</div><div class="mx-risk wait"><div class="mx-research-wait"><span></span><span></span><span></span> Checking mint / freeze authority, bundles, dev history, top holders…</div></div>`;
+    const flags = (k?.flags || []).map(x => { const [lvl, ...rest] = x.split(': '); return { lvl, label: rest.join(': ') }; });
+    const highs = flags.filter(x => x.lvl === 'high').length;
+    const hot = (hd?.top1 >= 15) || (hd?.top10 >= 45);
+    const [chip, cls] = !k && !hd ? ['Unavailable', 'm'] : highs ? [`${highs} red flag${highs > 1 ? 's' : ''}`, 'b'] : flags.length || hot ? ['Some risk', 'm'] : ['Clean', 'g'];
+    const rows = [
+      ...flags.slice(0, 5).map(x => `<li class="${x.lvl === 'high' ? 'b' : 'm'}">${h(x.label)}</li>`),
+      ...(k && !flags.length ? ['<li class="g">Mint & freeze authority revoked, no bundle or rug flags</li>'] : []),
+      ...(hd ? [`<li class="${hd.top1 >= 15 || hd.top10 >= 45 ? 'b' : hd.top10 <= 25 ? 'g' : 'm'}">Top holder ${hd.top1?.toFixed?.(1) ?? '?'}% · top 10 ${hd.top10?.toFixed?.(0) ?? '?'}%</li>`] : []),
+      ...(f.liquidity != null ? [`<li class="${f.liquidity < 5000 ? 'b' : f.liquidity >= 50000 ? 'g' : 'm'}">Liquidity ${usd(f.liquidity)}</li>`] : []),
+    ];
+    return `<div class="mx-sec">RISK <span class="mx-chip ${cls}">${chip}</span></div><ul class="mx-risk">${rows.join('') || '<li class="m">Rug check service didn\'t answer in time</li>'}</ul>`;
   }
   function openCard(html) {
     closeCard(true);
@@ -324,6 +350,7 @@
   }
   // "Bubble map" from the card: on the map page map it here, elsewhere open the map page.
   document.addEventListener('click', e => {
+    if (e.target.closest('[data-mxhide]')) { e.preventDefault(); setHidden(true); return; }
     const a = e.target.closest('[data-mxmap]');
     if (!a || document.body.dataset.page === 'whales') return;
     e.preventDefault(); e.stopPropagation();
