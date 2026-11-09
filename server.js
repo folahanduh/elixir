@@ -857,10 +857,10 @@ function readBody(req) {
 const EXT_OK = new Set(['/api/lens', '/api/ingest', '/api/bridge-ping', '/api/ping']);
 function allowed(req, url) {
   const host = String(req.headers.host || '').toLowerCase();
-  if (!/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host)) return false;
+  if (!/^(localhost|127\.0\.0\.1|\[::1\]|penguin\.linux\.test)(:\d+)?$/.test(host)) return false; // penguin.linux.test = Chromebook's Linux
   const origin = req.headers.origin;
   if (!origin || req.method === 'GET') return true; // no Origin = not a browser page (curl, the server itself)
-  if (/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(origin)) return true;
+  if (/^http:\/\/(localhost|127\.0\.0\.1|\[::1\]|penguin\.linux\.test)(:\d+)?$/i.test(origin)) return true;
   return /^(chrome|moz|safari-web)-extension:\/\//i.test(origin) && EXT_OK.has(url.pathname);
 }
 

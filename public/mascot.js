@@ -16,11 +16,13 @@
     <path d="M32 4.5C29.5 8 13 25.5 13 40.5a19 19 0 0 0 38 0C51 25.5 34.5 8 32 4.5Z" fill="url(#mx-b)"/>
     <g clip-path="url(#mx-c)"><path d="M8 47c7-4 13 2.5 21-1s12-6 27-1v22H8z" fill="url(#mx-l)" opacity=".85"/><circle cx="24" cy="54" r="1.8" fill="#fff" opacity=".45"/><circle cx="40" cy="57" r="1.2" fill="#fff" opacity=".4"/></g>
     <path d="M23 19c-3 4.5-5.4 9.5-5.6 14.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".6"/>
-    <g class="mx-eyes">
-      <ellipse cx="25.5" cy="37" rx="5" ry="5.8" fill="#fff"/><ellipse cx="38.5" cy="37" rx="5" ry="5.8" fill="#fff"/>
-      <g class="mx-pupils"><circle cx="25.5" cy="37.6" r="2.7" fill="#120d3a"/><circle cx="38.5" cy="37.6" r="2.7" fill="#120d3a"/><circle cx="26.6" cy="36.3" r=".9" fill="#fff"/><circle cx="39.6" cy="36.3" r=".9" fill="#fff"/></g>
+    <g class="mx-face">
+      <g class="mx-eyes">
+        <ellipse cx="25" cy="36.5" rx="6.1" ry="6.9" fill="#fff"/><ellipse cx="39" cy="36.5" rx="6.1" ry="6.9" fill="#fff"/>
+        <g class="mx-pupils"><circle cx="25" cy="37" r="2.9" fill="#120d3a"/><circle cx="39" cy="37" r="2.9" fill="#120d3a"/><circle cx="26.1" cy="35.7" r="1" fill="#fff"/><circle cx="40.1" cy="35.7" r="1" fill="#fff"/></g>
+      </g>
+      <path class="mx-mouth" d="M29 47q3 2.2 6 0" fill="none" stroke="#120d3a" stroke-width="1.6" stroke-linecap="round"/>
     </g>
-    <path class="mx-mouth" d="M29 46.5q3 2.2 6 0" fill="none" stroke="#120d3a" stroke-width="1.6" stroke-linecap="round"/>
     <path d="M32 4.5C29.5 8 13 25.5 13 40.5a19 19 0 0 0 38 0C51 25.5 34.5 8 32 4.5Z" fill="none" stroke="#211a7a" stroke-opacity=".5" stroke-width="1.3"/>
   </svg>`;
   const mx = document.createElement('button');
@@ -31,7 +33,7 @@
   const home = document.querySelector('.top');
   if (!home) return;
   home.append(mx);
-  const pupils = mx.querySelector('.mx-pupils');
+  const pupils = mx.querySelector('.mx-pupils'), face = mx.querySelector('.mx-face');
 
   // Eyes follow the mouse; blink now and then.
   let raf = 0, mouse = null;
@@ -40,8 +42,11 @@
     raf = 0;
     if (!mouse || mx.classList.contains('thinking')) return;
     const r = mx.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height * 0.58;
-    const dx = mouse[0] - cx, dy = mouse[1] - cy, d = Math.hypot(dx, dy) || 1, k = Math.min(2.3, d / 60);
-    pupils.style.transform = `translate(${(dx / d) * k}px, ${(dy / d) * k}px)`;
+    const dx = mouse[0] - cx, dy = mouse[1] - cy, d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d, uy = dy / d, k = Math.min(1, d / 220), p = Math.max(0.45, k);
+    pupils.style.transform = `translate(${(ux * 3.1 * p).toFixed(2)}px, ${(uy * 3.1 * p).toFixed(2)}px)`;   // eyes look at the cursor
+    face.style.transform = `translate(${(ux * 1.8 * k).toFixed(2)}px, ${(uy * 1.3 * k).toFixed(2)}px)`;  // the face turns a little
+    mx.style.rotate = `${Math.max(-10, Math.min(10, dx / 28)).toFixed(1)}deg`;                         // and it tilts its head
   }
   (function blink() { setTimeout(() => { mx.classList.add('blink'); setTimeout(() => mx.classList.remove('blink'), 140); blink(); }, 2600 + Math.random() * 3800); })();
 
@@ -63,7 +68,9 @@
   function snip() {
     veil = document.createElement('div');
     veil.className = 'mx-veil';
-    veil.innerHTML = '<div class="mx-hint"><b>Box a coin</b>drag over a ticker, CA, or card · or click one · Esc to cancel</div>';
+    // Without the browser extension the mascot can only read this Elixir page; say so.
+    const ext = document.documentElement.hasAttribute('data-elixir-ext');
+    veil.innerHTML = `<div class="mx-hint"><b>Box a coin</b>drag over a ticker, CA, or card · or click one · Esc to cancel<span class="mx-scope ${ext ? 'on' : ''}">${ext ? 'Extension on: Alt+X works on every website too.' : 'Scanning this Elixir page only. To use me on X, Axiom, DexScreener and every other site, load the <b>extension</b> folder in chrome://extensions (see README).'}</span></div>`;
     document.body.append(veil);
     mx.classList.add('active');
     veil.addEventListener('mousedown', e => { start = [e.clientX, e.clientY]; box = document.createElement('div'); box.className = 'mx-box'; veil.append(box); draw(e); });

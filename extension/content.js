@@ -2,7 +2,8 @@
 // box a coin → it asks the Elixir app on your PC and shows a Good / Mixed / Avoid verdict right there.
 (() => {
   if (window.top !== window) return;                                        // not inside iframes
-  if (/^(localhost|127\.0\.0\.1):8787$/.test(location.host)) return;        // Elixir has its own mascot
+  // Elixir has its own mascot: just tell its pages the extension is here (so they can say so), then stop.
+  if (/^(localhost|127\.0\.0\.1|penguin\.linux\.test):8787$/.test(location.host)) { document.documentElement.setAttribute('data-elixir-ext', chrome.runtime.getManifest().version); return; }
   if (document.getElementById('elixir-mascot-host')) return;
 
   const h = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -24,7 +25,8 @@
     .legs .r { animation: swing2 2.4s ease-in-out infinite; transform-origin: 37px 58px; }
     @keyframes swing { 0%, 100% { transform: rotate(4deg); } 50% { transform: rotate(-4deg); } }
     @keyframes swing2 { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
-    .pupils { transition: transform .08s linear; }
+    .pupils, .face { transition: transform .12s ease-out; }
+    .mx { transform-origin: 50% 12%; transition: filter .2s, transform .45s cubic-bezier(.3, 1.4, .5, 1), rotate .25s ease-out; }
     .eyes { transform-origin: 32px 33px; transition: transform .07s; }
     .mx.blink .eyes { transform: scaleY(.1); }
     .mx.thinking .pupils { animation: think 1.1s ease-in-out infinite; }
@@ -74,14 +76,14 @@
       <path d="M32 1C29.5 4.5 13 22 13 37a19 19 0 0 0 38 0C51 22 34.5 4.5 32 1Z" fill="url(#b)"/>
       <g clip-path="url(#c)"><path d="M8 43c7-4 13 2.5 21-1s12-6 27-1v22H8z" fill="url(#l)" opacity=".85"/></g>
       <path d="M23 15c-3 4.5-5.4 9.5-5.6 14.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".6"/>
-      <g class="eyes"><ellipse cx="25.5" cy="33" rx="5" ry="5.8" fill="#fff"/><ellipse cx="38.5" cy="33" rx="5" ry="5.8" fill="#fff"/>
-        <g class="pupils"><circle cx="25.5" cy="33.6" r="2.7" fill="#120d3a"/><circle cx="38.5" cy="33.6" r="2.7" fill="#120d3a"/><circle cx="26.6" cy="32.3" r=".9" fill="#fff"/><circle cx="39.6" cy="32.3" r=".9" fill="#fff"/></g></g>
-      <path d="M29 42.5q3 2.2 6 0" fill="none" stroke="#120d3a" stroke-width="1.6" stroke-linecap="round"/>
+      <g class="face"><g class="eyes"><ellipse cx="25" cy="32.5" rx="6.1" ry="6.9" fill="#fff"/><ellipse cx="39" cy="32.5" rx="6.1" ry="6.9" fill="#fff"/>
+        <g class="pupils"><circle cx="25" cy="33" r="2.9" fill="#120d3a"/><circle cx="39" cy="33" r="2.9" fill="#120d3a"/><circle cx="26.1" cy="31.7" r="1" fill="#fff"/><circle cx="40.1" cy="31.7" r="1" fill="#fff"/></g></g>
+      <path d="M29 43q3 2.2 6 0" fill="none" stroke="#120d3a" stroke-width="1.6" stroke-linecap="round"/></g>
       <path d="M32 1C29.5 4.5 13 22 13 37a19 19 0 0 0 38 0C51 22 34.5 4.5 32 1Z" fill="none" stroke="#211a7a" stroke-opacity=".5" stroke-width="1.3"/>
     </svg>
   </div>`;
   (document.body || document.documentElement).append(host);
-  const mx = root.querySelector('.mx'), pupils = root.querySelector('.pupils');
+  const mx = root.querySelector('.mx'), pupils = root.querySelector('.pupils'), face = root.querySelector('.face');
 
   // Size follows the window: smaller windows get a smaller mascot, still sitting on the top edge.
   const size = () => { const w = window.innerWidth; mx.style.setProperty('--s', (w < 600 ? 28 : w < 1000 ? 36 : 46) + 'px'); };
@@ -95,8 +97,11 @@
     raf = 0;
     if (!mouse || mx.classList.contains('thinking')) return;
     const r = mx.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height * 0.35;
-    const dx = mouse[0] - cx, dy = mouse[1] - cy, d = Math.hypot(dx, dy) || 1, k = Math.min(2.3, d / 60);
-    pupils.style.transform = `translate(${(dx / d) * k}px, ${(dy / d) * k}px)`;
+    const dx = mouse[0] - cx, dy = mouse[1] - cy, d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d, uy = dy / d, k = Math.min(1, d / 220), p = Math.max(0.45, k);
+    pupils.style.transform = `translate(${(ux * 3.1 * p).toFixed(2)}px, ${(uy * 3.1 * p).toFixed(2)}px)`;   // eyes look at the cursor
+    face.style.transform = `translate(${(ux * 1.8 * k).toFixed(2)}px, ${(uy * 1.3 * k).toFixed(2)}px)`;  // the face turns a little
+    mx.style.rotate = `${Math.max(-10, Math.min(10, dx / 28)).toFixed(1)}deg`;                         // and it tilts its head
   }
   (function blink() { setTimeout(() => { mx.classList.add('blink'); setTimeout(() => mx.classList.remove('blink'), 140); blink(); }, 2600 + Math.random() * 3800); })();
 

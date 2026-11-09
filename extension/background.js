@@ -1,7 +1,7 @@
 // Elixir Mascot extension: hotkeys → the tab's mascot; research requests → the Elixir app on this PC.
 // The extension talks only to http://localhost:8787 (your own Elixir). Nothing goes anywhere else.
 
-const BASES = ['http://localhost:8787', 'http://127.0.0.1:8787'];
+const BASES = ['http://localhost:8787', 'http://127.0.0.1:8787', 'http://penguin.linux.test:8787']; // last one: Chromebook Linux
 
 chrome.commands.onCommand.addListener(async cmd => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

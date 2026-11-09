@@ -1,16 +1,57 @@
 {
   "manifest_version": 3,
   "name": "Elixir Mascot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The Elixir mascot on every tab. Press Alt+X, box a coin anywhere, and it tells you if it looks good (asks the Elixir app running on your PC).",
-  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
-  "action": { "default_title": "Elixir: box a coin (Alt+X)", "default_icon": { "16": "icons/16.png", "48": "icons/48.png" } },
-  "background": { "service_worker": "background.js" },
-  "permissions": ["storage", "activeTab"],
-  "host_permissions": ["http://localhost:8787/*", "http://127.0.0.1:8787/*"],
-  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }],
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_title": "Elixir: box a coin (Alt+X)",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:8787/*",
+    "http://127.0.0.1:8787/*",
+    "http://penguin.linux.test:8787/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
   "commands": {
-    "snip": { "suggested_key": { "default": "Alt+X", "mac": "Alt+X" }, "description": "Box a coin and research it" },
-    "toggle": { "suggested_key": { "default": "Alt+Shift+X", "mac": "Alt+Shift+X" }, "description": "Show / hide the mascot" }
+    "snip": {
+      "suggested_key": {
+        "default": "Alt+X",
+        "mac": "Alt+X"
+      },
+      "description": "Box a coin and research it"
+    },
+    "toggle": {
+      "suggested_key": {
+        "default": "Alt+Shift+X",
+        "mac": "Alt+Shift+X"
+      },
+      "description": "Show / hide the mascot"
+    }
   }
 }
