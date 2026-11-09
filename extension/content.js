@@ -67,11 +67,34 @@
     .wait i { width: 6px; height: 6px; border-radius: 50%; background: #9a8fff; animation: dot 1s infinite ease-in-out; }
     .wait i:nth-child(2) { animation-delay: .15s; } .wait i:nth-child(3) { animation-delay: .3s; margin-right: 6px; }
     @keyframes dot { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; transform: translateY(-3px); } }
+    .card { max-height: calc(100vh - 16px); overflow: auto; }
+    .sec { margin-top: 12px; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; color: #5f6471; }
+    .narr { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 9px; border: 1px solid rgba(255,255,255,.12); background: #16171c; }
+    .narr b { font-size: 12.5px; } .narr span { color: #c9ccd5; font-size: 12.5px; line-height: 1.45; }
+    .narr.g { border-color: rgba(47,209,139,.4); } .narr.g b { color: #2fd18b; }
+    .narr.b { border-color: rgba(242,73,106,.45); } .narr.b b { color: #ff8da2; }
+    .narr.m b { color: #f0b84a; }
+    .reason { margin-top: 4px; color: #8b909c; font-size: 12px; line-height: 1.45; }
+    .why { margin: 8px 0 0; color: #dfe1e7; font-size: 12.5px; line-height: 1.5; }
+    .origin { display: block; margin-top: 8px; padding: 8px 10px; border-radius: 9px; background: rgba(124,109,255,.08); border: 1px solid rgba(124,109,255,.3); color: #dfe1e7; text-decoration: none; font-size: 12.5px; line-height: 1.45; }
+    .origin span { display: block; font-size: 11.5px; font-weight: 600; color: #9a8fff; margin-bottom: 2px; }
+    .tws { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .tw { display: block; padding: 7px 9px; border-radius: 8px; background: #0c0d10; border: 1px solid rgba(255,255,255,.07); color: #c9ccd5; text-decoration: none; font-size: 12px; line-height: 1.45; }
+    .tw:hover { border-color: rgba(255,255,255,.16); } .tw.promo { opacity: .78; }
+    .tw-h { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+    .tw-h b { color: #fff; font-size: 12px; } .tw-h em { font-style: normal; font-size: 10.5px; color: #8b909c; } .tw-h i { font-style: normal; font-size: 10.5px; color: #5f6471; white-space: nowrap; }
+    .tw-t { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    details summary { cursor: pointer; color: #9a8fff; font-size: 12px; margin: 2px 0 4px; } details .tw { margin-bottom: 6px; }
+    .tgt { position: fixed; pointer-events: none; border: 2px solid #9a8fff; border-radius: 8px; box-shadow: 0 0 0 6px rgba(124,109,255,.18); background: rgba(124,109,255,.06); }
+    .menu { position: fixed; min-width: 200px; padding: 5px; background: #111216; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; box-shadow: 0 14px 40px rgba(0,0,0,.6); display: flex; flex-direction: column; }
+    .menu button { all: unset; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 7px; color: #e4e5ea; font-size: 13px; cursor: pointer; }
+    .menu button:hover { background: #1c1d23; }
+    .menu kbd { margin-left: auto; font-size: 10.5px; color: #8b909c; font-family: inherit; }
     @media (prefers-reduced-motion: reduce) { .legs, .legs .r { animation: none; } }
   `);
   root.adoptedStyleSheets = [sheet];
   root.innerHTML = `
-  <div class="mx" title="Elixir · tap or Alt+X: box a coin · hold and drag to move me · right-click: back to the top">
+  <div class="mx" title="Elixir · tap or Alt+X: box a coin · hold and drag to move me · drag me onto a coin to research it · right-click: menu">
     <svg viewBox="0 0 64 92" aria-hidden="true">
       <defs>
         <linearGradient id="b" x1="20" y1="2" x2="44" y2="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#c3cbff"/><stop offset=".4" stop-color="#8b86ff"/><stop offset=".78" stop-color="#5b4df0"/><stop offset="1" stop-color="#3a2bc4"/></linearGradient>
@@ -145,12 +168,20 @@
     const x = clamp(e.clientX - drag.ox, 0, window.innerWidth - w), y = clamp(e.clientY - drag.oy, -4, window.innerHeight - hh);
     mx.style.setProperty('--x', x + 'px'); mx.style.setProperty('--y', y + 'px');
     mx.classList.toggle('float', y > 24);
+    target(coinAt(e.clientX, e.clientY));
   });
   mx.addEventListener('pointerup', e => {
     if (!drag) return;
     clearTimeout(drag.hold);
     const { moved, t } = drag; drag = null;
     mx.classList.remove('drag', 'held');
+    const tgt = tgtEl; target(null);
+    if (moved && tgt) {                     // dropped onto a coin: stay there and research it
+      const m = mx.getBoundingClientRect(), r = tgt.getBoundingClientRect();
+      pos = { fx: m.left / window.innerWidth, fy: m.top <= 24 ? -1 : m.top / window.innerHeight }; apply(); savePos();
+      ask({ text: textIn(r), mints: mintsIn(r) }, r);
+      return;
+    }
     if (moved) {
       const r = mx.getBoundingClientRect();
       pos = { fx: r.left / window.innerWidth, fy: r.top <= 24 ? -1 : r.top / window.innerHeight }; // dropped near the top: sits on the edge
@@ -158,17 +189,65 @@
     } else if (Date.now() - t < 350) start(); // a tap
   });
   // Right-click: back to its home spot on the top edge
-  mx.addEventListener('contextmenu', e => { e.preventDefault(); pos = null; apply(); savePos(); close(); });
+  let menu = null;
+  const closeMenu = () => { menu?.remove(); menu = null; };
+  mx.addEventListener('contextmenu', e => {
+    e.preventDefault(); closeMenu();
+    menu = document.createElement('div'); menu.className = 'menu';
+    menu.innerHTML = '<button data-a="home">Back to my spot</button><button data-a="hide">Hide on every tab <kbd>Alt+Shift+X</kbd></button>';
+    root.append(menu);
+    Object.assign(menu.style, { left: Math.min(window.innerWidth - 210, e.clientX) + 'px', top: Math.min(window.innerHeight - 90, e.clientY + 6) + 'px' });
+    menu.addEventListener('click', ev => { const a = ev.target.closest('[data-a]')?.dataset.a; closeMenu(); if (a === 'home') { pos = null; apply(); savePos(); close(); } if (a === 'hide') setHidden(true); });
+    // (the shadow root is closed, so the page only sees our host element: check the menu's box instead)
+    const away = ev => { const r = menu?.getBoundingClientRect(); if (r && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) return; closeMenu(); document.removeEventListener('mousedown', away, true); };
+    setTimeout(() => document.addEventListener('mousedown', away, true), 0);
+  });
+  // Alt+Shift+X can arrive twice (the browser shortcut and the key itself): one flip per press
+  let lastFlip = 0;
+  const flip = () => { if (Date.now() - lastFlip < 500) return; lastFlip = Date.now(); setHidden(!mx.classList.contains('hidden')); };
+  function setHidden(on) { mx.classList.toggle('hidden', on); chrome.storage.local.set({ hidden: on }); if (on) close(); }
+  // hidden/shown on one tab = on every tab
+  chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.hidden) { mx.classList.toggle('hidden', Boolean(ch.hidden.newValue)); if (ch.hidden.newValue) close(); } });
 
   chrome.runtime.onMessage.addListener(msg => {
-    if (msg?.type === 'snip') { mx.classList.remove('hidden'); start(); }
-    if (msg?.type === 'toggle') { mx.classList.toggle('hidden'); chrome.storage.local.set({ hidden: mx.classList.contains('hidden') }); if (mx.classList.contains('hidden')) close(); }
+    if (msg?.type === 'snip') { if (mx.classList.contains('hidden')) setHidden(false); start(); }
+    if (msg?.type === 'toggle') flip();
   });
   // Fallback if the browser's shortcut is taken by something else
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { if (veil) endSnip(); else close(); return; }
-    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyX') { e.preventDefault(); start(); }
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.shiftKey && e.code === 'KeyX') { e.preventDefault(); flip(); return; }
+    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyX') { e.preventDefault(); if (mx.classList.contains('hidden')) setHidden(false); start(); }
   }, true);
+
+  // ---------- drag onto a coin ----------
+  let tgtEl = null, tgtBox = null;
+  const UNIT = 'article, li, tr, [role="row"], [role="listitem"], [class*="card"], [class*="Card"], [class*="row"], [class*="Row"], [class*="item"], a[href]';
+  const COINISH = /\$[A-Za-z][A-Za-z0-9]{1,15}\b|[1-9A-HJ-NP-Za-km-z]{32,44}/;
+  // The coin card / row under the pointer: the nearest card-like element (by tag/class) that names a coin,
+  // else the biggest card-sized block around the pointer that names one.
+  function coinAt(x, y) {
+    const el = document.elementsFromPoint(x, y).find(e => e !== host && e !== document.body && e !== document.documentElement);
+    if (!el) return null;
+    const fits = u => { const r = u.getBoundingClientRect(); return r.width <= Math.min(900, window.innerWidth * 0.75) && r.height <= 240; };
+    const coinish = u => COINISH.test(u.textContent.slice(0, 2000)) || [...u.querySelectorAll('a[href]'), u].some(a => /[1-9A-HJ-NP-Za-km-z]{32,44}/.test(a.getAttribute?.('href') || ''));
+    let best = null;
+    for (let u = el; u && u !== document.body; u = u.parentElement) {
+      if (!fits(u)) break;
+      if (!coinish(u)) continue;
+      if (u.matches(UNIT) && !u.matches('a[href]')) return u;     // a real card / row
+      best = u;
+    }
+    return best;
+  }
+  function target(el) {
+    if (el === tgtEl) return;
+    tgtEl = el;
+    if (!el) { tgtBox?.remove(); tgtBox = null; return; }
+    if (!tgtBox) { tgtBox = document.createElement('div'); tgtBox.className = 'tgt'; root.prepend(tgtBox); }
+    const r = el.getBoundingClientRect();
+    Object.assign(tgtBox.style, { left: r.left - 3 + 'px', top: r.top - 3 + 'px', width: r.width + 6 + 'px', height: r.height + 6 + 'px' });
+  }
 
   // ---------- boxing ----------
   let veil = null, box = null, from = null, card = null;
@@ -237,6 +316,26 @@
     });
   }
   let askId = 0;
+  const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'] };
+  const vsLaunch = m => (m == null ? '' : Math.abs(m) <= 1 ? 'at launch' : `${Math.abs(m) < 60 ? Math.abs(m) + 'm' : (Math.abs(m) / 60).toFixed(1) + 'h'} ${m < 0 ? 'before' : 'after'} launch`);
+  const afterTxt = s => (Math.abs(s) < 90 ? Math.round(Math.abs(s)) + 's' : Math.abs(s) < 5400 ? Math.round(Math.abs(s) / 60) + 'm' : (Math.abs(s) / 3600).toFixed(1) + 'h');
+  const fol = n => (!n ? '' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n));
+  const safe = u => (/^https:\/\//.test(u || '') ? u : '#');
+  /** Why it's moving: where it started, the tweets that led up to it, and whether the story is real. */
+  function storyHTML(r) {
+    const s = r.story;
+    if (!s) return '';
+    const [label, cls] = NARR[r.ai?.narrative?.verdict || s.verdict] || NARR.unclear;
+    const o = s.origin, tw = s.tweets; // oldest first: how it built up
+    const row = t => `<a class="tw ${t.promo ? 'promo' : ''}" href="${h(safe(t.url))}" target="_blank" rel="noopener"><span class="tw-h"><b>@${h(t.author)}</b>${t.followers ? `<em>${fol(t.followers)}</em>` : ''}${t.verified ? '<em>✓</em>' : ''}${t.vip ? '<em>tracked</em>' : ''}<span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="tw-t">${h(t.text)}</span></a>`;
+    return `<div class="sec">WHY IT'S MOVING</div>
+      <div class="narr ${cls}"><b>${label}</b><span>${h(r.ai?.narrative?.reason || s.reasons[0] || '')}</span></div>
+      ${s.reasons.slice(1, 3).map(x => `<div class="reason">${h(x)}</div>`).join('')}
+      ${r.ai?.why ? `<p class="why">${h(r.ai.why)}</p>` : ''}
+      ${o ? `<a class="origin" href="${h(safe(o.url))}" target="_blank" rel="noopener"><span>Started from @${h(o.author)}${o.afterSec != null ? ` · coin launched ${h(afterTxt(o.afterSec))} after it` : ''}</span>${h(o.text)}</a>` : ''}
+      ${tw.length ? `<div class="tws">${tw.slice(0, 4).map(row).join('')}${tw.length > 4 ? `<details><summary>${tw.length - 4} more</summary>${tw.slice(4).map(row).join('')}</details>` : ''}</div>` : ''}
+      ${r.stage === 'quick' && !s.searched ? '<div class="reason">Searching X for more…</div>' : s.note && s.note !== 'no-key' ? `<div class="reason">${h(s.note)}</div>` : ''}`;
+  }
   function render(r, base, secs) {
     const f = r.facts, v = r.ai || r.rules, lbl = { good: 'Looks good', mixed: 'Mixed', avoid: 'Avoid' }[v.verdict];
     const pts = (a, c) => (a || []).slice(0, 4).map(t => `<li class="${c}">${h(t)}</li>`).join('');
@@ -244,6 +343,7 @@
       : `${r.ai ? `Claude's verdict from live data · ${h(secs)}s.` : `Rule-based · ${h(secs)}s (add an Anthropic key in Elixir for an AI verdict).`} Not financial advice.`;
     fill(`<div class="head">${/^https:\/\//.test(f.image || '') ? `<img src="${h(f.image)}" alt="">` : ''}<div class="grow"><b>${f.symbol ? '$' + h(f.symbol) : 'Coin'}</b><div class="sub">${h(f.name || '')}${f.marketCap ? ' · mc ' + usd(f.marketCap) : ''}${f.liquidity ? ' · liq ' + usd(f.liquidity) : ''}</div></div><span class="v ${h(v.verdict)}">${lbl}<em>${h(r.rules.score)}</em></span></div>
       ${r.ai?.headline ? `<div class="hl">${h(r.ai.headline)}</div>` : ''}<p class="sum">${h(v.summary)}</p><ul>${pts(v.good, 'g')}${pts(v.bad, 'b')}</ul>
+      ${storyHTML(r)}
       ${r.rules.info?.length ? `<div class="info">${r.rules.info.slice(0, 3).map(h).join(' · ')}</div>` : ''}
       <div class="links"><a href="${h(base)}/whales.html?view=map&map=${encodeURIComponent(f.mint)}" target="_blank" rel="noopener">Open in Elixir</a><a href="${h(r.links.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${h(r.links.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${h(r.links.rugcheck)}" target="_blank" rel="noopener">RugCheck</a><a href="${h(r.links.solscan)}" target="_blank" rel="noopener">Solscan</a></div>
       <div class="foot">${foot}</div>`);

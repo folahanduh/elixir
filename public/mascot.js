@@ -65,7 +65,23 @@
     mx.classList.add('free'); mx.style.setProperty('--x', x + 'px'); mx.style.setProperty('--y', y + 'px');
   }
   applyPos(); window.addEventListener('resize', applyPos);
-  let drag = null, swallowClick = false;
+  let drag = null, swallowClick = false, targetEl = null;
+  // The coin card / row under the pointer while you drag the mascot (it lights up; drop = research)
+  const UNIT = '.rd-it, .card, .whev, .whhot, .kolp-ev, .bm-card, .bm-coin, .pcard, .cm, .cand, .livecoin, .al, .mo, .bm-row, .hrow, .bm-buy, .wm-p';
+  function coinUnderPointer(x, y) {
+    for (const el of document.elementsFromPoint(x, y)) {
+      if (el === mx || mx.contains(el) || el.closest('.mx-card, .mx-menu')) continue;
+      const u = el.closest(UNIT);
+      if (!u) continue;
+      if (u.querySelector('[data-qb], [data-rd], [data-map], [data-copy], img[src*="/img/coin/"]') || /\$[A-Za-z]{2,}|[1-9A-HJ-NP-Za-km-z]{32,44}/.test(u.textContent)) return u;
+      return null;
+    }
+    return null;
+  }
+  function target(el) {
+    if (el === targetEl) return;
+    targetEl?.classList.remove('mx-target'); targetEl = el; el?.classList.add('mx-target');
+  }
   mx.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     const r = mx.getBoundingClientRect();
@@ -83,12 +99,23 @@
     const w = mx.offsetWidth, hh = mx.offsetHeight;
     mx.style.setProperty('--x', clamp(e.clientX - drag.ox, 0, window.innerWidth - w) + 'px');
     mx.style.setProperty('--y', clamp(e.clientY - drag.oy, 0, window.innerHeight - hh) + 'px');
+    target(coinUnderPointer(e.clientX, e.clientY));
   });
   mx.addEventListener('pointerup', () => {
     if (!drag) return;
     clearTimeout(drag.hold);
     const { moved, t } = drag; drag = null;
     mx.classList.remove('dragging', 'held');
+    const tgt = targetEl; target(null);
+    if (moved && tgt) {                           // dropped on a coin: research it
+      const r = tgt.getBoundingClientRect();
+      const rr = mx.getBoundingClientRect();
+      pos = { fx: rr.left / window.innerWidth, fy: rr.top / window.innerHeight };
+      try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch {}
+      applyPos(); swallowClick = true;
+      ask({ text: textIn(r), mints: mintsIn(r) }, r);
+      return;
+    }
     if (moved) {
       const r = mx.getBoundingClientRect();
       pos = { fx: r.left / window.innerWidth, fy: r.top / window.innerHeight };
@@ -96,8 +123,30 @@
       applyPos(); swallowClick = true;           // the click that follows a drag isn't a tap
     } else if (Date.now() - t >= 350) swallowClick = true; // held and let go: just put it down
   });
-  // Right-click: back to its spot in the header
-  mx.addEventListener('contextmenu', e => { e.preventDefault(); pos = null; try { localStorage.removeItem(POS_KEY); } catch {} applyPos(); closeCard(); });
+  // Right-click: a small menu (back home / hide)
+  const goHome = () => { pos = null; try { localStorage.removeItem(POS_KEY); } catch {} applyPos(); closeCard(); };
+  let menu = null;
+  const closeMenu = () => { menu?.remove(); menu = null; };
+  mx.addEventListener('contextmenu', e => {
+    e.preventDefault(); closeMenu();
+    menu = document.createElement('div'); menu.className = 'mx-menu';
+    menu.innerHTML = '<button type="button" data-a="home">Back to my spot</button><button type="button" data-a="hide">Hide mascot <kbd>Alt+Shift+X</kbd></button>';
+    document.body.append(menu);
+    Object.assign(menu.style, { left: Math.min(window.innerWidth - 200, e.clientX) + 'px', top: Math.min(window.innerHeight - 90, e.clientY + 6) + 'px' });
+    menu.onclick = ev => { const a = ev.target.closest('[data-a]')?.dataset.a; closeMenu(); if (a === 'home') goHome(); if (a === 'hide') setHidden(true); };
+    setTimeout(() => document.addEventListener('mousedown', ev => { if (menu && !menu.contains(ev.target)) closeMenu(); }, { once: true }), 0);
+  });
+  // Hidden: gone from every page until Alt+Shift+X or "Show mascot" in the status bar
+  const showLink = document.createElement('a');
+  showLink.href = '#'; showLink.className = 'sbar-l mx-show'; showLink.textContent = 'Show mascot'; showLink.title = 'Bring the mascot back (Alt+Shift+X)';
+  showLink.onclick = e => { e.preventDefault(); setHidden(false); };
+  function setHidden(on) {
+    mx.hidden = on; if (on) closeCard();
+    try { localStorage.setItem('nr.mascot.hidden', on ? '1' : '0'); } catch {}
+    const bar = document.querySelector('.sbar');
+    if (on && bar && !showLink.isConnected) bar.querySelector('.sbar-zoom')?.before(showLink); else if (!on) showLink.remove();
+  }
+  try { if (localStorage.getItem('nr.mascot.hidden') === '1') setTimeout(() => setHidden(true), 0); } catch {}
 
   mx.addEventListener('click', () => {
     if (swallowClick) { swallowClick = false; return; }
@@ -143,8 +192,9 @@
   function endSnip() { veil?.remove(); veil = null; box = null; mx.classList.remove('active'); }
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { if (veil) endSnip(); else if (card) closeCard(); return; }
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyX' && e.shiftKey) { e.preventDefault(); setHidden(!mx.hidden); return; }
     // Alt+X: box a coin (or research the highlighted text) without reaching for the mouse
-    if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyX' && !e.shiftKey) { e.preventDefault(); if (!veil) mx.click(); }
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyX' && !e.shiftKey) { e.preventDefault(); if (mx.hidden) setHidden(false); if (!veil) mx.click(); }
   });
 
   const hits = (r, a) => a && r && a.right >= r.left && a.left <= r.right && a.bottom >= r.top && a.top <= r.bottom;
@@ -205,6 +255,27 @@
     } catch {}
   }
   let askId = 0;
+  const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'] };
+  const vsLaunch = m => (m == null ? '' : Math.abs(m) <= 1 ? 'at launch' : `${Math.abs(m) < 60 ? Math.abs(m) + 'm' : (Math.abs(m) / 60).toFixed(1) + 'h'} ${m < 0 ? 'before' : 'after'} launch`);
+  const afterTxt = s => (Math.abs(s) < 90 ? Math.round(Math.abs(s)) + 's' : Math.abs(s) < 5400 ? Math.round(Math.abs(s) / 60) + 'm' : (Math.abs(s) / 3600).toFixed(1) + 'h');
+  const fol = n => (!n ? '' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n));
+  /** Why it's moving: where it started, the tweet trail, and whether the story is real. */
+  function storyHTML(r) {
+    const s = r.story;
+    if (!s) return '';
+    const nv = r.ai?.narrative?.verdict || s.verdict, [label, cls] = NARR[nv] || NARR.unclear;
+    const reason = r.ai?.narrative?.reason || s.reasons[0] || '';
+    const o = s.origin;
+    const tw = s.tweets; // oldest first: how it built up
+    const row = t => `<a class="mx-tw ${t.promo ? 'promo' : ''}" href="${h(/^https:\/\//.test(t.url || '') ? t.url : '#')}" target="_blank" rel="noopener"><span class="mx-tw-h"><b>@${h(t.author)}</b>${t.followers ? ` <em>${fol(t.followers)}</em>` : ''}${t.verified ? ' <em>✓</em>' : ''}${t.vip ? ' <em>tracked</em>' : ''}<span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="mx-tw-t">${h(t.text)}</span></a>`;
+    return `<div class="mx-sec">WHY IT'S MOVING</div>
+      <div class="mx-narr ${cls}"><b>${label}</b><span>${h(reason)}</span></div>
+      ${s.reasons.slice(1, 3).map(x => `<div class="mx-reason">${h(x)}</div>`).join('')}
+      ${r.ai?.why ? `<p class="mx-why">${h(r.ai.why)}</p>` : ''}
+      ${o ? `<a class="mx-origin" href="${h(/^https:\/\//.test(o.url || '') ? o.url : '#')}" target="_blank" rel="noopener"><span>Started from @${h(o.author)}${o.afterSec != null ? ` · coin launched ${h(afterTxt(o.afterSec))} after it` : ''}</span>${h(o.text)}</a>` : ''}
+      ${tw.length ? `<div class="mx-tws">${tw.slice(0, 4).map(row).join('')}${tw.length > 4 ? `<details class="mx-more"><summary>${tw.length - 4} more</summary>${tw.slice(4).map(row).join('')}</details>` : ''}</div>` : ''}
+      ${r.stage === 'quick' && !s.searched ? '<div class="mx-reason">Searching X for more…</div>' : s.note && s.note !== 'no-key' ? `<div class="mx-reason">${h(s.note)}</div>` : ''}`;
+  }
   function render(r, secs) {
     const f = r.facts, v = r.ai || r.rules;
     const verdict = v.verdict;
@@ -221,6 +292,7 @@
       ${r.ai?.headline ? `<div class="mx-hl">${h(r.ai.headline)}</div>` : ''}
       <p class="mx-sum">${h(v.summary)}</p>
       <ul class="mx-pts">${pts(v.good, 'g')}${pts(v.bad, 'b')}</ul>
+      ${storyHTML(r)}
       ${r.rules.info?.length ? `<div class="mx-info">${r.rules.info.slice(0, 3).map(h).join(' · ')}</div>` : ''}
       <div class="mx-links"><a href="#" data-map="${h(f.mint)}" data-mxmap="${h(f.mint)}">Bubble map</a><a href="${h(r.links.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${h(r.links.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${h(r.links.rugcheck)}" target="_blank" rel="noopener">RugCheck</a><a href="${h(r.links.solscan)}" target="_blank" rel="noopener">Solscan</a></div>
       <div class="mx-foot">${foot}</div>`);

@@ -1027,3 +1027,37 @@ html.qb-off .qb { display: none !important; }
 
 .mx-live { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); }
 .mx-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-2); animation: mxDot 1s infinite ease-in-out; }
+
+/* mascot: why it's moving */
+.mx-sec { margin-top: 12px; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; color: var(--dim); }
+.mx-narr { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--panel-2); }
+.mx-narr b { font-size: 12.5px; }
+.mx-narr span { color: #c9ccd5; font-size: 12.5px; line-height: 1.45; }
+.mx-narr.g { border-color: rgba(47, 209, 139, .4); } .mx-narr.g b { color: var(--accent); }
+.mx-narr.b { border-color: rgba(242, 73, 106, .45); } .mx-narr.b b { color: #ff8da2; }
+.mx-narr.m b { color: var(--vip); }
+.mx-reason { margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.mx-why { margin: 8px 0 0; color: #dfe1e7; font-size: 12.5px; line-height: 1.5; }
+.mx-origin { display: block; margin-top: 8px; padding: 8px 10px; border-radius: 9px; background: rgba(124, 109, 255, .08); border: 1px solid rgba(124, 109, 255, .3); color: #dfe1e7; text-decoration: none; font-size: 12.5px; line-height: 1.45; }
+.mx-origin span { display: block; font-size: 11.5px; font-weight: 600; color: var(--brand-2); margin-bottom: 2px; }
+.mx-tws { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; }
+.mx-tw { display: block; padding: 7px 9px; border-radius: 8px; background: #0c0d10; border: 1px solid var(--line); color: #c9ccd5; text-decoration: none; font-size: 12px; line-height: 1.45; }
+.mx-tw:hover { border-color: var(--line-2); }
+.mx-tw.promo { opacity: .78; }
+.mx-tw-h { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+.mx-tw-h b { color: #fff; font-size: 12px; }
+.mx-tw-h em { font-style: normal; font-size: 10.5px; color: var(--muted); }
+.mx-tw-h .grow { flex: 1; }
+.mx-tw-h i { font-style: normal; font-size: 10.5px; color: var(--dim); white-space: nowrap; }
+.mx-tw-t { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.mx-more summary { cursor: pointer; color: var(--brand-2); font-size: 12px; margin: 2px 0 4px; }
+.mx-more .mx-tw { margin-bottom: 6px; }
+.mx-card { max-height: calc(100vh - 24px); overflow: auto; }
+/* drop target while dragging the mascot */
+.mx-target { outline: 2px solid var(--brand-2) !important; outline-offset: 2px; box-shadow: 0 0 0 6px rgba(124, 109, 255, .18) !important; border-radius: 8px; }
+/* right-click menu */
+.mx-menu { position: fixed; z-index: 130; min-width: 190px; padding: 5px; background: #111216; border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, .6); display: flex; flex-direction: column; }
+.mx-menu button { background: transparent !important; border: 0 !important; color: #e4e5ea !important; text-align: left; justify-content: flex-start; height: 32px !important; padding: 0 10px !important; border-radius: 7px !important; font-size: 13px !important; font-weight: 500 !important; gap: 8px; }
+.mx-menu button:hover { background: var(--panel-3) !important; }
+.mx-menu kbd { margin-left: auto; font-size: 10.5px; }
+.mascot[hidden] { display: none !important; }

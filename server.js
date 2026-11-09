@@ -577,7 +577,8 @@ kols.onOther = (wallet, sig, logs) => whales.fromKol(wallet, sig, logs);
 kols.onBuy = ev => whales.kolBuy(ev).catch(() => {});
 
 // The mascot's research context (shared by /api/lens and the pre-warming of hot coins)
-const lensCtx = () => ({ getConfig: () => cfg, radar, risk, kols, whales, rpc: cfg.keys.solanaRpc ? (m, p) => whales.rpc(m, p) : null });
+const lensCtx = () => ({ getConfig: () => cfg, radar, risk, kols, whales, rpc: cfg.keys.solanaRpc ? (m, p) => whales.rpc(m, p) : null,
+  items: () => items, plays: () => plays.list(), tioKey: cfg.keys.twitterapiIo || '' });
 
 // ---------- Launch radar: big money into brand-new coins (live watchlist next to the bubble map) ----------
 const radar = new LaunchRadar({
