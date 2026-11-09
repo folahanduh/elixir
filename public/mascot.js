@@ -212,19 +212,30 @@
 
   const hits = (r, a) => a && r && a.right >= r.left && a.left <= r.right && a.bottom >= r.top && a.top <= r.bottom;
   /** All visible text inside the box. */
+  // What text is inside the box? Walks the page but skips whole sections that are nowhere near it,
+  // so it stays quick on big pages (Axiom, DexScreener).
   function textIn(r) {
-    const out = [];
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.nodeValue.trim() && !n.parentElement.closest('.mascot, .mx-card, .mx-veil, script, style') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) });
-    const range = document.createRange();
-    let n, seen = 0;
-    while ((n = walker.nextNode()) && seen < 20000) {
-      seen++;
-      range.selectNodeContents(n);
-      if (hits(r, range.getBoundingClientRect())) out.push(n.nodeValue.trim());
-      if (out.join(' ').length > 3000) break;
-    }
+    const out = [], range = document.createRange(), near = { left: r.left - 150, right: r.right + 150, top: r.top - 150, bottom: r.bottom + 150 };
+    let len = 0, n = 0;
+    (function walk(el) {
+      for (let c = el.firstChild; c && len < 3000 && n < 40000; c = c.nextSibling) {
+        n++;
+        if (c.nodeType === 3) {
+          const v = c.nodeValue.trim();
+          if (!v) continue;
+          range.selectNodeContents(c);
+          if (hits(r, range.getBoundingClientRect())) { out.push(v); len += v.length + 1; }
+        } else if (c.nodeType === 1) {
+          if (/^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|CANVAS|IFRAME|svg)$/i.test(c.tagName) || c.matches('.mascot, .mx-card, .mx-veil, .mx-menu')) continue;
+          const b = c.getBoundingClientRect();
+          if (b.width && b.height && !hits(near, b)) continue; // a whole section away from the box
+          walk(c);
+        }
+      }
+    })(document.body);
     return out.join(' ').replace(/\s+/g, ' ');
   }
+
   /** Coin addresses the page attached to things inside the box (buttons, links, data attributes). */
   function mintsIn(r) {
     if (!r) return [];
@@ -267,9 +278,27 @@
     call('risk').then(show).catch(() => {});
     call('full').then(show).catch(() => { if (id === askId && card) card.querySelector('.mx-ai-wait')?.replaceChildren("Claude didn't answer in time. The read above stands."); });
   }
+  let hovT = 0, hovEl = null;
+  document.addEventListener('mouseover', e => {
+    if (mx.hidden || drag) return;
+    const u = e.target.closest?.(UNIT);
+    if (u === hovEl) return;
+    hovEl = u; clearTimeout(hovT);
+    if (!u || u.closest('.mx-card')) return;
+    hovT = setTimeout(() => {
+      if (hovEl !== u || coinUnderPointer(e.clientX, e.clientY) !== u) return;
+      const r = u.getBoundingClientRect();
+      if (r.height > 260) return;
+      const input = { text: textIn(r), mints: mintsIn(r) };
+      if (input.text || input.mints.length) { lensCall(input, 'quick').catch(() => {}); lensCall(input, 'risk').catch(() => {}); }
+    }, 350);
+  }, { passive: true });
   const lensCall = (input, stage) => fetch('/api/lens', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...input, stage }) })
     .then(async res => { const j = await res.json(); if (!res.ok) throw new Error(j.error || 'Research failed'); return j; });
   let askId = 0;
+  // Where the time went: finding the coin, the rug + holder checks, the AI write-up (0 = reused)
+  const sec = ms => (ms == null ? '–' : ms < 50 ? 'instant' : (ms / 1000).toFixed(1) + 's');
+  const tmg = r => (r.timing ? ` (coin ${sec(r.timing.find)} · checks ${sec(r.timing.checks)} · AI ${sec(r.timing.ai)})` : '');
   const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'] };
   const vsLaunch = m => (m == null ? '' : Math.abs(m) <= 1 ? 'at launch' : `${Math.abs(m) < 60 ? Math.abs(m) + 'm' : (Math.abs(m) / 60).toFixed(1) + 'h'} ${m < 0 ? 'before' : 'after'} launch`);
   const afterTxt = s => (Math.abs(s) < 90 ? Math.round(Math.abs(s)) + 's' : Math.abs(s) < 5400 ? Math.round(Math.abs(s) / 60) + 'm' : (Math.abs(s) / 3600).toFixed(1) + 'h');
@@ -299,7 +328,7 @@
     const pts = (arr, cls) => (arr || []).slice(0, 4).map(t => `<li class="${cls}">${h(t)}</li>`).join('');
     const quick = r.stage !== 'full';
     const foot = quick ? `<span class="mx-live"><i></i>${r.stage === 'quick' ? 'Checking rugs and holders' : `Risk checked in ${h(secs)}s · researching`}…</span>`
-      : `${r.ai ? `Claude's verdict from live data · ${h(secs)}s.` : r.aiAvailable ? `Rule-based (Claude was unavailable) · ${h(secs)}s.` : `Rule-based · ${h(secs)}s. Add an Anthropic key in API keys for a written AI verdict.`} Not financial advice.`;
+      : `${r.ai ? `${h(r.ai.by || 'Claude')}'s verdict from live data · ${h(secs)}s${tmg(r)}.` : r.aiAvailable ? `Rule-based (Claude was unavailable) · ${h(secs)}s${tmg(r)}.` : `Rule-based · ${h(secs)}s. Add an Anthropic key in API keys for a written AI verdict.`} Not financial advice.`;
     fill(`<div class="mx-head">
         <img src="${h(window.coinImg ? window.coinImg(f.mint, f.image) : f.image || '')}" alt="" onerror="this.remove()">
         <div class="grow"><b>${f.symbol ? '$' + h(f.symbol) : 'Coin'}</b>${window.qbHTML ? window.qbHTML(f.mint, f.symbol) : ''}<div class="mx-sub">${h(f.name || '')}${f.marketCap ? ' · mc ' + usd(f.marketCap) : ''}${f.liquidity ? ' · liq ' + usd(f.liquidity) : ''}</div></div>

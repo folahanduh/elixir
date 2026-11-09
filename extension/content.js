@@ -311,13 +311,30 @@
   const draw = e => Object.assign(box.style, { left: Math.min(from[0], e.clientX) + 'px', top: Math.min(from[1], e.clientY) + 'px', width: Math.abs(e.clientX - from[0]) + 'px', height: Math.abs(e.clientY - from[1]) + 'px' });
   function endSnip() { veil?.remove(); veil = null; box = null; }
   const hits = (r, a) => a && r && a.right >= r.left && a.left <= r.right && a.bottom >= r.top && a.top <= r.bottom;
+  // What text is inside the box? Walks the page but skips whole sections that are nowhere near it,
+  // so it stays quick on big pages (Axiom, DexScreener).
   function textIn(r) {
-    const out = [], range = document.createRange();
-    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.nodeValue.trim() && !n.parentElement?.closest('script,style,noscript') ? 1 : 2) });
-    let n, seen = 0;
-    while ((n = w.nextNode()) && seen++ < 30000) { range.selectNodeContents(n); if (hits(r, range.getBoundingClientRect())) out.push(n.nodeValue.trim()); if (out.join(' ').length > 3000) break; }
+    const out = [], range = document.createRange(), near = { left: r.left - 150, right: r.right + 150, top: r.top - 150, bottom: r.bottom + 150 };
+    let len = 0, n = 0;
+    (function walk(el) {
+      for (let c = el.firstChild; c && len < 3000 && n < 40000; c = c.nextSibling) {
+        n++;
+        if (c.nodeType === 3) {
+          const v = c.nodeValue.trim();
+          if (!v) continue;
+          range.selectNodeContents(c);
+          if (hits(r, range.getBoundingClientRect())) { out.push(v); len += v.length + 1; }
+        } else if (c.nodeType === 1) {
+          if (/^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|CANVAS|IFRAME|svg)$/i.test(c.tagName) || c === host) continue;
+          const b = c.getBoundingClientRect();
+          if (b.width && b.height && !hits(near, b)) continue; // a whole section away from the box
+          walk(c);
+        }
+      }
+    })(document.body);
     return out.join(' ').replace(/\s+/g, ' ');
   }
+
   function mintsIn(r) {
     if (!r) return [];
     const out = [];
@@ -356,7 +373,24 @@
     call('full').then(res => { show(res); if (id === askId && card && !(res?.ok && res.data.found)) card.querySelector('.rwait.research')?.replaceChildren("The AI didn't answer in time. The read above stands."); });
   }
   const lensCall = (input, stage) => new Promise(resolve => chrome.runtime.sendMessage({ type: 'lens', input: { ...input, pageUrl: location.href, pageTitle: document.title, stage } }, res => resolve(chrome.runtime.lastError ? null : res)));
+  // On a coin's own page (Axiom, DexScreener, GMGN, pump.fun…), research that coin in the background as soon as
+  // you open it, so Alt+X answers at once: market + rug checks straight away, the AI write-up once you've
+  // stayed on the page for 3 seconds. Nothing runs while the mascot is hidden.
+  let pageCoin = '', pageT = [];
+  function pagePrefetch() {
+    const a = (location.pathname + location.search).match(/[1-9A-HJ-NP-Za-km-z]{32,44}/)?.[0] || '';
+    if (a === pageCoin) return;
+    pageCoin = a; pageT.forEach(clearTimeout); pageT = [];
+    if (!a || mx.classList.contains('hidden')) return;
+    const input = { text: '', mints: [a] };
+    pageT.push(setTimeout(() => { lensCall(input, 'quick'); lensCall(input, 'risk'); }, 300));
+    pageT.push(setTimeout(() => { if (pageCoin === a && !document.hidden && !mx.classList.contains('hidden')) lensCall(input, 'full'); }, 3000));
+  }
+  setInterval(pagePrefetch, 1000);
+  setTimeout(pagePrefetch, 300);
   let askId = 0;
+  const sec = ms => (ms == null ? '–' : ms < 50 ? 'instant' : (ms / 1000).toFixed(1) + 's');
+  const tmg = r => (r.timing ? ` (coin ${sec(r.timing.find)} · checks ${sec(r.timing.checks)} · AI ${sec(r.timing.ai)})` : '');
   const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'] };
   const vsLaunch = m => (m == null ? '' : Math.abs(m) <= 1 ? 'at launch' : `${Math.abs(m) < 60 ? Math.abs(m) + 'm' : (Math.abs(m) / 60).toFixed(1) + 'h'} ${m < 0 ? 'before' : 'after'} launch`);
   const afterTxt = s => (Math.abs(s) < 90 ? Math.round(Math.abs(s)) + 's' : Math.abs(s) < 5400 ? Math.round(Math.abs(s) / 60) + 'm' : (Math.abs(s) / 3600).toFixed(1) + 'h');
@@ -382,7 +416,7 @@
     const pts = (a, c) => (a || []).slice(0, 4).map(t => `<li class="${c}">${h(t)}</li>`).join('');
     const quick = r.stage !== 'full';
     const foot = quick ? (r.stage === 'quick' ? 'Checking rugs and holders…' : `Risk checked in ${h(secs)}s · researching…`)
-      : `${r.ai ? `Claude's verdict from live data · ${h(secs)}s.` : `Rule-based · ${h(secs)}s (add an Anthropic key in Elixir for an AI verdict).`} Not financial advice.`;
+      : `${r.ai ? `${h(r.ai.by || 'Claude')}'s verdict from live data · ${h(secs)}s${tmg(r)}.` : `Rule-based · ${h(secs)}s${tmg(r)} (add an Anthropic key in Elixir for an AI verdict).`} Not financial advice.`;
     fill(`<div class="head">${/^https:\/\//.test(f.image || '') ? `<img src="${h(f.image)}" alt="">` : ''}<div class="grow"><b>${f.symbol ? '$' + h(f.symbol) : 'Coin'}</b><div class="sub">${h(f.name || '')}${f.marketCap ? ' · mc ' + usd(f.marketCap) : ''}${f.liquidity ? ' · liq ' + usd(f.liquidity) : ''}</div></div><span class="v ${h(v.verdict)}">${lbl}<em>${h(r.rules.score)}</em></span></div>
       ${riskHTML(r)}
       <div class="sec">RESEARCH</div>
