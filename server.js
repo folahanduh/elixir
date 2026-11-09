@@ -1121,6 +1121,7 @@ const server = http.createServer(async (req, res) => {
         const input = { text: String(body.text || '').slice(0, 4000), mints: (Array.isArray(body.mints) ? body.mints : []).map(String).filter(m => isWallet(m)).slice(0, 10) };
         try {
           input.pageUrl = /^https?:\/\//.test(String(body.pageUrl || '')) ? String(body.pageUrl).slice(0, 300) : '';
+          input.pageTitle = String(body.pageTitle || '').slice(0, 200);
           // stage "quick": an answer in a fraction of a second; "full": + rug/holder checks and the AI write-up
           const L = require('./lib/lens');
           const out = await (body.stage === 'quick' ? L.quick : L.full)(input, { ...lensCtx(), pageUrl: input.pageUrl });

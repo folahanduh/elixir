@@ -222,7 +222,7 @@
     if (rect) { const m = mx.getBoundingClientRect(); mx.style.transform = `translate(${Math.min(window.innerWidth - 60, rect.right + 12) - m.left}px, ${Math.max(0, rect.top - 10) - m.top}px) scale(1.2)`; }
     openCard('<div class="wait"><i></i><i></i><i></i>Researching…</div>');
     const id = ++askId, t0 = performance.now();
-    const call = stage => new Promise(resolve => chrome.runtime.sendMessage({ type: 'lens', input: { ...input, pageUrl: location.href, stage } }, res => resolve(chrome.runtime.lastError ? null : res)));
+    const call = stage => new Promise(resolve => chrome.runtime.sendMessage({ type: 'lens', input: { ...input, pageUrl: location.href, pageTitle: document.title, stage } }, res => resolve(chrome.runtime.lastError ? null : res)));
     const secs = () => ((performance.now() - t0) / 1000).toFixed(1);
     // 1) quick answer straight away
     call('quick').then(res => {
