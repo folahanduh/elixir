@@ -1080,3 +1080,15 @@ html.qb-off .qb { display: none !important; }
 .mascot:hover .mx-hide { opacity: 1; transform: none; }
 .mascot .mx-hide:hover { background: #f2496a; color: #fff; border-color: #f2496a; }
 @media (hover: none) { .mascot .mx-hide { opacity: .85; transform: none; } }
+
+/* the research card: drag handle + resize corner */
+.mx-card { resize: both; min-width: 260px; min-height: 140px; max-width: calc(100vw - 16px); }
+.mx-grip { position: absolute; top: 0; left: 0; right: 36px; height: 14px; cursor: move; display: flex; justify-content: center; align-items: center; touch-action: none; }
+.mx-grip i { width: 34px; height: 4px; border-radius: 4px; background: var(--line-2); transition: background .15s; }
+.mx-grip:hover i, .mx-card.moving .mx-grip i { background: var(--brand-2); }
+.mx-card.moving { animation: none; box-shadow: 0 30px 80px rgba(0, 0, 0, .8), 0 0 0 1px rgba(124, 109, 255, .4); user-select: none; }
+/* the card's × always stays in view: only the inside scrolls, and the card sits above the mascot */
+.mx-card { z-index: 125; display: flex; flex-direction: column; overflow: hidden; }
+.mx-card .mx-body { overflow: auto; flex: 1 1 auto; min-height: 0; margin-right: -6px; padding-right: 6px; }
+.mx-x { z-index: 2; border-radius: 7px !important; top: 5px !important; right: 6px !important; width: 28px !important; height: 28px !important; }
+.mx-x:hover { background: var(--panel-3) !important; }

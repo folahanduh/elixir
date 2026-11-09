@@ -65,7 +65,7 @@
     mx.classList.add('free'); mx.style.setProperty('--x', x + 'px'); mx.style.setProperty('--y', y + 'px');
   }
   applyPos(); window.addEventListener('resize', applyPos);
-  let drag = null, swallowClick = false, targetEl = null;
+  let drag = null, swallowUntil = 0, targetEl = null; // swallowUntil: ignore the click that a drag/hold ends with (only that one)
   // The coin card / row under the pointer while you drag the mascot (it lights up; drop = research)
   const UNIT = '.rd-it, .card, .whev, .whhot, .kolp-ev, .bm-card, .bm-coin, .pcard, .cm, .cand, .livecoin, .al, .mo, .bm-row, .hrow, .bm-buy, .wm-p';
   function coinUnderPointer(x, y) {
@@ -81,9 +81,21 @@
   function target(el) {
     if (el === targetEl) return;
     targetEl?.classList.remove('mx-target'); targetEl = el; el?.classList.add('mx-target');
+    prefetch(el);
+  }
+  // Held over a coin: start researching it before you let go, so the answer is ready on drop
+  // (market + rug checks after 0.2 s; Claude's write-up only if you stay on it for 0.7 s).
+  let preT = [];
+  function prefetch(el) {
+    preT.forEach(clearTimeout); preT = [];
+    if (!el) return;
+    const r = el.getBoundingClientRect(), input = { text: textIn(r), mints: mintsIn(r) };
+    if (!input.text && !input.mints.length) return;
+    preT.push(setTimeout(() => { lensCall(input, 'quick').catch(() => {}); lensCall(input, 'risk').catch(() => {}); }, 200));
+    preT.push(setTimeout(() => lensCall(input, 'full').catch(() => {}), 700));
   }
   mx.addEventListener('pointerdown', e => {
-    if (e.target.closest('.mx-hide')) { e.preventDefault(); e.stopPropagation(); swallowClick = true; setHidden(true); return; }
+    if (e.target.closest('.mx-hide')) { e.preventDefault(); e.stopPropagation(); swallowUntil = Date.now() + 400; setHidden(true); return; }
     if (e.button !== 0) return;
     const r = mx.getBoundingClientRect();
     drag = { sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, t: Date.now(), moved: false };
@@ -113,7 +125,7 @@
       const rr = mx.getBoundingClientRect();
       pos = { fx: rr.left / window.innerWidth, fy: rr.top / window.innerHeight };
       try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch {}
-      applyPos(); swallowClick = true;
+      applyPos(); swallowUntil = Date.now() + 400;
       ask({ text: textIn(r), mints: mintsIn(r) }, r);
       return;
     }
@@ -121,8 +133,8 @@
       const r = mx.getBoundingClientRect();
       pos = { fx: r.left / window.innerWidth, fy: r.top / window.innerHeight };
       try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch {}
-      applyPos(); swallowClick = true;           // the click that follows a drag isn't a tap
-    } else if (Date.now() - t >= 350) swallowClick = true; // held and let go: just put it down
+      applyPos(); swallowUntil = Date.now() + 400;           // the click that follows a drag isn't a tap
+    } else if (Date.now() - t >= 350) swallowUntil = Date.now() + 400; // held and let go: just put it down
   });
   // Right-click: a small menu (back home / hide)
   const goHome = () => { pos = null; try { localStorage.removeItem(POS_KEY); } catch {} applyPos(); closeCard(); };
@@ -150,7 +162,7 @@
   try { if (localStorage.getItem('nr.mascot.hidden') === '1') setTimeout(() => setHidden(true), 0); } catch {}
 
   mx.addEventListener('click', () => {
-    if (swallowClick) { swallowClick = false; return; }
+    if (Date.now() < swallowUntil) return;
     if (card) return closeCard();
     // Something already highlighted? Research that straight away.
     const sel = window.getSelection();
@@ -238,27 +250,25 @@
     }
     openCard('<div class="mx-wait"><span></span><span></span><span></span> Researching…</div>');
     const id = ++askId, t0 = performance.now();
-    const call = stage => fetch('/api/lens', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...input, stage }) })
-      .then(async res => { const j = await res.json(); if (!res.ok) throw new Error(j.error || 'Research failed'); return j; });
-    // 1) quick answer (market data + what Elixir already knows): on screen in a fraction of a second
-    try {
-      const q = await call('quick');
-      if (id !== askId) return;
-      mx.classList.remove('thinking');
-      if (!q.found) return fill(`<div class="mx-msg">${h(q.message)}</div>`);
-      render(q, ((performance.now() - t0) / 1000).toFixed(1));
-    } catch (e) { if (id === askId) { mx.classList.remove('thinking'); fill(`<div class="mx-msg">${h(e.message)}</div>`); } return; }
-    // 2) the risk check (rug + holders) lands first, 3) then the research (tweets, X search, Claude) fills in below it
-    let done = false;
+    const call = stage => lensCall(input, stage);
     const secs = () => ((performance.now() - t0) / 1000).toFixed(1);
-    call('risk').then(r => { if (id === askId && card && !done && r.found) render(r, secs()); }).catch(() => {});
-    try {
-      const f = await call('full');
+    // All three at once (the server shares the work): quick = instant market read, risk = rug + holder checks,
+    // full = X search + Claude. Whichever is furthest along when it arrives is what you see.
+    const RANK = { quick: 0, risk: 1, full: 2 };
+    let shown = -1;
+    const show = r => {
       if (id !== askId || !card) return;
-      done = true;
-      if (f.found) render(f, secs());
-    } catch { if (id === askId && card) card.querySelector('.mx-research-wait')?.replaceChildren('Research failed. Try again in a moment.'); }
+      mx.classList.remove('thinking');
+      if (!r.found) { if (shown < 0) { shown = 9; fill(`<div class="mx-msg">${h(r.message)}</div>`); } return; }
+      if (RANK[r.stage] <= shown) return;
+      shown = RANK[r.stage]; render(r, secs());
+    };
+    call('quick').then(show).catch(e => { if (id === askId && shown < 0) { mx.classList.remove('thinking'); fill(`<div class="mx-msg">${h(e.message)}</div>`); } });
+    call('risk').then(show).catch(() => {});
+    call('full').then(show).catch(() => { if (id === askId && card) card.querySelector('.mx-ai-wait')?.replaceChildren("Claude didn't answer in time. The read above stands."); });
   }
+  const lensCall = (input, stage) => fetch('/api/lens', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...input, stage }) })
+    .then(async res => { const j = await res.json(); if (!res.ok) throw new Error(j.error || 'Research failed'); return j; });
   let askId = 0;
   const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'] };
   const vsLaunch = m => (m == null ? '' : Math.abs(m) <= 1 ? 'at launch' : `${Math.abs(m) < 60 ? Math.abs(m) + 'm' : (Math.abs(m) / 60).toFixed(1) + 'h'} ${m < 0 ? 'before' : 'after'} launch`);
@@ -296,7 +306,7 @@
         <span class="mx-verdict ${verdict}">${lbl}<em>${r.rules.score}</em></span></div>
       ${riskHTML(r)}
       <div class="mx-sec">RESEARCH</div>
-      ${quick ? `<div class="mx-research-wait"><span></span><span></span><span></span> Researching why it's moving, the tweets behind it${r.aiAvailable !== false ? " and Claude's verdict" : ''}…</div>` : `
+      ${quick && r.aiAvailable !== false ? `<div class="mx-research-wait mx-ai-wait"><span></span><span></span><span></span> Claude is writing its take…</div>` : ''}${`
       ${r.ai?.headline ? `<div class="mx-hl">${h(r.ai.headline)}</div>` : ''}
       <p class="mx-sum">${h(v.summary)}</p>
       <ul class="mx-pts">${pts(v.good.filter(notRisk), 'g')}${pts(v.bad.filter(notRisk), 'b')}</ul>
@@ -327,15 +337,58 @@
     closeCard(true);
     card = document.createElement('div');
     card.className = 'mx-card';
-    card.innerHTML = `<button type="button" class="mx-x" title="Close (Esc)">×</button><div class="mx-body">${html}</div>`;
+    card.innerHTML = `<div class="mx-grip" title="Drag to move · drag the bottom-right corner to resize · double-click to put it back"><i></i></div><button type="button" class="mx-x" title="Close (Esc)">×</button><div class="mx-body">${html}</div>`;
     document.body.append(card);
     card.querySelector('.mx-x').onclick = () => closeCard();
+    cardMovable(card);
     place();
   }
   function fill(html) { if (!card) openCard(html); else { card.querySelector('.mx-body').innerHTML = html; place(); } }
+  // ---- the card: move it by its handle, resize it from the corner (remembered) ----
+  const CARD_KEY = 'nr.mascot.card';
+  let cardBox = {};
+  try { cardBox = JSON.parse(localStorage.getItem(CARD_KEY)) || {}; } catch {}
+  const saveBox = () => { try { localStorage.setItem(CARD_KEY, JSON.stringify(cardBox)); } catch {} };
+  function cardMovable(c) {
+    const grip = c.querySelector('.mx-grip');
+    let d = null, lastDown = 0;
+    const reset = () => { cardBox = {}; saveBox(); c.style.height = ''; c.style.maxHeight = ''; place(); };
+    grip.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      if (Date.now() - lastDown < 350) { lastDown = 0; e.preventDefault(); return reset(); } // double-click: back next to the mascot
+      lastDown = Date.now();
+      const r = c.getBoundingClientRect();
+      d = { ox: e.clientX - r.left, oy: e.clientY - r.top };
+      grip.setPointerCapture(e.pointerId); c.classList.add('moving'); e.preventDefault();
+    });
+    grip.addEventListener('pointermove', e => {
+      if (!d) return;
+      const x = clamp(e.clientX - d.ox, 0, window.innerWidth - 60), y = clamp(e.clientY - d.oy, 0, window.innerHeight - 40);
+      Object.assign(c.style, { left: x + 'px', top: y + 'px', maxHeight: window.innerHeight - y - 8 + 'px' });
+    });
+    grip.addEventListener('pointerup', () => {
+      if (!d) return; d = null; c.classList.remove('moving');
+      const r = c.getBoundingClientRect();
+      cardBox.fx = r.left / window.innerWidth; cardBox.fy = r.top / window.innerHeight; saveBox();
+    });
+    // the browser's resize corner sets an inline size: keep it
+    let rt = 0;
+    new ResizeObserver(() => {
+      if (!c.style.height || !c.isConnected) return;
+      clearTimeout(rt); rt = setTimeout(() => { cardBox.w = c.offsetWidth; cardBox.h = c.offsetHeight; saveBox(); }, 200);
+    }).observe(c);
+  }
   function place() {
     if (!card) return;
-    const m = mx.getBoundingClientRect(), w = Math.min(360, window.innerWidth - 16);
+    if (cardBox.w) card.style.width = clamp(cardBox.w, 260, window.innerWidth - 16) + 'px';
+    if (cardBox.h) card.style.height = clamp(cardBox.h, 140, window.innerHeight - 16) + 'px';
+    if (cardBox.fx != null) {                     // you put it somewhere: it stays there
+      const w = card.offsetWidth;
+      const top = clamp(cardBox.fy * window.innerHeight, 0, window.innerHeight - 140);
+      Object.assign(card.style, { left: clamp(cardBox.fx * window.innerWidth, 0, window.innerWidth - Math.min(w, 120)) + 'px', top: top + 'px', maxHeight: window.innerHeight - top - 8 + 'px' });
+      return;
+    }
+    const m = mx.getBoundingClientRect(), w = cardBox.w ? card.offsetWidth : Math.min(360, window.innerWidth - 16);
     card.style.width = w + 'px';
     let left = m.left - w - 10, top = m.top;
     if (left < 8) left = Math.min(window.innerWidth - w - 8, m.right + 10);

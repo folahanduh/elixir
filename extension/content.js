@@ -103,6 +103,15 @@
     .rwait i { width: 5px; height: 5px; border-radius: 50%; background: #9a8fff; animation: dot 1s infinite ease-in-out; flex: none; }
     .rwait i:nth-child(2) { animation-delay: .15s; } .rwait i:nth-child(3) { animation-delay: .3s; margin-right: 6px; }
     .hidelink { float: right; color: #5f6471; text-decoration: none; cursor: pointer; } .hidelink:hover { color: #ff8da2; }
+    .card { display: flex; flex-direction: column; overflow: hidden; }
+    .card .body { overflow: auto; flex: 1 1 auto; min-height: 0; margin-right: -6px; padding-right: 6px; }
+    .x { z-index: 2; border-radius: 7px; top: 5px; right: 6px; width: 28px; height: 28px; }
+    .x:hover { background: #1c1d23; }
+    .card { resize: both; min-width: 260px; min-height: 140px; max-width: calc(100vw - 16px); }
+    .card.moving { animation: none; user-select: none; box-shadow: 0 30px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(124,109,255,.4); }
+    .grip { position: absolute; top: 0; left: 0; right: 36px; height: 14px; cursor: move; display: flex; justify-content: center; align-items: center; touch-action: none; }
+    .grip i { width: 34px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.14); transition: background .15s; }
+    .grip:hover i, .card.moving .grip i { background: #9a8fff; }
     @media (prefers-reduced-motion: reduce) { .legs, .legs .r { animation: none; } }
   `);
   root.adoptedStyleSheets = [sheet];
@@ -255,9 +264,20 @@
     }
     return best;
   }
+  // Held over a coin: start researching it before you let go (AI only if you stay on it for 0.7 s).
+  let preT = [];
+  function prefetch(el) {
+    preT.forEach(clearTimeout); preT = [];
+    if (!el) return;
+    const r = el.getBoundingClientRect(), input = { text: textIn(r), mints: mintsIn(r) };
+    if (!input.text && !input.mints.length) return;
+    preT.push(setTimeout(() => { lensCall(input, 'quick'); lensCall(input, 'risk'); }, 200));
+    preT.push(setTimeout(() => lensCall(input, 'full'), 700));
+  }
   function target(el) {
     if (el === tgtEl) return;
     tgtEl = el;
+    prefetch(el);
     if (!el) { tgtBox?.remove(); tgtBox = null; return; }
     if (!tgtBox) { tgtBox = document.createElement('div'); tgtBox.className = 'tgt'; root.prepend(tgtBox); }
     const r = el.getBoundingClientRect();
@@ -316,27 +336,26 @@
     if (rect) { const m = mx.getBoundingClientRect(); mx.style.transform = `translate(${Math.min(window.innerWidth - 60, rect.right + 12) - m.left}px, ${Math.max(0, rect.top - 10) - m.top}px) scale(1.2)`; }
     openCard('<div class="wait"><i></i><i></i><i></i>Researching…</div>');
     const id = ++askId, t0 = performance.now();
-    const call = stage => new Promise(resolve => chrome.runtime.sendMessage({ type: 'lens', input: { ...input, pageUrl: location.href, pageTitle: document.title, stage } }, res => resolve(chrome.runtime.lastError ? null : res)));
+    const call = stage => lensCall(input, stage);
     const secs = () => ((performance.now() - t0) / 1000).toFixed(1);
-    // 1) quick answer straight away
-    call('quick').then(res => {
-      if (id !== askId) return;
+    // All three at once (Elixir shares the work): quick = instant market read, risk = rug + holder checks,
+    // full = X search + AI. Whichever is furthest along when it arrives is what you see.
+    const RANK = { quick: 0, risk: 1, full: 2 };
+    let shown = -1;
+    const show = res => {
+      if (id !== askId || !card) return;
       mx.classList.remove('thinking');
-      if (!res) return fill('<div class="sum">Couldn\'t reach Elixir. Reload this tab and try again.</div>');
-      if (!res.ok) return fill(`<div class="sum">${h(res.error)}</div>`);
-      if (!res.data.found) return fill(`<div class="sum">${h(res.data.message)}</div>`);
-      render(res.data, res.base, secs());
-      // 2) risk (rug + holders) first, 3) then the research (tweets, X search, AI) fills in below it
-      let done = false;
-      call('risk').then(rk => { if (id === askId && card && !done && rk?.ok && rk.data.found) render(rk.data, rk.base, secs()); });
-      call('full').then(full => {
-        if (id !== askId || !card) return;
-        done = true;
-        if (full?.ok && full.data.found) render(full.data, full.base, secs());
-        else { const w = card.querySelector('.rwait.research'); if (w) w.textContent = 'Research failed. Try again in a moment.'; }
-      });
-    });
+      if (!res) { if (shown < 0) fill('<div class="sum">Couldn\'t reach Elixir. Reload this tab and try again.</div>'); return; }
+      if (!res.ok) { if (shown < 0) fill(`<div class="sum">${h(res.error)}</div>`); return; }
+      if (!res.data.found) { if (shown < 0) { shown = 9; fill(`<div class="sum">${h(res.data.message)}</div>`); } return; }
+      if (RANK[res.data.stage] <= shown) return;
+      shown = RANK[res.data.stage]; render(res.data, res.base, secs());
+    };
+    call('quick').then(show);
+    call('risk').then(show);
+    call('full').then(res => { show(res); if (id === askId && card && !(res?.ok && res.data.found)) card.querySelector('.rwait.research')?.replaceChildren("The AI didn't answer in time. The read above stands."); });
   }
+  const lensCall = (input, stage) => new Promise(resolve => chrome.runtime.sendMessage({ type: 'lens', input: { ...input, pageUrl: location.href, pageTitle: document.title, stage } }, res => resolve(chrome.runtime.lastError ? null : res)));
   let askId = 0;
   const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'] };
   const vsLaunch = m => (m == null ? '' : Math.abs(m) <= 1 ? 'at launch' : `${Math.abs(m) < 60 ? Math.abs(m) + 'm' : (Math.abs(m) / 60).toFixed(1) + 'h'} ${m < 0 ? 'before' : 'after'} launch`);
@@ -367,7 +386,7 @@
     fill(`<div class="head">${/^https:\/\//.test(f.image || '') ? `<img src="${h(f.image)}" alt="">` : ''}<div class="grow"><b>${f.symbol ? '$' + h(f.symbol) : 'Coin'}</b><div class="sub">${h(f.name || '')}${f.marketCap ? ' · mc ' + usd(f.marketCap) : ''}${f.liquidity ? ' · liq ' + usd(f.liquidity) : ''}</div></div><span class="v ${h(v.verdict)}">${lbl}<em>${h(r.rules.score)}</em></span></div>
       ${riskHTML(r)}
       <div class="sec">RESEARCH</div>
-      ${quick ? `<div class="rwait research"><i></i><i></i><i></i>Researching why it's moving, the tweets behind it and the AI verdict…</div>` : `
+      ${quick && r.aiAvailable !== false ? `<div class="rwait research"><i></i><i></i><i></i>The AI is writing its take…</div>` : ''}${`
       ${r.ai?.headline ? `<div class="hl">${h(r.ai.headline)}</div>` : ''}<p class="sum">${h(v.summary)}</p><ul>${pts(v.good.filter(notRisk), 'g')}${pts(v.bad.filter(notRisk), 'b')}</ul>
       ${storyHTML(r)}
       ${r.rules.info?.length ? `<div class="info">${r.rules.info.slice(0, 3).map(h).join(' · ')}</div>` : ''}`}
@@ -396,9 +415,10 @@
   function openCard(html) {
     card?.remove();
     card = document.createElement('div'); card.className = 'card';
-    card.innerHTML = `<button class="x" title="Close (Esc)">×</button><div class="body">${html}</div>`;
+    card.innerHTML = `<div class="grip" title="Drag to move · drag the bottom-right corner to resize · double-click to put it back"><i></i></div><button class="x" title="Close (Esc)">×</button><div class="body">${html}</div>`;
     root.append(card);
     card.querySelector('.x').onclick = close;
+    cardMovable(card);
     place();
   }
   function fill(html) {
@@ -406,8 +426,48 @@
     card.querySelectorAll('img').forEach(img => img.addEventListener('error', () => img.remove())); // no broken-image icons
     place();
   }
+  // ---- the card: move it by its handle, resize it from the corner (remembered on every site) ----
+  let cardBox = {};
+  chrome.storage.local.get('cardBox', v => { cardBox = v.cardBox || {}; });
+  const saveBox = () => chrome.storage.local.set({ cardBox });
+  function cardMovable(c) {
+    const grip = c.querySelector('.grip');
+    let d = null, lastDown = 0;
+    const reset = () => { cardBox = {}; saveBox(); c.style.width = ''; c.style.height = ''; c.style.maxHeight = ''; place(); };
+    grip.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      if (Date.now() - lastDown < 350) { lastDown = 0; e.preventDefault(); return reset(); } // double-click: back next to the mascot
+      lastDown = Date.now();
+      const r = c.getBoundingClientRect();
+      d = { ox: e.clientX - r.left, oy: e.clientY - r.top };
+      grip.setPointerCapture(e.pointerId); c.classList.add('moving'); e.preventDefault();
+    });
+    grip.addEventListener('pointermove', e => {
+      if (!d) return;
+      const y = clamp(e.clientY - d.oy, 0, window.innerHeight - 40);
+      c.style.left = clamp(e.clientX - d.ox, 0, window.innerWidth - 60) + 'px'; c.style.top = y + 'px'; c.style.maxHeight = window.innerHeight - y - 8 + 'px';
+    });
+    grip.addEventListener('pointerup', () => {
+      if (!d) return; d = null; c.classList.remove('moving');
+      const r = c.getBoundingClientRect();
+      cardBox.fx = r.left / window.innerWidth; cardBox.fy = r.top / window.innerHeight; saveBox();
+    });
+    let rt = 0;
+    new ResizeObserver(() => {
+      if (!c.style.height || !c.isConnected) return;
+      clearTimeout(rt); rt = setTimeout(() => { cardBox.w = c.offsetWidth; cardBox.h = c.offsetHeight; saveBox(); }, 200);
+    }).observe(c);
+  }
   function place() {
     if (!card) return;
+    if (cardBox.w) card.style.width = clamp(cardBox.w, 260, window.innerWidth - 16) + 'px';
+    if (cardBox.h) card.style.height = clamp(cardBox.h, 140, window.innerHeight - 16) + 'px';
+    if (cardBox.fx != null) {
+      card.style.left = clamp(cardBox.fx * window.innerWidth, 0, window.innerWidth - Math.min(card.offsetWidth, 120)) + 'px';
+      const top = clamp(cardBox.fy * window.innerHeight, 0, window.innerHeight - 140);
+      card.style.top = top + 'px'; card.style.maxHeight = window.innerHeight - top - 8 + 'px';
+      return;
+    }
     const m = mx.getBoundingClientRect(), w = card.offsetWidth;
     let left = m.left - w - 10; if (left < 8) left = Math.min(window.innerWidth - w - 8, m.right + 10);
     let top = Math.max(8, m.top + 10); if (top + card.offsetHeight > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - card.offsetHeight);
