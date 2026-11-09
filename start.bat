@@ -2,6 +2,17 @@
 rem Elixir: double-click this file, or in PowerShell type:  .\start.bat     (demo.bat = fake data)
 cd /d "%~dp0"
 where node >nul 2>nul && goto ready
+rem Node.js installed by fnm / nvm-windows / the installer, just not on PATH in this window: use it.
+set "NODEDIR="
+for /d %%D in ("%APPDATA%\fnm\node-versions\v*") do if exist "%%D\installation\node.exe" set "NODEDIR=%%D\installation"
+if not defined NODEDIR for /d %%D in ("%LOCALAPPDATA%\fnm\node-versions\v*") do if exist "%%D\installation\node.exe" set "NODEDIR=%%D\installation"
+if not defined NODEDIR if defined NVM_SYMLINK if exist "%NVM_SYMLINK%\node.exe" set "NODEDIR=%NVM_SYMLINK%"
+if not defined NODEDIR for /d %%D in ("%APPDATA%\nvm\v*") do if exist "%%D\node.exe" set "NODEDIR=%%D"
+if not defined NODEDIR if exist "%ProgramFiles%\nodejs\node.exe" set "NODEDIR=%ProgramFiles%\nodejs"
+if not defined NODEDIR goto nofound
+set "PATH=%NODEDIR%;%PATH%"
+goto ready
+:nofound
 if exist "%~dp0bin\node\node.exe" goto portable
 echo.
 echo   Node.js isn't installed on this PC.
