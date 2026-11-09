@@ -40,7 +40,7 @@
     const kind = { buy: 'BUY', deploy: 'DEPLOY', fund: 'FUNDED' }[e.kind] || e.kind;
     const chain = (e.chain || []).map(c => chip(c.wallet, c.name)).join('<span class="ar">→</span>');
     const ageH = e.pairCreatedAt ? (e.at - e.pairCreatedAt) / 3600000 : null;
-    const coin = e.mint ? `<div class="whcoin">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${e.symbol ? '$' + esc(e.symbol) : esc(short(e.mint))}</b>
+    const coin = e.mint ? `<div class="whcoin"><img src="${esc(coinImg(e.mint, e.image))}" alt="" loading="lazy" onerror="this.remove()"><b>${e.symbol ? '$' + esc(e.symbol) : esc(short(e.mint))}</b>
       ${e.name ? `<span class="muted">${esc(e.name)}</span>` : ''}${e.marketCap ? `<span>mc ${usd(e.marketCap)}</span>` : ''}
       <span class="muted">${ageH == null ? 'no market yet' : ageH < 1 ? Math.max(0, Math.round(ageH * 60)) + 'm old' : ageH.toFixed(1) + 'h old'}</span>
       <span class="lks"><a href="${esc(e.links?.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${esc(e.links?.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${esc(e.links?.dexscreener)}" target="_blank" rel="noopener">Chart</a><a href="#" data-map="${esc(e.mint)}">Bubble map</a></span></div>
@@ -48,13 +48,13 @@
     const what = e.kind === 'fund' ? `<span class="muted">sent ${solHTML(e.sol.toFixed(1))} to a fresh wallet ${chip(e.to, '')}</span>` : '';
     return `<div class="whev ${esc(e.kind)}"><span class="whk">${kind}</span>
       <div class="whmain"><div class="whchain">${chain}</div>${what}${coin}</div>
-      <div class="whside">${e.sol && e.kind !== 'fund' ? `<span class="sol">${solHTML(e.sol.toFixed(2))}</span>` : e.kind === 'fund' ? `<span class="sol">${solHTML(e.sol.toFixed(1))}</span>` : ''}<span title="${esc(new Date(e.at).toLocaleString())}">${clock(e.at)}</span><span class="lks"><a href="${esc(e.links?.tx)}" target="_blank" rel="noopener">tx</a></span></div></div>`;
+      <div class="whside">${e.sol && e.kind !== 'fund' ? `<span class="sol">${solHTML(e.sol.toFixed(2))}</span>` : e.kind === 'fund' ? `<span class="sol">${solHTML(e.sol.toFixed(1))}</span>` : ''}<span title="${esc(new Date(e.at).toLocaleString())}">${clock(e.at)}</span><span class="lks"><a href="${esc(e.links?.tx)}" target="_blank" rel="noopener">tx</a>${e.from ? `<a href="https://solscan.io/account/${esc(e.from)}" target="_blank" rel="noopener" title="The wallet on Solscan">wallet</a>` : ''}</span></div></div>`;
   }
   /** Big whale volume into a brand-new coin: the CA, front and centre. */
   function hotHTML(e) {
     const ageH = e.pairCreatedAt ? (e.at - e.pairCreatedAt) / 3600000 : null;
     return `<div class="whhot">
-      <div class="hh-top">${e.image ? `<img src="${esc(e.image)}" alt="" onerror="this.remove()">` : ''}<div class="grow"><span class="whk">WHALE VOLUME</span> <b>${e.symbol ? '$' + esc(e.symbol) : 'New coin'}</b> ${e.name ? `<span class="muted">${esc(e.name)}</span>` : ''}
+      <div class="hh-top"><img src="${esc(coinImg(e.mint, e.image))}" alt="" onerror="this.remove()"><div class="grow"><span class="whk">WHALE VOLUME</span> <b>${e.symbol ? '$' + esc(e.symbol) : 'New coin'}</b> ${e.name ? `<span class="muted">${esc(e.name)}</span>` : ''}
         <div class="muted small">${ageH == null ? 'no market yet' : ageH < 1 ? Math.max(0, Math.round(ageH * 60)) + 'm old' : ageH.toFixed(1) + 'h old'}${e.marketCap ? ' · mc ' + usd(e.marketCap) : ''} · ${clock(e.at)}</div></div>
         <div class="hh-sol">${solHTML(Math.round(e.sol).toLocaleString())}<span>from ${(e.wallets || []).length} tracked wallet${(e.wallets || []).length > 1 ? 's' : ''}</span></div></div>
       <div class="ca big"><span>CA</span><code>${esc(e.mint)}</code><button class="small cp" data-copy="${esc(e.mint)}">Copy CA</button></div>
@@ -167,10 +167,32 @@
   const dur = ms => { const m = Math.abs(ms) / 60000; return m < 1 ? Math.round(Math.abs(ms) / 1000) + 's' : m < 90 ? Math.round(m) + 'm' : m < 2880 ? (m / 60).toFixed(1) + 'h' : Math.round(m / 1440) + 'd'; };
   const when = t => t ? `${new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} · ${ago(t)}` : '—';
   const copyBtn = (v, label = 'Copy') => `<button class="ghost small cp" data-copy="${esc(v)}">${label}</button>`;
-  let mapData = null, mapping = null;
+  let mapData = null, mapping = null, selId = null;
+  /** What the watchlist already knows about a coin, as a map (shown the moment you click). */
+  function instantData(mint) {
+    const it = radarItems.get(mint);
+    if (!it || !it.buyers?.length) return null;
+    return { type: 'coin', stage: 'instant', mint, symbol: it.symbol, name: it.name, image: it.image, createdAt: it.createdAt,
+      nodes: it.buyers.map((b, i) => ({ id: b.wallet, wallet: b.wallet, sol: b.sol, dev: b.dev, buys: b.buys, rank: i + 1, name: short(b.wallet) })), links: [], clusters: [] };
+  }
+  /** Draw a (partial) result; keep bubbles where they are when it's the same coin. */
+  function showMap(d) {
+    const same = mapData && mapData.mint === d.mint && mapData.type === d.type;
+    mapData = d;
+    bm.setData(decorate(d), { keep: same });
+    if (!same) selId = null;
+    paintSide(selId ? d.nodes.find(n => n.id === selId) || null : null);
+    $('#bmEmpty').hidden = true;
+  }
+  const STAGE = { instant: 'Big buyers shown · loading holders…', holders: 'Holders loaded · finding who funded them…', funders: 'Funders found · reading the first trades…' };
 
   /** Text and badges on each bubble, per mode. */
   function decorate(d) {
+    if (d.stage === 'instant') {
+      // Before the chain answers: the dev and the wallets that put the big money in, sized by SOL.
+      const max = Math.max(1, ...d.nodes.map(n => n.sol || 0));
+      return { nodes: d.nodes.map(n => ({ ...n, kind: 'holder', color: n.dev ? '#f0b84a' : '#7c6dff', r: Math.max(10, 12 + Math.sqrt((n.sol || 0) / max) * 42), t1: solN(n.sol || 0), t1Sol: true, t2: n.dev ? 'dev' : '' })), links: [], spread: 40 };
+    }
     if (d.type === 'wallet') {
       const max = Math.max(1, ...d.nodes.map(n => n.vol || 0));
       return {
@@ -189,7 +211,7 @@
     };
   }
   const bm = window.BubbleMap($('#bm'), {
-    onSelect: n => paintSide(n),
+    onSelect: n => { selId = n?.id || null; paintSide(n); },
     onOpen: n => { if (n && n.kind !== 'contract') mapIt(n.id, { kind: 'wallet' }); },
     onHover: (n, x, y) => {
       const tip = $('#bmTip');
@@ -221,7 +243,7 @@
       row('Last active', n.lastSeen ? ago(n.lastSeen) : null),
       !coin && n.vol && n.role !== 'center' && row('SOL moved with it', solS(n.vol)),
     ].filter(Boolean).join('');
-    if (compact) return `<div class="ct"><b>${esc(title)}</b>${badges.map(b => `<span class="bdg">${esc(b)}</span>`).join('')}</div>${stats}<div class="a">${esc(n.wallet)}</div><div class="muted small">click for details · double-click to open its connections</div>`;
+    if (compact) return `<div class="ct"><b>${esc(title)}</b>${badges.map(b => `<span class="bdg">${esc(b)}</span>`).join('')}</div>${stats}<div class="a">${esc(n.wallet)}</div><div class="muted small">click: details · double-click: its connections · right-click: Solscan</div>`;
     const ls = d.links.filter(l => l.a === n.id || l.b === n.id);
     const nm = w => { const x = d.nodes.find(y => y.id === w); return x ? (x.label || x.name || short(w)) : short(w); };
     const what = { funded: 'funded', token: 'token', sol: '<i class="sol-i" title="SOL sent" style="margin:0"></i>', bundle: 'same-tx buy' };
@@ -261,15 +283,23 @@
         <div><b>${c('out')}</b><span>wallets it sent to</span></div><div><b>${c('in')}</b><span>wallets that sent to it</span></div></div>
         <div class="bm-legend2"><span><i style="background:${ROLE.center}"></i>this wallet</span><span><i style="background:${ROLE.funder}"></i>funded it</span><span><i style="background:${ROLE.out}"></i>it sent to</span><span><i style="background:${ROLE.in}"></i>sent to it</span><span><i style="background:${ROLE.known}"></i>known</span></div>`;
       if (sel) html += cardHTML(sel, false);
-      if (d.buys?.length) html += `<div class="bm-sec">COINS IT BOUGHT LATELY</div>` + d.buys.map(b => `<div class="bm-buy">${b.image ? `<img src="${esc(b.image)}" alt="" onerror="this.remove()">` : ''}<div class="grow"><b>${b.symbol ? '$' + esc(b.symbol) : esc(short(b.mint))}</b> <span class="muted">${solS(b.sol)} · ${ago(b.at)}${b.marketCap ? ' · mc ' + usd(b.marketCap) : ''}</span><div class="addr"><code>${esc(b.mint)}</code>${copyBtn(b.mint, 'Copy CA')}</div></div><a class="lk" href="#" data-map="${esc(b.mint)}">Map</a></div>`).join('');
-      html += `<div class="bm-sec">WALLETS</div>` + d.nodes.filter(n => n.role !== 'center').sort((a, b) => (b.vol || 0) - (a.vol || 0)).map(n => `<div class="bm-row ${sel === n ? 'on' : ''}" data-bmsel="${esc(n.id)}"><span class="dot" style="background:${ROLE[n.program ? 'contract' : n.known ? 'known' : n.role] || '#5a5f6d'}"></span><span class="grow">${esc(n.label || n.name)}${n.fresh ? ' <span class="muted">· fresh</span>' : ''}</span><span class="pct">${n.vol ? solS(n.vol) : ''}</span></div>`).join('');
+      if (d.buys?.length) html += `<div class="bm-sec">COINS IT BOUGHT LATELY</div>` + d.buys.map(b => `<div class="bm-buy"><img src="${esc(coinImg(b.mint, b.image))}" alt="" loading="lazy" onerror="this.remove()"><div class="grow"><b>${b.symbol ? '$' + esc(b.symbol) : esc(short(b.mint))}</b> <span class="muted">${solS(b.sol)} · ${ago(b.at)}${b.marketCap ? ' · mc ' + usd(b.marketCap) : ''}</span><div class="addr"><code>${esc(b.mint)}</code>${copyBtn(b.mint, 'Copy CA')}</div></div><a class="lk" href="#" data-map="${esc(b.mint)}">Map</a></div>`).join('');
+      html += `<div class="bm-sec">WALLETS</div>` + d.nodes.filter(n => n.role !== 'center').sort((a, b) => (b.vol || 0) - (a.vol || 0)).map(n => `<div class="bm-row ${sel === n ? 'on' : ''}" data-bmsel="${esc(n.id)}"><span class="dot" style="background:${ROLE[n.program ? 'contract' : n.known ? 'known' : n.role] || '#5a5f6d'}"></span><span class="grow">${esc(n.label || n.name)}${n.fresh ? ' <span class="muted">· fresh</span>' : ''}</span><span class="pct">${n.vol ? solS(n.vol) : ''}</span><a class="ss" href="https://solscan.io/account/${esc(n.id)}" target="_blank" rel="noopener" title="Open on Solscan">Solscan ↗</a></div>`).join('');
+      $('#bmSide').innerHTML = html;
+      return;
+    }
+    if (d.stage === 'instant') {
+      html += `<div class="bm-coin"><img src="${esc(coinImg(d.mint, d.image))}" alt="" onerror="this.remove()"><div class="grow"><b>${d.symbol ? '$' + esc(d.symbol) : 'Coin'}</b> ${d.name ? `<span class="muted">${esc(d.name)}</span>` : ''}<div class="addr"><code>${esc(d.mint)}</code>${copyBtn(d.mint, 'Copy CA')}</div></div></div>
+        <div class="muted small">Loading holders and connections…</div>`;
+      if (sel) html += cardHTML(sel, false);
+      html += radarSection(d.mint);
       $('#bmSide').innerHTML = html;
       return;
     }
     const col = c => bm.colors[(c - 1) % bm.colors.length];
     const top10 = d.nodes.filter(n => n.kind === 'holder').slice(0, 10).reduce((s, n) => s + n.pct, 0);
     const big = d.clusters[0];
-    html += `<div class="bm-coin">${d.image ? `<img src="${esc(d.image)}" alt="" onerror="this.remove()">` : ''}<div class="grow"><b>${d.symbol ? '$' + esc(d.symbol) : 'Coin'}</b> ${d.name ? `<span class="muted">${esc(d.name)}</span>` : ''}<div class="muted small">${d.holderCount.toLocaleString()} holders${d.partial ? '+' : ''}${d.marketCap ? ' · mc ' + usd(d.marketCap) : ''}${d.createdAt ? ' · launched ' + ago(d.createdAt) : ''}</div><div class="addr"><code>${esc(d.mint)}</code>${copyBtn(d.mint, 'Copy CA')}</div></div></div>
+    html += `<div class="bm-coin"><img src="${esc(coinImg(d.mint, d.image))}" alt="" onerror="this.remove()"><div class="grow"><b>${d.symbol ? '$' + esc(d.symbol) : 'Coin'}</b> ${d.name ? `<span class="muted">${esc(d.name)}</span>` : ''}<div class="muted small">${d.holderCount.toLocaleString()} holders${d.partial ? '+' : ''}${d.marketCap ? ' · mc ' + usd(d.marketCap) : ''}${d.createdAt ? ' · launched ' + ago(d.createdAt) : ''}</div><div class="addr"><code>${esc(d.mint)}</code>${copyBtn(d.mint, 'Copy CA')}</div></div></div>
       <div class="bm-sum">
         <div class="${d.clusteredPct >= 20 ? 'warn' : ''}"><b>${pctS(d.clusteredPct)}</b><span>held by connected wallets</span></div>
         <div class="${big && big.pct >= 10 ? 'warn' : ''}"><b>${big ? pctS(big.pct) : '—'}</b><span>biggest cluster${big ? ` (${big.wallets.length} wallets)` : ''}</span></div>
@@ -280,7 +310,7 @@
     if (sel) html += cardHTML(sel, false);
     html += radarSection(d.mint);
     html += `<div class="bm-sec">CLUSTERS</div>` + (d.clusters.length ? d.clusters.slice(0, 12).map(c => `<div class="bm-row ${sel && sel.cluster === c.id ? 'on' : ''}" data-bmsel="${esc(c.wallets[0])}"><span class="dot" style="background:${col(c.id)}"></span><span class="grow">Cluster ${c.id} · ${c.wallets.length} wallets${c.hubs.length ? ' · shared funder' : ''}</span><span class="pct">${pctS(c.pct)}</span></div>`).join('') : `<div class="muted">No connected holders found among the top ${d.shown}.</div>`);
-    html += `<div class="bm-sec">HOLDERS</div>` + d.nodes.filter(n => n.kind !== 'hub').map(n => `<div class="bm-row ${sel === n ? 'on' : ''}" data-bmsel="${esc(n.id)}"><span class="dot" style="background:${n.kind === 'contract' ? '#2a2d35' : n.cluster ? col(n.cluster) : '#3b3f4b'}"></span><span class="grow">#${n.rank} ${esc(n.label || n.name)}${n.preFunded ? ' <span class="amber">· pre-funded</span>' : n.fresh ? ' <span class="muted">· fresh</span>' : ''}</span><span class="pct">${pctS(n.pct)}</span></div>`).join('');
+    html += `<div class="bm-sec">HOLDERS</div>` + d.nodes.filter(n => n.kind !== 'hub').map(n => `<div class="bm-row ${sel === n ? 'on' : ''}" data-bmsel="${esc(n.id)}"><span class="dot" style="background:${n.kind === 'contract' ? '#2a2d35' : n.cluster ? col(n.cluster) : '#3b3f4b'}"></span><span class="grow">#${n.rank} ${esc(n.label || n.name)}${n.preFunded ? ' <span class="amber">· pre-funded</span>' : n.fresh ? ' <span class="muted">· fresh</span>' : ''}</span><span class="pct">${pctS(n.pct)}</span><a class="ss" href="https://solscan.io/account/${esc(n.wallet)}" target="_blank" rel="noopener" title="Open on Solscan">Solscan ↗</a></div>`).join('');
     $('#bmSide').innerHTML = html;
   }
 
@@ -292,18 +322,24 @@
     $('#bmEmpty').hidden = true;
     let prog = $('.bm-prog'); if (!prog) { prog = document.createElement('div'); prog.className = 'bm-prog'; $('.bm-wrap').append(prog); }
     prog.hidden = false; prog.textContent = 'Reading the chain…';
+    // Instant: what the watchlist knows, then whatever a hover-prefetch already found.
+    if (opts.kind !== 'wallet') {
+      const inst = instantData(m[0]);
+      if (inst) { showMap(inst); prog.textContent = STAGE.instant; }
+      const pre = prefetched.get(m[0]);
+      if (pre && pre.stage) { showMap(pre); prog.textContent = STAGE[pre.stage] || prog.textContent; }
+    }
     try {
       const d = await post('/api/whales/map', { q: m[0], top: Number($('#bmTop').value), ...opts });
       if (mapping !== m[0]) return;
-      mapData = d;
-      bm.setData(decorate(d));
-      paintSide(null);
+      showMap(d);
       history.replaceState(null, '', '?' + (MAP_VIEW ? 'view=map&' : '') + 'map=' + m[0]);
     } catch (e) { toast({ title: e.message }, 4000); if (!mapData) $('#bmEmpty').hidden = false; }
     finally { if (mapping === m[0]) { prog.hidden = true; mapping = null; } }
   }
   $('#bmForm').onsubmit = e => { e.preventDefault(); mapIt($('#bmQ').value); };
   document.addEventListener('click', e => {
+    if (e.target.closest('a[target="_blank"]')) return;
     const s = e.target.closest('[data-bmsel]');
     if (s && !e.target.closest('[data-open]')) { e.preventDefault(); const n = bm.select(s.dataset.bmsel); if (n) paintSide(n); return; }
     const o = e.target.closest('[data-open]');
@@ -331,7 +367,7 @@
     const meta = it.source === 'pool'
       ? [it.vol5mUsd ? usd(it.vol5mUsd) + ' vol 5m' : null, it.buyersCount != null ? it.buyersCount + ' buyers 5m' : null].filter(Boolean).join(' · ')
       : [it.devSol ? `dev ${solTxt(it.devSol)}` : 'dev bought nothing', `${it.bigBuys} big buy${it.bigBuys === 1 ? '' : 's'}`, `${it.wallets} wallet${it.wallets === 1 ? '' : 's'}`].join(' · ');
-    const pic = it.image ? `<img src="${esc(it.image)}" alt="" loading="lazy" data-fallback="${initialOf(it)}">` : `<i>${initialOf(it)}</i>`;
+    const pic = `<img src="${esc(coinImg(it.mint, it.image))}" alt="" loading="lazy" data-fallback="${initialOf(it)}">`;
     return `<div class="rd-it ${it.hot ? 'hot' : ''} ${rdSel === it.mint ? 'sel' : ''}" data-rd="${esc(it.mint)}">
       <div class="rd-top">${pic}
         <div class="grow"><div class="rd-name"><b>${it.symbol ? '$' + esc(it.symbol) : 'Unnamed'}</b>${it.hot ? '<span class="rd-major">MAJOR</span>' : ''}</div>
@@ -339,7 +375,7 @@
         <div class="rd-sol">${big}</div></div>
       <div class="rd-meta">${meta}</div>
       <div class="rd-ca"><code>${esc(it.mint)}</code><button type="button" class="ghost small cp" data-copy="${esc(it.mint)}">Copy CA</button></div>
-      <div class="lks"><a href="#" data-rdmap="${esc(it.mint)}">Map holders</a><a href="https://axiom.trade/meme/${esc(it.mint)}" target="_blank" rel="noopener">Axiom</a><a href="https://gmgn.ai/sol/token/${esc(it.mint)}" target="_blank" rel="noopener">GMGN</a>${it.source !== 'pool' ? `<a href="https://pump.fun/coin/${esc(it.mint)}" target="_blank" rel="noopener">pump.fun</a>` : ''}${it.twitter && /^https:\/\//.test(it.twitter) ? `<a href="${esc(it.twitter)}" target="_blank" rel="noopener">X</a>` : ''}</div>
+      <div class="lks"><a href="#" data-rdmap="${esc(it.mint)}">Map holders</a><a href="https://axiom.trade/meme/${esc(it.mint)}" target="_blank" rel="noopener">Axiom</a><a href="https://gmgn.ai/sol/token/${esc(it.mint)}" target="_blank" rel="noopener">GMGN</a>${it.dev ? `<a href="https://solscan.io/account/${esc(it.dev)}" target="_blank" rel="noopener" title="The dev's wallet on Solscan">Dev wallet</a>` : ''}${it.source !== 'pool' ? `<a href="https://pump.fun/coin/${esc(it.mint)}" target="_blank" rel="noopener">pump.fun</a>` : ''}${it.twitter && /^https:\/\//.test(it.twitter) ? `<a href="${esc(it.twitter)}" target="_blank" rel="noopener">X</a>` : ''}</div>
     </div>`;
   }
   let rdFrame = 0;
@@ -351,10 +387,23 @@
     // broken coin pictures fall back to the first letter
     $('#rdList').querySelectorAll('img[data-fallback]').forEach(img => { img.onerror = () => { const i = document.createElement('i'); i.textContent = img.dataset.fallback; img.replaceWith(i); }; });
   }
-  async function rdOpen(mint) {
+  // Hovering a coin starts its map on the server, so the click shows it straight away.
+  const prefetched = new Map(), prefetchSent = new Set();
+  let hoverT = null;
+  $('#rdList').addEventListener('mouseover', e => {
+    const it = e.target.closest('[data-rd]');
+    if (!it || prefetchSent.has(it.dataset.rd)) return;
+    clearTimeout(hoverT);
+    hoverT = setTimeout(() => {
+      const mint = it.dataset.rd;
+      prefetchSent.add(mint);
+      post('/api/whales/map', { q: mint, kind: 'coin', prefetch: true, top: Number($('#bmTop').value) }).then(r => { if (r.partial) prefetched.set(mint, r.partial); }).catch(() => prefetchSent.delete(mint));
+    }, 180);
+  });
+  function rdOpen(mint) {
     rdSel = mint; rdDraw();
-    try { const d = await post('/api/radar', { mint }); if (d && d.mint) radarItems.set(mint, { ...radarItems.get(mint), ...d }); } catch {}
-    mapIt(mint, { kind: 'coin' });
+    mapIt(mint, { kind: 'coin' }); // draws instantly from what the list already has
+    post('/api/radar', { mint }).then(d => { if (d && d.mint) { radarItems.set(mint, { ...radarItems.get(mint), ...d }); if (mapData?.mint === mint) paintSide(selId ? mapData.nodes.find(n => n.id === selId) : null); } }).catch(() => {});
   }
   $('#rdList').addEventListener('click', e => {
     if (e.target.closest('a[target], [data-copy]')) return;
@@ -380,9 +429,17 @@
   radarSection = mint => {
     const it = radarItems.get(mint);
     if (!it || !it.buyers?.length) return '';
-    return '<div class="bm-sec">BIG MONEY IN · FIRST MINUTES</div>' + it.buyers.slice(0, 15).map(b => `<div class="bm-row" data-open="${esc(b.wallet)}" title="Open this wallet's connections"><span class="dot" style="background:${b.dev ? '#f0b84a' : '#7c6dff'}"></span><span class="grow">${b.dev ? '<b>Dev</b> · ' : ''}${esc(short(b.wallet))}${b.buys > 1 ? ` <span class="muted">· ${b.buys} buys</span>` : ''}</span><span class="pct">${solTxt(b.sol)}</span></div>`).join('');
+    return '<div class="bm-sec">BIG MONEY IN · FIRST MINUTES</div>' + it.buyers.slice(0, 15).map(b => `<div class="bm-row" data-open="${esc(b.wallet)}" title="Open this wallet's connections"><span class="dot" style="background:${b.dev ? '#f0b84a' : '#7c6dff'}"></span><span class="grow">${b.dev ? '<b>Dev</b> · ' : ''}${esc(short(b.wallet))}${b.buys > 1 ? ` <span class="muted">· ${b.buys} buys</span>` : ''}</span><span class="pct">${solTxt(b.sol)}</span><a class="ss" href="https://solscan.io/account/${esc(b.wallet)}" target="_blank" rel="noopener" title="Open on Solscan">Solscan ↗</a></div>`).join('');
   };
   setInterval(() => { if (radarItems.size) rdDraw(); }, 15000); // keep the ages fresh
+  // Partial results while a coin is being mapped (holders → funders → first trades).
+  es.addEventListener('whale-map-partial', e => {
+    const r = JSON.parse(e.data);
+    prefetched.set(r.mint, r);
+    if (r.mint !== mapping) return;
+    showMap(r);
+    const prog = $('.bm-prog'); if (prog && !prog.hidden) prog.textContent = STAGE[r.stage] || prog.textContent;
+  });
   es.addEventListener('radar', e => { const it = JSON.parse(e.data); radarItems.set(it.mint, { ...radarItems.get(it.mint), ...it }); if (it.solUsd) solUsd = it.solUsd; rdRender(); });
   es.addEventListener('radar-status', e => { const d = JSON.parse(e.data); $('#rdSt').textContent = d.status; if (d.solUsd) solUsd = d.solUsd; });
   post('/api/radar', {}).then(d => { for (const it of d.items || []) radarItems.set(it.mint, it); solUsd = d.solUsd; $('#rdSt').textContent = d.status; paintRules(d.settings); rdDraw(); }).catch(() => rdDraw());

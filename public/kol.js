@@ -133,7 +133,7 @@
     const back = ev.back ? `<span class="kolp-back" title="No transactions for ${ev.back.quietDays ?? '30+'} days before this">BACK ${ev.back.quietDays != null ? ev.back.quietDays + 'd' : ''}</span>` : '';
     return `<div class="kolp-ev ${h(ev.side || 'na')} ${pending ? 'pending' : ''} ${ev.clusterCount >= 2 ? 'clustered' : ''} ${ev.back ? 'is-back' : ''}" data-id="${h(ev.id)}">
       <span class="t">${hhmmss(ev.seenAt)}</span>
-      <span class="k" title="${h(ev.wallet)}"${color}>${ev.emoji ? h(ev.emoji) + ' ' : ''}${h(ev.kol)}${back}</span>
+      <a class="k" href="https://solscan.io/account/${h(ev.wallet)}" target="_blank" rel="noopener" title="${h(ev.wallet)} · open on Solscan"${color}>${ev.emoji ? h(ev.emoji) + ' ' : ''}${h(ev.kol)}${back}</a>
       <span class="s">${side}</span>
       <span class="c">${pending ? `<span class="muted">${h(ev.venue)} · landing…</span>` : `<b data-word="${h(ev.symbol || '')}" title="${h(ev.name || ev.mint || '')}">${coin}</b>`}</span>
       ${cluster}

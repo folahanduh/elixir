@@ -907,3 +907,6 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); backdrop-filter: blur(3px); }
 .solpop .sp-hover { position: absolute; top: 44px; right: 14px; color: #c9ccd5; font-variant-numeric: tabular-nums; }
 /* a SOL amount always looks like the number it sits in, whatever box it's in */
 .solv { color: inherit !important; font: inherit !important; display: inline-flex !important; align-items: center; margin: 0 !important; padding: 0 !important; background: none !important; }
+
+a.k { color: #e4e5ea; text-decoration: none; }
+a.k:hover { text-decoration: underline; text-underline-offset: 2px; }

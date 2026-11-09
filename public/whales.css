@@ -224,3 +224,8 @@ html.view-map .radar { height: calc(100vh - var(--sbar) - 60px - 110px); min-hei
 .rd-it .lks a:hover { color: #fff; }
 .rd-it .lks a[data-rdmap] { color: var(--brand-2); font-weight: 500; }
 .rd-tabs { display: flex !important; align-items: center; }
+
+/* Solscan links on wallet rows */
+.bm-row .ss { margin-left: 8px; font-size: 11.5px; color: var(--dim); text-decoration: none; white-space: nowrap; opacity: 0; transition: opacity .1s; }
+.bm-row:hover .ss, .bm-row.on .ss { opacity: 1; }
+.bm-row .ss:hover { color: #fff; }

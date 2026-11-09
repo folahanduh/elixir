@@ -80,6 +80,8 @@
     side: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
   };
   // SOL amounts everywhere: the Solana mark, then the number.
+  // Coin pictures go through Elixir, which finds one that loads (IPFS gateways, pump.fun, DexScreener…) and caches it.
+  window.coinImg = (mint, hint) => (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint || '') ? `/img/coin/${mint}${hint ? '?u=' + encodeURIComponent(hint) : ''}` : hint || '');
   window.solHTML = v => `<span class="solv"><i class="sol-i" title="SOL" aria-label="SOL"></i>${v}</span>`;
   const svg = (k, s = 16) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ico[k]}</svg>`;
 
@@ -184,7 +186,7 @@
         <div><b>${h(window.srcName(s.profile, s.label))}</b><small>${h(s.status || '')}</small></div><span class="sb-tag live">Live</span></a>`),
       ...ps.map(p => {
         const top = [...(p.deploys || [])].sort((a, b) => (b.vol?.real || 0) - (a.vol?.real || 0))[0];
-        const img = top?.image ? { avatar: top.image, name: top.symbol } : null;
+        const img = top && (top.image || top.address) ? { avatar: window.coinImg(top.address, top.image), name: top.symbol } : null;
         return `<a class="sb-it" href="/#it-${h(p.itemId)}" data-play="${h(p.itemId)}">${window.srcAvatar(img || { name: p.author }, p.author)}
           <div><b>${top ? '$' + h(top.symbol) : '@' + h(p.author)}</b><small>${top ? h('@' + p.author + ' · ' + usd(top.marketCap) + ' · ' + p.deploys.length + ' deploys') : h((p.text || '').slice(0, 40))}</small></div><span class="sb-tag">${top ? h(top.orderLabel || 'Play') : 'Play'}</span></a>`;
       }),

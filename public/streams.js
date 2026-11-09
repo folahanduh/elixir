@@ -237,7 +237,7 @@ function walletCoinsHTML(seg) {
 }
 function cmRow(c) {
   return `<div class="cm">
-    <span class="cm-img">${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<i>${esc((c.symbol || '?').slice(0, 2))}</i></span>
+    <span class="cm-img">${c.image || c.mint ? `<img src="${esc(coinImg(c.mint, c.image))}" alt="" loading="lazy" onerror="this.remove()">` : ''}<i>${esc((c.symbol || '?').slice(0, 2))}</i></span>
     <b class="cm-t" data-word="${esc(c.symbol || '')}" title="${esc(c.name || '')}">$${esc(c.symbol || '?')}</b>
     ${c.name ? `<span class="cm-n">${esc(c.name)}</span>` : ''}
     <span class="cm-mc">${esc(mc$(c.marketCap))}</span>
@@ -248,7 +248,7 @@ function cmRow(c) {
 function coinMatchHTML(seg) {
   if (!seg.coinMatches?.length) return '';
   return `<div class="cmatch">${seg.coinMatches.map(f => f.coins.map(c => `<div class="cm">
-    <span class="cm-img">${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<i>${esc((c.symbol || '?').slice(0, 2))}</i></span>
+    <span class="cm-img">${c.image || c.mint ? `<img src="${esc(coinImg(c.mint, c.image))}" alt="" loading="lazy" onerror="this.remove()">` : ''}<i>${esc((c.symbol || '?').slice(0, 2))}</i></span>
     <b class="cm-t" data-word="${esc(c.symbol || '')}" title="${esc(c.name || '')}">$${esc(c.symbol || '?')}</b>
     <span class="cm-n">${esc(c.name || '')}</span>
     <span class="cm-mc">${esc(mc$(c.marketCap))}</span>

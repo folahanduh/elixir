@@ -171,6 +171,8 @@ function readConfig() {
   // No key: Solana's free public RPC, so KOL wallets and rug checks work out of the box
   // (rate-limited; a free Helius key is faster and copes with big wallet lists).
   c.keys.solanaPublic = !c.keys.solanaWs && !process.env.SOLANA_RPC_URL && !c.keys.solanaRpc;
+  // One pace for all RPC calls: the public RPC allows far less than Helius (set "rpcRps" in config.json for a paid plan).
+  limit.setRpcRate(c.keys.solanaPublic ? 3 : Number(c.rpcRps) || 8);
   if (c.keys.solanaPublic) c.keys.solanaWs = 'wss://api.mainnet-beta.solana.com';
   // The HTTP RPC defaults to the same provider as the websocket (wss:// → https://).
   c.keys.solanaRpc = process.env.SOLANA_RPC_URL || c.keys.solanaRpc || c.keys.solanaWs.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
@@ -1100,7 +1102,10 @@ const server = http.createServer(async (req, res) => {
           let isMint = body.kind === 'coin';
           if (!body.kind) { try { isMint = Boolean((await whales.rpc('getTokenSupply', [m[0]]))?.value); } catch {} }
           if (!isMint) return json(res, 200, await whales.mapWallet(m[0], { progress }));
-          return json(res, 200, { type: 'coin', ...(await whales.mapCoin(m[0], { top, progress })) });
+          const job = whales.mapCoin(m[0], { top, progress, onPartial: r => send('whale-map-partial', r) });
+          // Hover on the watchlist: start mapping now, answer straight away.
+          if (body.prefetch) { job.catch(() => {}); return json(res, 200, { started: true, partial: whales.partialMap(m[0], top) }); }
+          return json(res, 200, { type: 'coin', ...(await job) });
         } catch (e) { return json(res, 500, { error: e.message }); }
       }
       if (url.pathname === '/api/whales/trace') {
@@ -1169,6 +1174,15 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/api/ping') return json(res, 200, { t: Date.now() });
+    if (req.method === 'GET' && url.pathname.startsWith('/img/coin/')) {
+      // Coin pictures: whichever source works (given link, IPFS gateways, pump.fun, DexScreener, GeckoTerminal), cached on disk.
+      const mint = url.pathname.slice(10);
+      const hint = url.searchParams.get('u') || radar.items.get(mint)?.image || '';
+      const got = await require('./lib/images').coinImage(mint, hint, m => dex.tokenInfo(m)).catch(() => null);
+      if (!got) { res.writeHead(404, { 'cache-control': 'max-age=60' }); return res.end(); }
+      res.writeHead(200, { 'content-type': got.type, 'cache-control': 'max-age=604800', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'", 'x-content-type-options': 'nosniff' });
+      return res.end(got.buf);
+    }
     if (req.method === 'GET' && url.pathname.startsWith('/avatars/')) {
       const name = decodeURIComponent(url.pathname.slice(9));
       if (!/^[\w-]+\.(png|jpg|webp|gif|svg|ico|img)$/.test(name)) return json(res, 400, { error: 'bad name' });

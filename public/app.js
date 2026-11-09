@@ -213,7 +213,7 @@ function liveCoinHTML(p, top) {
   const chartOpen = state.openCharts?.has(p.id);
   const pairId = top.pairAddress || top.address;
   return `<div class="livecoin">
-    <span class="lc-img">${top.image ? `<img src="${esc(top.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<i>${esc((top.symbol || '?').slice(0, 2))}</i></span>
+    <span class="lc-img">${top.image || top.address ? `<img src="${esc(coinImg(top.address, top.image))}" alt="" loading="lazy" onerror="this.remove()">` : ''}<i>${esc((top.symbol || '?').slice(0, 2))}</i></span>
     <div class="lc-main"><b>$${esc(top.symbol)}</b><span class="muted">${esc(top.name || '')} · ${esc(top.padLabel || '')} · ${esc(top.orderLabel || '')} deploy</span></div>
     <div class="lc-stat"><b>${fmtUsd(top.marketCap)}</b><span>mcap${top.change5m != null ? ` · <i class="${top.change5m >= 0 ? 'pos' : 'neg'}">${top.change5m >= 0 ? '+' : ''}${top.change5m}%</i> 5m` : ''}</span></div>
     <div class="lc-stat"><b>${fmtUsd(v5)}</b><span>vol 5m · ${tr} trades</span></div>

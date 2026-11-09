@@ -179,7 +179,8 @@
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillStyle = n.kind === 'contract' ? '#9a9eaa' : '#fff';
           ctx.font = `600 ${Math.min(16, Math.max(10, px / 2.6)) / view.k}px "IBM Plex Sans", system-ui`;
-          ctx.fillText(n.t1 || '', n.x, n.y - (px >= 30 && n.t2 ? 6 / view.k : 0));
+          const ty = n.y - (px >= 30 && n.t2 ? 6 / view.k : 0);
+          if (n.t1Sol) solText(ctx, n.t1 || '', n.x, ty, Math.min(16, Math.max(10, px / 2.6)) / view.k); else ctx.fillText(n.t1 || '', n.x, ty);
           if (px >= 30 && n.t2) {
             ctx.font = `500 ${10 / view.k}px "IBM Plex Sans", system-ui`;
             ctx.fillStyle = 'rgba(255,255,255,.72)';
@@ -228,6 +229,14 @@
         onSelect(selected); draw();
       }
       drag = null;
+    });
+    // Right-click a bubble: open that wallet on Solscan.
+    canvas.addEventListener('contextmenu', e => {
+      const [sx, sy] = pos(e);
+      const n = nodeAt(sx, sy);
+      if (!n) return;
+      e.preventDefault();
+      window.open('https://solscan.io/account/' + encodeURIComponent(n.wallet || n.id), '_blank', 'noopener');
     });
     canvas.addEventListener('pointerleave', () => { hover = null; onHover(null); draw(); });
     canvas.addEventListener('wheel', e => {
