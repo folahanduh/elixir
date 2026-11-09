@@ -78,6 +78,7 @@ function upsertSession(m) {
         <span class="st"></span><span class="grow"></span>
         <span class="muted small elapsed"></span>
         <button class="ghost small watch" hidden>Watch</button>
+        <button class="small pa" hidden title="Transcribe what the player on this page is saying: Chrome shares this tab's sound with Elixir. Use it when the stream won't transcribe on its own">🎙 Transcribe the player</button>
         <a class="lk open" target="_blank" rel="noopener">open ↗</a>
         <button class="ghost small clipnow" hidden title="Clip the last ~30 seconds">Clip</button>
         <button class="ghost small collapse" title="Fold this stream away. It keeps transcribing and pinging">Hide</button>
@@ -128,6 +129,7 @@ function upsertSession(m) {
       } catch (err) { showErr(err.message); }
     };
     s.el.querySelector('.watch').onclick = () => toggleWatch(s);
+    s.el.querySelector('.pa').onclick = () => (S.local?.id === s.id ? S.local.stop() : usePlayerAudio(s));
     s.el.querySelector('.clipnow').onclick = () => requestClip(s.id, { at: Date.now() - 8000 });
     s.el.querySelector('.hlonly').onchange = e => s.el.querySelector('.transcript').classList.toggle('hl-only', e.target.checked);
     const kp = $('#sessions > .kolp'); if (kp) kp.after(s.el); else $('#sessions').prepend(s.el); // KOL panel stays on top
@@ -153,6 +155,9 @@ function upsertSession(m) {
   open.hidden = !(e && e.open);
   if (e && e.open) { open.href = e.open; open.textContent = { twitch: 'Open on Twitch ↗', youtube: 'Open on YouTube ↗', x: 'Open on X ↗', kick: 'Open on Kick ↗' }[e.kind] || 'open ↗'; }
   s.el.querySelector('.watch').hidden = !(e && e.src);
+  const pa = s.el.querySelector('.pa');
+  pa.hidden = !(e && e.src) || (S.local && S.local.id !== s.id);
+  pa.textContent = S.local?.id === s.id ? 'Stop transcribing the player' : '🎙 Transcribe the player';
   s.el.querySelector('.clipnow').hidden = !s.canClip || Boolean(s.endedAt);
   for (const c of (m.clips || []).slice().reverse()) addClip(c, true);
   s.el.querySelector('.restart').hidden = live;
@@ -457,13 +462,28 @@ async function startTab() {
   let sess;
   try { sess = await api('/api/streams/start', { kind: 'tab', label }); } catch (err) { track.stop(); return showErr(err.message); }
 
+  let alive = true;
+  const close = await pipePcm(track, sess.id, () => stop());
+  const stop = () => {
+    if (!alive) return; alive = false;
+    close();
+    api('/api/streams/stop', { id: sess.id }).catch(() => {});
+    S.local = null; $('#tabBtn').textContent = 'Share tab audio';
+  };
+  track.onended = stop;
+  S.local = { id: sess.id, kind: 'tab', stop };
+  $('#tabBtn').textContent = 'Stop tab capture';
+}
+
+/** Send an audio track to a stream on the server as 16 kHz mono PCM, in 100 ms chunks. Returns a stop function. */
+async function pipePcm(track, id, onGone) {
   const ctx = new AudioContext({ sampleRate: 16000 });
   await ctx.audioWorklet.addModule('/pcm-worklet.js');
   const src = ctx.createMediaStreamSource(new MediaStream([track]));
   const tap = new AudioWorkletNode(ctx, 'pcm-tap');
   const mute = ctx.createGain(); mute.gain.value = 0; // keep the graph running without playing audio twice
   src.connect(tap).connect(mute).connect(ctx.destination);
-  let buf = new Int16Array(1600), n = 0, alive = true; // 100 ms chunks keep latency low
+  let buf = new Int16Array(1600), n = 0, alive = true;
   tap.port.onmessage = ev => {
     const f = ev.data;
     for (let i = 0; i < f.length; i++) {
@@ -471,20 +491,53 @@ async function startTab() {
       buf[n++] = v < 0 ? v * 0x8000 : v * 0x7fff;
       if (n === buf.length) {
         const chunk = buf; buf = new Int16Array(1600); n = 0;
-        fetch(`/api/streams/${sess.id}/audio`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: chunk.buffer })
-          .then(r => { if (r.status === 410 && alive) stop(); }).catch(() => {});
+        fetch(`/api/streams/${id}/audio`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: chunk.buffer })
+          .then(r => { if (r.status === 410 && alive) onGone?.(); }).catch(() => {});
       }
     }
   };
+  return () => { alive = false; track.stop(); ctx.close().catch(() => {}); };
+}
+
+// ---------- the player on this page → Deepgram ----------
+// For streams the server can't open (YouTube blocks it, an X broadcast…): the player in the card plays the
+// stream, Chrome shares this tab's sound with Elixir, and that sound is transcribed as this stream.
+async function usePlayerAudio(s) {
+  showErr('');
+  if (S.local) return showErr('Already capturing in this browser. Stop that one first.');
+  if (!navigator.mediaDevices?.getDisplayMedia) return showErr('This browser can\'t share a tab\'s sound. Use Chrome or Edge.');
+  // 1) the player plays, with sound (it starts muted)
+  const box = s.el.querySelector('.player');
+  const src = String(s.embed.src).replace('mute=1', 'mute=0').replace('muted=true', 'muted=false');
+  if (box.hidden) toggleWatch(s);
+  const f = box.querySelector('iframe');
+  if (f && f.src !== src) f.src = src;
+  // 2) Chrome asks to share this tab: press Share (with "Also share tab audio" on)
+  let media;
+  try {
+    media = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false },
+      preferCurrentTab: true, selfBrowserSurface: 'include', systemAudio: 'exclude', surfaceSwitching: 'exclude',
+    });
+  } catch { return showErr('Sharing was cancelled. Press "Transcribe the player" again and choose Share.'); }
+  const track = media.getAudioTracks()[0];
+  media.getVideoTracks().forEach(t => t.stop());
+  if (!track) return showErr('No sound came through. In Chrome\'s box keep "Also share tab audio" switched on, then press Share.');
+  // 3) this stream takes its audio from here
+  try { await api('/api/streams/player-audio', { id: s.id }); } catch (err) { track.stop(); return showErr(err.message); }
+  let alive = true;
+  const close = await pipePcm(track, s.id, () => stop());
   const stop = () => {
     if (!alive) return; alive = false;
-    track.stop(); ctx.close().catch(() => {});
-    api('/api/streams/stop', { id: sess.id }).catch(() => {});
-    S.local = null; $('#tabBtn').textContent = 'Share tab audio';
+    close();
+    api('/api/streams/player-audio', { id: s.id, off: true }).catch(() => {});
+    S.local = null; upsertSession(s);
   };
   track.onended = stop;
-  S.local = { id: sess.id, kind: 'tab', stop };
-  $('#tabBtn').textContent = 'Stop tab capture';
+  S.local = { id: s.id, kind: 'player', stop };
+  upsertSession(s);
+  toast({ kind: 'fresh', title: 'Transcribing the player', text: 'Keep this tab open with the player playing. Turning the player\'s volume down also lowers what Deepgram hears.' }, 6000);
 }
 $('#tabBtn').onclick = () => (S.local?.kind === 'tab' ? S.local.stop() : startTab());
 

@@ -802,7 +802,10 @@ function keywordsApi(b) {
 // ---------- auto-update ----------
 let VERSION = null, updating = false;
 updater.current().then(v => { VERSION = v; });
-const busyStreams = () => [...streams.sessions.values()].some(s => !s.endedAt && s.kind !== 'demo');
+// A stream someone is talking on right now holds an update back (a restart would cut the transcript),
+// but never for more than 30 minutes.
+const busyStreams = () => [...streams.sessions.values()].some(s => !s.endedAt && s.kind !== 'demo' && Date.now() - (s.lastWordsAt || 0) < 120000);
+let pendingSince = 0;
 const JUST_UPDATED = path.join(ROOT, 'data', '.just-updated');
 let checking = null; // one check at a time, however many windows refresh together
 function autoUpdate(reason, opts = {}) {
@@ -816,8 +819,9 @@ async function autoUpdateOnce(reason, { force = false } = {}) {
   if (DEMO || process.env.CI || cfg.autoUpdate === false) return { off: true };
   if (updating) return { updating: true };
   const st = await updater.check({ fresh: force });
-  if (!st.behind) return st;
-  if (busyStreams() && !force) return { ...st, waiting: 'a stream is being transcribed' };
+  if (!st.behind) { pendingSince = 0; return st; }
+  pendingSince = pendingSince || Date.now();
+  if (busyStreams() && !force && Date.now() - pendingSince < 30 * 60000) return { ...st, waiting: 'a stream is being transcribed' };
   updating = true;
   console.log(`  New version found (${reason}). Installing…`);
   const r = await updater.apply();
@@ -1208,6 +1212,9 @@ const server = http.createServer(async (req, res) => {
         catch (e) { return json(res, 400, { error: e.message }); }
       }
       if (url.pathname === '/api/streams/stop') { streams.stop(String(body.id)); return json(res, 200, { ok: true }); }
+      if (url.pathname === '/api/streams/player-audio') {
+        try { return json(res, 200, streams.usePlayerAudio(String(body.id), body.off !== true)); } catch (e) { return json(res, 400, { error: e.message }); }
+      }
       if (url.pathname === '/api/streams/remove') { streams.remove(String(body.id)); return json(res, 200, { ok: true }); }
       const textRoute = url.pathname.match(/^\/api\/streams\/([\w-]+)\/text$/);
       if (textRoute) { streams.onBrowserText(textRoute[1], String(body.text || '').slice(0, 2000), Boolean(body.final)); return json(res, 200, { ok: true }); }
@@ -1318,6 +1325,8 @@ server.listen(cfg.port, '127.0.0.1', () => {
   let fresh = false;
   try { fresh = Date.now() - Number(fs.readFileSync(JUST_UPDATED, 'utf8')) < 5 * 60000; fs.unlinkSync(JUST_UPDATED); } catch {}
   if (!fresh) setTimeout(() => autoUpdate('start').catch(() => {}), 3000);
+  // and every 3 minutes while it runs, so a page left open still gets new versions
+  setInterval(() => autoUpdate('timer').catch(() => {}), 3 * 60000).unref();
   if (DEMO) {
     if (process.env.DEMO_TWEETS !== '0') sources.startDemo(t => ingest({ ...t, via: 'demo' }));
     streams.start({ label: 'Demo streamer', kind: 'demo', url: 'https://www.twitch.tv/demo_streamer' });
