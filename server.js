@@ -1108,6 +1108,13 @@ const server = http.createServer(async (req, res) => {
           return json(res, 200, { type: 'coin', ...(await job) });
         } catch (e) { return json(res, 500, { error: e.message }); }
       }
+      if (url.pathname === '/api/whales/history') {
+        const w = String(body.wallet || '');
+        if (!isWallet(w)) return json(res, 400, { error: 'bad wallet' });
+        if (!cfg.keys.solanaRpc) return json(res, 400, { error: 'Add a Solana RPC (Helius) in API keys first' });
+        try { return json(res, 200, await whales.walletHistory(w, { before: body.before ? String(body.before) : null, limit: Math.max(5, Math.min(50, Number(body.limit) || 20)) })); }
+        catch (e) { return json(res, 500, { error: e.message }); }
+      }
       if (url.pathname === '/api/whales/trace') {
         const q = String(body.q || '').trim().replace(/^https?:\/\/\S+\/(?=[1-9A-HJ-NP-Za-km-z]{32,44})/, '').replace(/[?#].*$/, '');
         if (!isWallet(q)) return json(res, 400, { error: 'Paste a Solana wallet or coin address' });

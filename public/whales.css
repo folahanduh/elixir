@@ -229,3 +229,18 @@ html.view-map .radar { height: calc(100vh - var(--sbar) - 60px - 110px); min-hei
 .bm-row .ss { margin-left: 8px; font-size: 11.5px; color: var(--dim); text-decoration: none; white-space: nowrap; opacity: 0; transition: opacity .1s; }
 .bm-row:hover .ss, .bm-row.on .ss { opacity: 1; }
 .bm-row .ss:hover { color: #fff; }
+
+/* transfer history */
+.hist { display: flex; flex-direction: column; }
+.hrow { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto; gap: 8px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.hrow .hd { font-weight: 600; font-size: 11.5px; }
+.hrow .hd.in, .hrow .hd.buy { color: var(--accent); }
+.hrow .hd.out, .hrow .hd.sell { color: #ff8da2; }
+.hrow .ha { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hrow .ha a { color: #dfe1e7; }
+.hrow .ht { color: var(--dim); font-size: 11.5px; white-space: nowrap; }
+.hrow .ss { font-size: 11px; color: var(--dim); text-decoration: none; }
+.hrow .ss:hover { color: #fff; }
+.hmore { margin-top: 8px; align-self: flex-start; }
+.bm-back { display: inline-block; font-size: 12.5px; color: var(--brand-2); text-decoration: none; margin-bottom: 2px; }
+.bm-back:hover { text-decoration: underline; }

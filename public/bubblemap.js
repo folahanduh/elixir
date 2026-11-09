@@ -187,7 +187,7 @@
             const t = String(n.t2), tt = t.length > 15 ? t.slice(0, 14) + '…' : t;
             if (n.t2Sol) solText(ctx, tt, n.x, n.y + 9 / view.k, 10 / view.k); else ctx.fillText(tt, n.x, n.y + 9 / view.k);
           }
-        } else if (view.k >= 1.6 && n.t1) {
+        } else if ((n.small || view.k >= 1.6) && n.t1) {
           ctx.font = `500 ${10 / view.k}px "IBM Plex Sans", system-ui`; ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.textAlign = 'center';
           ctx.fillText(n.t1, n.x, n.y + n.r + 10 / view.k);
         }

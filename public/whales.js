@@ -161,6 +161,17 @@
 
   // ---------- bubble map: a coin's holders, or one wallet's connections ----------
   const ROLE = { center: '#a7b1ff', funder: '#ffb547', out: '#32d296', in: '#4cc3d1', known: '#e879a6', contract: '#565b68' };
+  const ACT = { center: '#9a8fff', active: '#2fd18b', quiet: '#5d6270', known: '#e879a6', contract: '#3a3e48' };
+  const actKey = n => (n.role === 'center' ? 'center' : n.program ? 'contract' : n.known ? 'known' : n.active ? 'active' : 'quiet');
+  // The coin map you drilled in from: its holders' % show on wallets in the transfer maps, and a way back.
+  let coinCtx = null;
+  // % of the coin a wallet holds: the coin you drilled in from, or the coin map on screen.
+  const ctxPct = w => {
+    if (coinCtx) return coinCtx.pct.get(w) ?? null;
+    if (mapData?.type === 'coin' && mapData.stage !== 'instant') return mapData.nodes.find(n => n.wallet === w && n.kind === 'holder')?.pct ?? null;
+    return null;
+  };
+  const ctxSym = () => (coinCtx ? coinCtx.symbol : mapData?.symbol) || 'coin';
   const solN = s => (s >= 1000 ? (s / 1000).toFixed(1) + 'K' : s >= 10 ? Math.round(s).toLocaleString() : s >= 1 ? s.toFixed(2) : s.toFixed(3));
   const solS = s => s == null ? '—' : solHTML(solN(s));
   const pctS = p => (p >= 10 ? p.toFixed(1) : p >= 1 ? p.toFixed(2) : p.toFixed(3)) + '%';
@@ -180,7 +191,7 @@
     const same = mapData && mapData.mint === d.mint && mapData.type === d.type;
     mapData = d;
     bm.setData(decorate(d), { keep: same });
-    if (!same) selId = null;
+    if (!same) { selId = null; $('#bmSide').scrollTop = 0; }
     paintSide(selId ? d.nodes.find(n => n.id === selId) || null : null);
     $('#bmEmpty').hidden = true;
   }
@@ -197,22 +208,23 @@
       const max = Math.max(1, ...d.nodes.map(n => n.vol || 0));
       return {
         nodes: d.nodes.map(n => {
-          const role = n.role === 'center' ? 'center' : n.program ? 'contract' : n.known && n.role !== 'center' ? 'known' : n.role;
-          return { ...n, center: n.role === 'center', kind: n.program ? 'contract' : 'holder', color: ROLE[role] || '#5a5f6d',
+          const p = ctxPct(n.id);
+          return { ...n, center: n.role === 'center', kind: n.program ? 'contract' : 'holder', color: ACT[actKey(n)],
             r: n.role === 'center' ? 46 : Math.max(9, 12 + Math.sqrt((n.vol || 0) / max) * 40),
-            t1: n.label || (n.name && n.name !== short(n.id) ? n.name : short(n.id)), t2: n.solBalance != null ? solN(n.solBalance) : '', t2Sol: n.solBalance != null };
+            t1: n.label || (n.name && n.name !== short(n.id) ? n.name : short(n.id)),
+            t2: p != null ? `${pctS(p)} $${coinCtx.symbol || 'coin'}` : n.solBalance != null ? solN(n.solBalance) : '', t2Sol: p == null && n.solBalance != null };
         }),
         links: d.links, spread: 90,
       };
     }
     return {
-      nodes: d.nodes.map(n => ({ ...n, t1: n.kind === 'hub' ? '' : pctS(n.pct || 0), t2: n.label || (n.name && n.name !== short(n.wallet) ? n.name : n.kind === 'hub' ? '' : '#' + n.rank) })),
+      nodes: d.nodes.map(n => ({ ...n, small: n.kind === 'holder' && n.rank <= 40, t1: n.kind === 'hub' ? '' : pctS(n.pct || 0), t2: n.label || (n.name && n.name !== short(n.wallet) ? n.name : n.kind === 'hub' ? '' : '#' + n.rank) })),
       links: d.links,
     };
   }
   const bm = window.BubbleMap($('#bm'), {
     onSelect: n => { selId = n?.id || null; paintSide(n); },
-    onOpen: n => { if (n && n.kind !== 'contract') mapIt(n.id, { kind: 'wallet' }); },
+    onOpen: n => { if (n && n.kind !== 'contract') openWallet(n.id); },
     onHover: (n, x, y) => {
       const tip = $('#bmTip');
       if (!n || !mapData) { tip.hidden = true; return; }
@@ -233,7 +245,9 @@
     const launch = d.createdAt;
     const stats = [
       coin && n.kind !== 'hub' && row('Holds', `${pctS(n.pct || 0)} of supply`),
+      !coin && ctxPct(n.wallet) != null && row(`Holds $${esc(coinCtx.symbol || 'coin')}`, pctS(ctxPct(n.wallet)) + ' of supply'),
       row('SOL balance', n.solBalance != null ? solS(n.solBalance) : null),
+      !coin && n.role !== 'center' && row('Status', n.active ? '<span style="color:var(--accent)">active this week</span>' : n.lastSeen ? 'quiet since ' + ago(n.lastSeen) : null),
       n.kind === 'hub' && row('Funded', `${n.funds} top holders${n.sent ? ' · ' + solS(n.sent) : ''}`),
       n.fundedBy && row('Funded by', `<a href="#" data-bmsel="${esc(n.fundedBy)}" data-open="${esc(n.fundedBy)}">${esc(n.funderName || short(n.fundedBy))}</a>${n.fundSol ? ' · ' + solS(n.fundSol) : ''}`),
       n.fundedAt && row('Funded', when(n.fundedAt) + (launch && coin ? ` · <span class="${n.preFunded ? 'amber' : ''}">${n.fundedAt <= launch ? dur(launch - n.fundedAt) + ' before launch' : dur(n.fundedAt - launch) + ' after launch'}</span>` : '')),
@@ -256,7 +270,8 @@
       <div class="addr"><code>${esc(n.wallet)}</code>${copyBtn(n.wallet)}</div>
       <div class="kvs">${stats}</div>
       ${ls.length ? `<div class="bm-sec">CONNECTIONS (${ls.length})</div>${conns}` : `<div class="muted">${coin ? 'No links to other top holders found.' : 'No connections found in its recent transactions.'}</div>`}
-      <div class="btns"><button class="small" data-open="${esc(n.wallet)}">Open its connections</button><a class="lk" href="https://solscan.io/account/${esc(n.wallet)}" target="_blank" rel="noopener">Solscan</a><a class="lk" href="https://gmgn.ai/sol/address/${esc(n.wallet)}" target="_blank" rel="noopener">GMGN</a><a class="lk" href="#" data-watch="${esc(n.wallet)}">Watch</a><a class="lk" href="#" data-label="${esc(n.wallet)}">Name</a></div>
+      <div class="bm-sec">TRANSFER HISTORY</div><div class="hist" data-hist="${esc(n.wallet)}">${histHTML(n.wallet)}</div>
+      <div class="btns"><button class="small" data-open="${esc(n.wallet)}">Explore transfers as bubbles</button><a class="lk" href="https://solscan.io/account/${esc(n.wallet)}" target="_blank" rel="noopener">Solscan</a><a class="lk" href="https://gmgn.ai/sol/address/${esc(n.wallet)}" target="_blank" rel="noopener">GMGN</a><a class="lk" href="#" data-watch="${esc(n.wallet)}">Watch</a><a class="lk" href="#" data-label="${esc(n.wallet)}">Name</a></div>
     </div>`;
   }
 
@@ -278,13 +293,15 @@
     if (d.type === 'wallet') {
       const center = d.nodes.find(n => n.role === 'center') || {};
       const c = k => d.nodes.filter(n => n.role === k).length;
-      html += `<div class="bm-coin"><div class="grow"><b>${esc(d.name && d.name !== short(d.wallet) ? d.name : 'Wallet')}</b><div class="addr"><code>${esc(d.wallet)}</code>${copyBtn(d.wallet)}</div></div></div>
+      if (coinCtx) html += `<a href="#" class="bm-back" data-backcoin="1">← Back to ${coinCtx.symbol ? '$' + esc(coinCtx.symbol) : 'the coin'} map</a>`;
+      html += `<div class="bm-coin"><div class="grow"><b>${esc(d.name && d.name !== short(d.wallet) ? d.name : 'Wallet')}</b>${ctxPct(d.wallet) != null ? ` <span class="bdg">${pctS(ctxPct(d.wallet))} of $${esc(coinCtx.symbol || 'coin')}</span>` : ''}<div class="addr"><code>${esc(d.wallet)}</code>${copyBtn(d.wallet)}</div></div></div>
         <div class="bm-sum"><div><b>${solS(center.solBalance)}</b><span>balance</span></div><div><b>${c('funder')}</b><span>funders up the trail</span></div>
         <div><b>${c('out')}</b><span>wallets it sent to</span></div><div><b>${c('in')}</b><span>wallets that sent to it</span></div></div>
-        <div class="bm-legend2"><span><i style="background:${ROLE.center}"></i>this wallet</span><span><i style="background:${ROLE.funder}"></i>funded it</span><span><i style="background:${ROLE.out}"></i>it sent to</span><span><i style="background:${ROLE.in}"></i>sent to it</span><span><i style="background:${ROLE.known}"></i>known</span></div>`;
+        <div class="bm-legend2"><span><i style="background:${ACT.center}"></i>this wallet</span><span><i style="background:${ACT.active}"></i>active this week</span><span><i style="background:${ACT.quiet}"></i>quiet (history)</span><span><i style="background:${ACT.known}"></i>known</span><span>arrows = which way money went</span></div>`;
+      if (!sel) html += `<div class="bm-sec">TRANSFER HISTORY</div><div class="hist" data-hist="${esc(d.wallet)}">${histHTML(d.wallet)}</div>`;
       if (sel) html += cardHTML(sel, false);
       if (d.buys?.length) html += `<div class="bm-sec">COINS IT BOUGHT LATELY</div>` + d.buys.map(b => `<div class="bm-buy"><img src="${esc(coinImg(b.mint, b.image))}" alt="" loading="lazy" onerror="this.remove()"><div class="grow"><b>${b.symbol ? '$' + esc(b.symbol) : esc(short(b.mint))}</b> <span class="muted">${solS(b.sol)} · ${ago(b.at)}${b.marketCap ? ' · mc ' + usd(b.marketCap) : ''}</span><div class="addr"><code>${esc(b.mint)}</code>${copyBtn(b.mint, 'Copy CA')}</div></div><a class="lk" href="#" data-map="${esc(b.mint)}">Map</a></div>`).join('');
-      html += `<div class="bm-sec">WALLETS</div>` + d.nodes.filter(n => n.role !== 'center').sort((a, b) => (b.vol || 0) - (a.vol || 0)).map(n => `<div class="bm-row ${sel === n ? 'on' : ''}" data-bmsel="${esc(n.id)}"><span class="dot" style="background:${ROLE[n.program ? 'contract' : n.known ? 'known' : n.role] || '#5a5f6d'}"></span><span class="grow">${esc(n.label || n.name)}${n.fresh ? ' <span class="muted">· fresh</span>' : ''}</span><span class="pct">${n.vol ? solS(n.vol) : ''}</span><a class="ss" href="https://solscan.io/account/${esc(n.id)}" target="_blank" rel="noopener" title="Open on Solscan">Solscan ↗</a></div>`).join('');
+      html += `<div class="bm-sec">WALLETS</div>` + d.nodes.filter(n => n.role !== 'center').sort((a, b) => (b.vol || 0) - (a.vol || 0)).map(n => `<div class="bm-row ${sel === n ? 'on' : ''}" data-bmsel="${esc(n.id)}"><span class="dot" style="background:${ACT[actKey(n)]}"></span><span class="grow">${esc(n.label || n.name)}${ctxPct(n.id) != null ? ` <span class="muted">· ${pctS(ctxPct(n.id))}</span>` : ''}${n.fresh ? ' <span class="muted">· fresh</span>' : ''}</span><span class="pct">${n.vol ? solS(n.vol) : ''}</span><a class="ss" href="https://solscan.io/account/${esc(n.id)}" target="_blank" rel="noopener" title="Open on Solscan">Solscan ↗</a></div>`).join('');
       $('#bmSide').innerHTML = html;
       return;
     }
@@ -314,6 +331,46 @@
     $('#bmSide').innerHTML = html;
   }
 
+  /** Open a wallet's transfers as bubbles. Coming from a coin map, remember the coin (for % and the way back). */
+  function openWallet(w) {
+    if (mapData?.type === 'coin' && mapData.stage !== 'instant') {
+      coinCtx = { mint: mapData.mint, symbol: mapData.symbol, data: mapData, pct: new Map(mapData.nodes.filter(n => n.kind === 'holder').map(n => [n.wallet, n.pct])) };
+    }
+    mapIt(w, { kind: 'wallet' });
+  }
+
+  // ---- transfer history (loaded when a wallet's card opens; "Load older" pages back) ----
+  const hist = new Map(); // wallet -> {items, next, done, loading, error}
+  function histHTML(w) {
+    const h = hist.get(w);
+    if (!h || (!h.items.length && h.loading)) return '<div class="muted small">Loading transfer history…</div>';
+    if (h.error && !h.items.length) return `<div class="muted small">${esc(h.error)}</div>`;
+    if (!h.items.length) return '<div class="muted small">No transfers found.</div>';
+    const row = x => {
+      const what = x.kind === 'sol' ? (x.dir === 'in' ? 'Received' : 'Sent')
+        : x.kind === 'swap' ? (x.dir === 'buy' ? 'Bought' : 'Sold') : (x.dir === 'in' ? 'Got' : 'Sent');
+      const coin = x.mint ? `<a href="#" data-map="${esc(x.mint)}" title="${esc(x.mint)} · open its bubble map">${x.symbol ? '$' + esc(x.symbol) : esc(short(x.mint))}</a>` : '';
+      const amt = x.kind === 'token' ? `${x.amount >= 1e6 ? (x.amount / 1e6).toFixed(1) + 'M' : x.amount >= 1e3 ? (x.amount / 1e3).toFixed(1) + 'K' : (+x.amount).toFixed(2)} ${coin}` : x.kind === 'swap' ? `${coin} for ${solS(x.sol)}` : solS(x.sol);
+      const other = x.other ? `<span class="muted">${x.dir === 'in' ? 'from' : 'to'}</span> <a href="#" data-open="${esc(x.other)}" title="${esc(x.other)} · open its transfers">${esc(x.otherName || short(x.other))}</a>${ctxPct(x.other) != null ? ` <span class="muted">(holds ${pctS(ctxPct(x.other))})</span>` : ''}` : '';
+      return `<div class="hrow"><span class="hd ${esc(x.dir)}">${what}</span><span class="ha">${amt} ${other}</span><span class="ht">${ago(x.at)}</span><a class="ss" href="https://solscan.io/tx/${esc(x.sig)}" target="_blank" rel="noopener" title="Transaction on Solscan">tx</a></div>`;
+    };
+    return h.items.map(row).join('') + (h.done ? '' : `<button type="button" class="ghost small hmore" data-histmore="${esc(w)}"${h.loading ? ' disabled' : ''}>${h.loading ? 'Loading…' : 'Load older'}</button>`) + (h.error ? `<div class="muted small">${esc(h.error)}</div>` : '');
+  }
+  function paintHist(w) { document.querySelectorAll('.hist').forEach(el => { if (el.dataset.hist === w) el.innerHTML = histHTML(w); }); }
+  async function loadHistory(w, more = false) {
+    const h = hist.get(w) || { items: [], next: null, done: false, loading: false };
+    if (h.loading || (more && h.done) || (!more && h.items.length)) return;
+    h.loading = true; h.error = null; hist.set(w, h); paintHist(w);
+    try {
+      const r = await post('/api/whales/history', { wallet: w, before: more ? h.next : null, limit: 20 });
+      h.items.push(...r.items); h.next = r.next; h.done = r.done;
+    } catch (e) { h.error = e.message; }
+    h.loading = false; paintHist(w);
+  }
+  // Whenever a card with a history box appears, fill it.
+  new MutationObserver(() => document.querySelectorAll('.hist[data-hist]').forEach(el => { if (!hist.has(el.dataset.hist)) loadHistory(el.dataset.hist); }))
+    .observe(document.getElementById('bmSide'), { childList: true, subtree: true });
+
   async function mapIt(q, opts = {}) {
     const m = String(q || '').match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
     if (!m) return toast({ title: 'Paste a coin (CA) or a wallet address' }, 2000);
@@ -337,15 +394,19 @@
     } catch (e) { toast({ title: e.message }, 4000); if (!mapData) $('#bmEmpty').hidden = false; }
     finally { if (mapping === m[0]) { prog.hidden = true; mapping = null; } }
   }
-  $('#bmForm').onsubmit = e => { e.preventDefault(); mapIt($('#bmQ').value); };
+  $('#bmForm').onsubmit = e => { e.preventDefault(); coinCtx = null; mapIt($('#bmQ').value); };
   document.addEventListener('click', e => {
     if (e.target.closest('a[target="_blank"]')) return;
     const s = e.target.closest('[data-bmsel]');
     if (s && !e.target.closest('[data-open]')) { e.preventDefault(); const n = bm.select(s.dataset.bmsel); if (n) paintSide(n); return; }
     const o = e.target.closest('[data-open]');
-    if (o) { e.preventDefault(); mapIt(o.dataset.open, { kind: 'wallet' }); return; }
+    if (o) { e.preventDefault(); openWallet(o.dataset.open); return; }
+    const back = e.target.closest('[data-backcoin]');
+    if (back && coinCtx) { e.preventDefault(); const d = coinCtx.data; coinCtx = null; mapping = null; showMap(d); history.replaceState(null, '', '?' + (MAP_VIEW ? 'view=map&' : '') + 'map=' + d.mint); return; }
+    const more = e.target.closest('[data-histmore]');
+    if (more) { e.preventDefault(); loadHistory(more.dataset.histmore, true); return; }
     const a = e.target.closest('[data-map]');
-    if (a) { e.preventDefault(); mapIt(a.dataset.map, { kind: 'coin' }); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (a) { e.preventDefault(); coinCtx = null; mapIt(a.dataset.map, { kind: 'coin' }); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     const c = e.target.closest('[data-copy]');
     if (c) { e.preventDefault(); navigator.clipboard?.writeText(c.dataset.copy).then(() => { const t = c.textContent; c.textContent = 'Copied'; setTimeout(() => { c.textContent = t; }, 1200); }).catch(() => {}); }
   });
@@ -402,6 +463,7 @@
   });
   function rdOpen(mint) {
     rdSel = mint; rdDraw();
+    coinCtx = null;
     mapIt(mint, { kind: 'coin' }); // draws instantly from what the list already has
     post('/api/radar', { mint }).then(d => { if (d && d.mint) { radarItems.set(mint, { ...radarItems.get(mint), ...d }); if (mapData?.mint === mint) paintSide(selId ? mapData.nodes.find(n => n.id === selId) : null); } }).catch(() => {});
   }
