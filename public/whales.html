@@ -28,6 +28,20 @@
       </form>
     </div>
     <div class="bm-body">
+      <aside class="radar" id="radar" data-pop="launch-watchlist" data-pop-label="Live watchlist" data-pop-size="420x800">
+        <div class="rd-head"><b>Live watchlist</b><span class="rd-st" id="rdSt">…</span><span class="grow"></span><button type="button" class="ghost small" id="rdRulesBtn" title="When a coin goes on the list and when it pings">Rules</button></div>
+        <div class="segtabs rd-tabs" id="rdTabs"><button data-rf="all" class="on">All</button><button data-rf="hot">Major</button><button data-rf="dev">Dev buys</button><button data-rf="pool">New pools</button></div>
+        <form class="rd-rules" id="rdRules" hidden>
+          <label>Ignore buys under <input type="number" name="minBuySol" min="0.1" step="0.5"> SOL</label>
+          <label>List a coin at <input type="number" name="watchSol" min="1" step="5"> SOL of big buys</label>
+          <label>…or a dev buy of <input type="number" name="devSol" min="0.1" step="1"> SOL</label>
+          <label>Major alert at <input type="number" name="alertSol" min="1" step="10"> SOL in the first <input type="number" name="windowMin" min="1" max="30" step="1"> min</label>
+          <label>New pool with <input type="number" name="poolUsd" min="1000" step="5000"> $ liquidity</label>
+          <label>…or <input type="number" name="poolVolUsd" min="1000" step="10000"> $ volume in 5 min</label>
+          <label class="chk"><input type="checkbox" name="enabled"> Watch launches</label>
+        </form>
+        <div class="rd-list" id="rdList"></div>
+      </aside>
       <div class="bm-wrap">
         <canvas id="bm"></canvas>
         <div class="bm-empty" id="bmEmpty"><b>Paste a coin or a wallet.</b><span><b>Coin:</b> every bubble is a holder, sized by its share of supply. Connected wallets share a colour and a line (same funder, funded each other, passed the token, bought in the same transaction). Amber rings = wallets funded right before launch.<br><b>Wallet:</b> who funded it, who it paid, who paid it, with SOL amounts on the arrows. Double-click any bubble to open its connections.</span></div>

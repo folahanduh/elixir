@@ -21,6 +21,7 @@ const { checkCoin, activePreset } = require('./lib/filters');
 const { padsFrom, classify } = require('./lib/launchpads');
 const { KolWatcher, isWallet, parseWalletList } = require('./lib/kols');
 const { WhaleWatcher } = require('./lib/whales');
+const { LaunchRadar } = require('./lib/radar');
 const { RiskEngine } = require('./lib/risk');
 const updater = require('./lib/update');
 const kw = require('./lib/keywords');
@@ -285,7 +286,7 @@ function send(event, data) {
   const mux = `data: {"e":${JSON.stringify(event)},"d":${json}}\n\n`; // one stream shared by every Elixir window
   for (const res of clients) res.write(res.mux ? mux : named);
 }
-const helloPayload = () => ({ version: VERSION, config: publicConfig(), status: statusPayload(), items: items.slice(-150), trends: trendsSnapshot(), streams: streams.snapshot(), plays: plays.list(), playStats: plays.stats(), kols: kols.snapshot(), whales: whales.snapshot(), riskMemory: risk.memorySummary() });
+const helloPayload = () => ({ version: VERSION, config: publicConfig(), status: statusPayload(), items: items.slice(-150), trends: trendsSnapshot(), streams: streams.snapshot(), plays: plays.list(), playStats: plays.stats(), kols: kols.snapshot(), whales: whales.snapshot(), radar: radar.snapshot(), riskMemory: risk.memorySummary() });
 
 // Same word looked up again within a minute: reuse the answer. Max 4 lookups at a time.
 const lookupCache = new Map();
@@ -572,6 +573,16 @@ const whales = new WhaleWatcher({
 kols.onOther = (wallet, sig, logs) => whales.fromKol(wallet, sig, logs);
 kols.onBuy = ev => whales.kolBuy(ev).catch(() => {});
 
+// ---------- Launch radar: big money into brand-new coins (live watchlist next to the bubble map) ----------
+const radar = new LaunchRadar({
+  getConfig: () => cfg,
+  send,
+  demo: DEMO,
+  onAlert(it, title, important) {
+    alert({ kind: 'radar', title, important, item: { id: 'radar-' + it.mint + '-' + title.slice(0, 14), source: 'radar', author: it.symbol ? '$' + it.symbol : 'launch', text: title, url: `https://axiom.trade/meme/${it.mint}` } });
+  },
+});
+
 /**
  * Which alerts are worth a ping (sound, pop-up, phone). Everything else is listed silently in Alerts.
  * Important = your watchlist words, coins actually launching or running, KOL clusters, streams going live.
@@ -580,7 +591,7 @@ function isImportant(a) {
   if (cfg.notify === 'all') return true;
   const t = String(a.title || '');
   if (/^Test alert/.test(t)) return true;
-  if (/^(LIVE|SOON|KOL CLUSTER|BACK ONLINE|FILTER PASS|WHALE BUY|WHALE DEPLOY|WHALE VOLUME) ·/.test(t)) return true;
+  if (/^(LIVE|SOON|KOL CLUSTER|BACK ONLINE|FILTER PASS|WHALE BUY|WHALE DEPLOY|WHALE VOLUME|LAUNCH VOLUME|BIG POOL) ·/.test(t)) return true;
   if (/^DEPLOY · 1st /.test(t)) return true;                       // the first coin for a play
   if (/^\d+(K|M) · /.test(t)) return !/^20K/.test(t) || /stream/.test(t); // mcap milestones (20K only for stream coins)
   if (a.streamId) return (a.tags || []).includes('WATCH');          // stream lines: only your watchlist words
@@ -1058,6 +1069,20 @@ const server = http.createServer(async (req, res) => {
           whales.restart();
         }
         return json(res, 200, { ...whales.snapshot(), settings: whales.cfg, labels: whales.cfg.labels || {} });
+      }
+      if (url.pathname === '/api/radar') {
+        if (body.mint) return json(res, 200, radar.get(String(body.mint)) || { error: 'not on the watchlist any more' });
+        if (body.op === 'settings') {
+          saveDisk(disk => {
+            const r = disk.radar = { ...(disk.radar || {}) };
+            const num = (k, lo, hi) => { if (k in body) r[k] = Math.max(lo, Math.min(hi, Number(body[k]) || lo)); };
+            num('minBuySol', 0.1, 1000); num('watchSol', 1, 100000); num('alertSol', 1, 100000); num('devSol', 0.1, 10000); num('windowMin', 1, 30); num('poolUsd', 1000, 1e9); num('poolVolUsd', 1000, 1e9);
+            if ('enabled' in body) r.enabled = Boolean(body.enabled);
+          });
+          cfg = readConfig();
+          if ('enabled' in body) radar.restart();
+        }
+        return json(res, 200, radar.snapshot());
       }
       if (url.pathname === '/api/whales/map') {
         const m = String(body.q || '').match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);

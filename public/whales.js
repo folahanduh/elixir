@@ -23,6 +23,7 @@
   const chip = (w, name) => `<a class="wa ${name && name !== short(w) && !/^fresh /.test(name) ? 'named' : ''}" data-trace="${esc(w)}" title="${esc(w)} · click to trace">${esc(name && name !== short(w) ? name : short(w))}</a>`;
 
   let events = [], filter = 'all', solscan = false;
+  let radarSection = () => '';
   // Bubble map on its own (sidebar → Bubble map): just the map, full height.
   const MAP_VIEW = new URLSearchParams(location.search).get('view') === 'map';
   if (MAP_VIEW) {
@@ -276,6 +277,7 @@
       </div>
       <div class="lks"><a href="https://axiom.trade/meme/${esc(d.mint)}" target="_blank" rel="noopener">Axiom</a><a href="https://gmgn.ai/sol/token/${esc(d.mint)}" target="_blank" rel="noopener">GMGN</a><a href="https://solscan.io/token/${esc(d.mint)}#holders" target="_blank" rel="noopener">Solscan</a><a href="#" data-trace-coin="${esc(d.mint)}">Early buyers</a></div>`;
     if (sel) html += cardHTML(sel, false);
+    html += radarSection(d.mint);
     html += `<div class="bm-sec">CLUSTERS</div>` + (d.clusters.length ? d.clusters.slice(0, 12).map(c => `<div class="bm-row ${sel && sel.cluster === c.id ? 'on' : ''}" data-bmsel="${esc(c.wallets[0])}"><span class="dot" style="background:${col(c.id)}"></span><span class="grow">Cluster ${c.id} · ${c.wallets.length} wallets${c.hubs.length ? ' · shared funder' : ''}</span><span class="pct">${pctS(c.pct)}</span></div>`).join('') : `<div class="muted">No connected holders found among the top ${d.shown}.</div>`);
     html += `<div class="bm-sec">HOLDERS</div>` + d.nodes.filter(n => n.kind !== 'hub').map(n => `<div class="bm-row ${sel === n ? 'on' : ''}" data-bmsel="${esc(n.id)}"><span class="dot" style="background:${n.kind === 'contract' ? '#2a2d35' : n.cluster ? col(n.cluster) : '#3b3f4b'}"></span><span class="grow">#${n.rank} ${esc(n.label || n.name)}${n.preFunded ? ' <span class="amber">· pre-funded</span>' : n.fresh ? ' <span class="muted">· fresh</span>' : ''}</span><span class="pct">${pctS(n.pct)}</span></div>`).join('');
     $('#bmSide').innerHTML = html;
@@ -315,6 +317,75 @@
 
   // ---------- live ----------
   const es = window.nrES || (window.nrES = new EventSource('/api/events'));
+  // ---------- live watchlist (launch radar) ----------
+  const radarItems = new Map();
+  let rdFilter = 'all', rdSel = null, solUsd = null;
+  const solTxt = s => (s >= 100 ? Math.round(s).toLocaleString() : s >= 10 ? s.toFixed(1) : s.toFixed(2)) + ' SOL';
+  const age = t => { const m = Math.max(0, (Date.now() - t) / 60000); return m < 1 ? Math.round(m * 60) + 's' : m < 90 ? Math.round(m) + 'm' : (m / 60).toFixed(1) + 'h'; };
+  const initialOf = it => esc((it.symbol || '?')[0]);
+  function rdHTML(it) {
+    const rate = it.solUsd || solUsd;
+    const usdIn = it.inSol && rate ? ' · ' + usd(it.inSol * rate) : '';
+    const big = it.source === 'pool' ? `<b>${usd(it.liqUsd || 0)}</b><span>liquidity</span>` : `<b>${solTxt(it.inSol || 0)}</b><span>big money in${usdIn}</span>`;
+    const meta = it.source === 'pool'
+      ? [it.vol5mUsd ? usd(it.vol5mUsd) + ' vol 5m' : null, it.buyersCount != null ? it.buyersCount + ' buyers 5m' : null].filter(Boolean).join(' · ')
+      : [it.devSol ? `dev ${solTxt(it.devSol)}` : 'dev bought nothing', `${it.bigBuys} big buy${it.bigBuys === 1 ? '' : 's'}`, `${it.wallets} wallet${it.wallets === 1 ? '' : 's'}`].join(' · ');
+    const pic = it.image ? `<img src="${esc(it.image)}" alt="" loading="lazy" data-fallback="${initialOf(it)}">` : `<i>${initialOf(it)}</i>`;
+    return `<div class="rd-it ${it.hot ? 'hot' : ''} ${rdSel === it.mint ? 'sel' : ''}" data-rd="${esc(it.mint)}">
+      <div class="rd-top">${pic}
+        <div class="grow"><div class="rd-name"><b>${it.symbol ? '$' + esc(it.symbol) : 'Unnamed'}</b>${it.hot ? '<span class="rd-major">MAJOR</span>' : ''}</div>
+          <div class="rd-sub">${esc(it.name || '')}${it.name ? ' · ' : ''}${esc(it.pad || '')} · ${age(it.createdAt)} old${it.mcUsd ? ' · mc ' + usd(it.mcUsd) : ''}</div></div>
+        <div class="rd-sol">${big}</div></div>
+      <div class="rd-meta">${meta}</div>
+      <div class="rd-ca"><code>${esc(it.mint)}</code><button type="button" class="ghost small cp" data-copy="${esc(it.mint)}">Copy CA</button></div>
+      <div class="lks"><a href="#" data-rdmap="${esc(it.mint)}">Map holders</a><a href="https://axiom.trade/meme/${esc(it.mint)}" target="_blank" rel="noopener">Axiom</a><a href="https://gmgn.ai/sol/token/${esc(it.mint)}" target="_blank" rel="noopener">GMGN</a>${it.source !== 'pool' ? `<a href="https://pump.fun/coin/${esc(it.mint)}" target="_blank" rel="noopener">pump.fun</a>` : ''}${it.twitter && /^https:\/\//.test(it.twitter) ? `<a href="${esc(it.twitter)}" target="_blank" rel="noopener">X</a>` : ''}</div>
+    </div>`;
+  }
+  let rdFrame = 0;
+  const rdRender = () => { if (!rdFrame) rdFrame = setTimeout(() => { rdFrame = 0; rdDraw(); }, 300); };
+  function rdDraw() {
+    const all = [...radarItems.values()].sort((a, b) => (Number(b.hot) - Number(a.hot)) || (b.lastAt || b.createdAt) - (a.lastAt || a.createdAt));
+    const list = all.filter(it => rdFilter === 'all' || (rdFilter === 'hot' && it.hot) || (rdFilter === 'dev' && it.why === 'dev') || (rdFilter === 'pool' && it.source === 'pool')).slice(0, 80);
+    $('#rdList').innerHTML = list.length ? list.map(rdHTML).join('') : `<div class="rd-empty">${all.length ? 'Nothing of this kind right now.' : '<b>Watching new launches.</b> A coin shows up here when big money goes into it in its first minutes: a big dev buy, big buys piling in (small buys ignored), or a new pool opened with big liquidity. Click one to map its holders.'}</div>`;
+    // broken coin pictures fall back to the first letter
+    $('#rdList').querySelectorAll('img[data-fallback]').forEach(img => { img.onerror = () => { const i = document.createElement('i'); i.textContent = img.dataset.fallback; img.replaceWith(i); }; });
+  }
+  async function rdOpen(mint) {
+    rdSel = mint; rdDraw();
+    try { const d = await post('/api/radar', { mint }); if (d && d.mint) radarItems.set(mint, { ...radarItems.get(mint), ...d }); } catch {}
+    mapIt(mint, { kind: 'coin' });
+  }
+  $('#rdList').addEventListener('click', e => {
+    if (e.target.closest('a[target], [data-copy]')) return;
+    const m = e.target.closest('[data-rdmap]') || e.target.closest('[data-rd]');
+    if (!m) return;
+    e.preventDefault();
+    rdOpen(m.dataset.rdmap || m.dataset.rd);
+  });
+  $('#rdTabs').onclick = e => { const b = e.target.closest('[data-rf]'); if (!b) return; rdFilter = b.dataset.rf; $('#rdTabs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); rdDraw(); };
+  $('#rdRulesBtn').onclick = () => { $('#rdRules').hidden = !$('#rdRules').hidden; };
+  const RD_KEYS = ['minBuySol', 'watchSol', 'devSol', 'alertSol', 'windowMin', 'poolUsd', 'poolVolUsd'];
+  const paintRules = s => { if (!s) return; const f = $('#rdRules'); for (const k of RD_KEYS) if (document.activeElement !== f[k]) f[k].value = s[k]; f.enabled.checked = s.enabled !== false; };
+  let rdSaveT = null;
+  $('#rdRules').addEventListener('input', () => {
+    clearTimeout(rdSaveT);
+    rdSaveT = setTimeout(async () => {
+      const f = $('#rdRules'), body = { op: 'settings', enabled: f.enabled.checked };
+      for (const k of RD_KEYS) body[k] = Number(f[k].value);
+      try { const d = await post('/api/radar', body); paintRules(d.settings); toast({ kind: 'fresh', title: 'Saved' }, 1200); } catch {}
+    }, 600);
+  });
+  /** In the map's side panel: the wallets that put the big money in (for a coin from the watchlist). */
+  radarSection = mint => {
+    const it = radarItems.get(mint);
+    if (!it || !it.buyers?.length) return '';
+    return '<div class="bm-sec">BIG MONEY IN · FIRST MINUTES</div>' + it.buyers.slice(0, 15).map(b => `<div class="bm-row" data-open="${esc(b.wallet)}" title="Open this wallet's connections"><span class="dot" style="background:${b.dev ? '#f0b84a' : '#7c6dff'}"></span><span class="grow">${b.dev ? '<b>Dev</b> · ' : ''}${esc(short(b.wallet))}${b.buys > 1 ? ` <span class="muted">· ${b.buys} buys</span>` : ''}</span><span class="pct">${solTxt(b.sol)}</span></div>`).join('');
+  };
+  setInterval(() => { if (radarItems.size) rdDraw(); }, 15000); // keep the ages fresh
+  es.addEventListener('radar', e => { const it = JSON.parse(e.data); radarItems.set(it.mint, { ...radarItems.get(it.mint), ...it }); if (it.solUsd) solUsd = it.solUsd; rdRender(); });
+  es.addEventListener('radar-status', e => { const d = JSON.parse(e.data); $('#rdSt').textContent = d.status; if (d.solUsd) solUsd = d.solUsd; });
+  post('/api/radar', {}).then(d => { for (const it of d.items || []) radarItems.set(it.mint, it); solUsd = d.solUsd; $('#rdSt').textContent = d.status; paintRules(d.settings); rdDraw(); }).catch(() => rdDraw());
+
   es.addEventListener('hello', e => { const d = JSON.parse(e.data).whales; if (!d) return; events = d.events || []; $('#whStatus').textContent = d.status; render(); });
   es.addEventListener('whale', e => { const ev = JSON.parse(e.data); events = [ev, ...events.filter(x => !(x.id === ev.id && x.kind === ev.kind))].slice(0, 300); render(); });
   es.addEventListener('whale-status', e => { $('#whStatus').textContent = JSON.parse(e.data).status; });
