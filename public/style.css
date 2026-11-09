@@ -1099,3 +1099,6 @@ html.qb-off .qb { display: none !important; }
 .mx-risk li b { color: #ff8da2; font-weight: 600; }
 .mx-tw.chain { border-color: rgba(124, 109, 255, .28); background: rgba(124, 109, 255, .06); }
 .mx-tw.chain em { color: var(--brand-2) !important; }
+
+.mx-tw.news, .mx-tw.reddit { border-color: rgba(47, 209, 139, .28); background: rgba(47, 209, 139, .05); }
+.mx-tw.news em, .mx-tw.reddit em { color: var(--accent) !important; }

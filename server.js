@@ -1319,6 +1319,7 @@ server.listen(cfg.port, '127.0.0.1', () => {
     try { require('child_process').spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref(); } catch {}
   }
   if (!process.env.CI) solPrice.start(send);
+  if (!process.env.CI && !DEMO) require('./lib/news').start(); // crypto outlets, read every 3 minutes
   require('./lib/stream/capture').refreshTools();
   if (!DEMO && !process.env.CI) require('./lib/bin').ensureTools().then(() => require('./lib/stream/capture').refreshTools());
   // Right after an update there's nothing new to fetch: skip the start check.

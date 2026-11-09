@@ -121,6 +121,7 @@
     .grip:hover i, .card.moving .grip i { background: #9a8fff; }
     ul.risk li.wait { color: #8b909c; } ul.risk li.wait::before { animation: dot 1s infinite ease-in-out; }
     ul.risk li b { color: #ff8da2; font-weight: 600; }
+    .tw.news, .tw.reddit { border-color: rgba(47,209,139,.28); background: rgba(47,209,139,.05); } .tw.news em, .tw.reddit em { color: #2fd18b; }
     .tw.chain { border-color: rgba(124,109,255,.28); background: rgba(124,109,255,.06); } .tw.chain em { color: #9a8fff; }
     @media (prefers-reduced-motion: reduce) { .legs, .legs .r { animation: none; } }
   `);
@@ -416,7 +417,7 @@
     if (!s) return '';
     const [label, cls] = NARR[r.ai?.narrative?.verdict || s.verdict] || NARR.unclear;
     const o = s.origin, tw = s.tweets; // oldest first: how it built up
-    const row = t => t.via === 'chain' ? `<a class="tw chain" href="${h(safe(t.url))}" target="_blank" rel="noopener"><span class="tw-h"><b>${h(t.author)}</b><em>on-chain</em><span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="tw-t">${h(t.text)}</span></a>` : `<a class="tw ${t.promo ? 'promo' : ''}" href="${h(safe(t.url))}" target="_blank" rel="noopener"><span class="tw-h"><b>@${h(t.author)}</b>${t.followers ? `<em>${fol(t.followers)}</em>` : ''}${t.verified ? '<em>✓</em>' : ''}${t.vip ? '<em>tracked</em>' : ''}<span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="tw-t">${h(t.text)}</span></a>`;
+    const row = t => (t.via === 'news' || t.via === 'reddit') ? `<a class="tw ${t.via}" href="${h(safe(t.url))}" target="_blank" rel="noopener"><span class="tw-h"><b>${h(t.author)}</b><em>${t.via}</em><span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="tw-t">${h(t.text)}</span></a>` : t.via === 'chain' ? `<a class="tw chain" href="${h(safe(t.url))}" target="_blank" rel="noopener"><span class="tw-h"><b>${h(t.author)}</b><em>on-chain</em><span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="tw-t">${h(t.text)}</span></a>` : `<a class="tw ${t.promo ? 'promo' : ''}" href="${h(safe(t.url))}" target="_blank" rel="noopener"><span class="tw-h"><b>@${h(t.author)}</b>${t.followers ? `<em>${fol(t.followers)}</em>` : ''}${t.verified ? '<em>✓</em>' : ''}${t.vip ? '<em>tracked</em>' : ''}<span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="tw-t">${h(t.text)}</span></a>`;
     return `<div class="sec">WHY IT'S MOVING</div>
       <div class="narr ${cls}"><b>${label}</b><span>${h(r.ai?.narrative?.reason || s.reasons[0] || '')}</span></div>
       ${s.reasons.slice(1, 3).map(x => `<div class="reason">${h(x)}</div>`).join('')}
