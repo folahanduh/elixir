@@ -945,3 +945,17 @@ html.qb-off .qb { display: none !important; }
 .wm-p button { height: 24px !important; padding: 0 7px !important; font-size: 11.5px !important; }
 .wm-foot { color: var(--dim); font-size: 11.5px; line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; }
 .toast.tq a { color: var(--brand-2); }
+
+.wm-send { display: flex; flex-direction: column; gap: 6px; }
+.wm-send select, .wm-send input { padding: 5px 9px; font-size: 12.5px; }
+.wm-send .wm-row input[data-send="amount"] { flex: 1; width: auto; }
+.wm-send .wm-row select { flex: 0 0 auto; width: auto; }
+.wm-send .wm-row input[data-send="mint"] { flex: 1; width: auto; font-family: var(--mono); font-size: 11.5px; }
+.wm-send input[data-send="to"] { font-family: var(--mono); font-size: 11.5px; }
+.wm-review { font-size: 12.5px; line-height: 1.5; }
+.wm-review:empty { display: none; }
+.wm-review.bad { color: #ff9aab; }
+.wm-review.ok { background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; }
+.wm-review code { font-family: var(--mono); }
+.wm-review .wm-row { margin-top: 6px; }
+.wmenu { max-height: calc(100vh - var(--sbar) - 20px); overflow: auto; }

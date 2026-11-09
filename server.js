@@ -1081,6 +1081,9 @@ const server = http.createServer(async (req, res) => {
         try {
           if (url.pathname === '/api/trade/build') return json(res, 200, await trade.build(rpcUrl, body));
           if (url.pathname === '/api/trade/status') return json(res, 200, await trade.status(rpcUrl, String(body.sig || '')));
+          if (url.pathname === '/api/trade/blockhash') return json(res, 200, await trade.blockhash(rpcUrl));
+          if (url.pathname === '/api/trade/recipient') return json(res, 200, await trade.recipient(rpcUrl, String(body.address || '').trim()));
+          if (url.pathname === '/api/trade/token-accounts') return json(res, 200, await trade.tokenAccounts(rpcUrl, String(body.wallet || ''), String(body.mint || '')));
           if (url.pathname === '/api/trade/balance') return json(res, 200, { sol: await trade.balance(rpcUrl, String(body.wallet || '')) });
           if (url.pathname === '/api/trade/positions') {
             const mints = (Array.isArray(body.mints) ? body.mints : []).filter(m => isWallet(m)).slice(0, 30);
