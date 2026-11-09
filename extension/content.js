@@ -14,7 +14,8 @@
   host.id = 'elixir-mascot-host';
   host.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;';
   const root = host.attachShadow({ mode: 'closed' });
-  root.innerHTML = `<style>
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(`
     :host { all: initial; }
     * { box-sizing: border-box; font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
     .mx { position: fixed; top: -4px; right: var(--right, 120px); width: var(--s, 46px); height: calc(var(--s, 46px) * 1.45); cursor: grab; user-select: none; filter: drop-shadow(0 4px 10px rgba(91, 77, 240, .45)); transition: filter .2s, transform .45s cubic-bezier(.3, 1.4, .5, 1); }
@@ -63,7 +64,9 @@
     .wait i:nth-child(2) { animation-delay: .15s; } .wait i:nth-child(3) { animation-delay: .3s; margin-right: 6px; }
     @keyframes dot { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; transform: translateY(-3px); } }
     @media (prefers-reduced-motion: reduce) { .legs, .legs .r { animation: none; } }
-  </style>
+  `);
+  root.adoptedStyleSheets = [sheet];
+  root.innerHTML = `
   <div class="mx" title="Elixir · Alt+X: box a coin · drag me along the top">
     <svg viewBox="0 0 64 92" aria-hidden="true">
       <defs>
@@ -82,7 +85,7 @@
       <path d="M32 1C29.5 4.5 13 22 13 37a19 19 0 0 0 38 0C51 22 34.5 4.5 32 1Z" fill="none" stroke="#211a7a" stroke-opacity=".5" stroke-width="1.3"/>
     </svg>
   </div>`;
-  (document.body || document.documentElement).append(host);
+  document.documentElement.append(host); // on <html>: a transformed <body> can't drag it off-screen
   const mx = root.querySelector('.mx'), pupils = root.querySelector('.pupils'), face = root.querySelector('.face');
 
   // Size follows the window: smaller windows get a smaller mascot, still sitting on the top edge.

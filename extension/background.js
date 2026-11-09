@@ -3,11 +3,26 @@
 
 const BASES = ['http://localhost:8787', 'http://127.0.0.1:8787', 'http://penguin.linux.test:8787']; // last one: Chromebook Linux
 
+// Put the mascot into a tab (pages opened before the extension was installed don't have it yet).
+const canRun = url => /^(https?|file):/.test(url || '') && !/^https:\/\/chrome(webstore)?\.google\.com\//.test(url);
+async function inject(tabId) {
+  try { await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }); return true; } catch { return false; }
+}
+// Send to the tab's mascot; if it isn't there yet, add it first.
+async function tell(tab, msg) {
+  if (!tab?.id || !canRun(tab.url)) return;
+  try { await chrome.tabs.sendMessage(tab.id, msg); }
+  catch { if (await inject(tab.id)) setTimeout(() => chrome.tabs.sendMessage(tab.id, msg).catch(() => {}), 150); }
+}
+// Right after install / reload: add the mascot to every tab that's already open.
+chrome.runtime.onInstalled.addListener(async () => {
+  for (const t of await chrome.tabs.query({})) if (canRun(t.url)) inject(t.id);
+});
 chrome.commands.onCommand.addListener(async cmd => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id != null) chrome.tabs.sendMessage(tab.id, { type: cmd }).catch(() => {});
+  tell(tab, { type: cmd });
 });
-chrome.action.onClicked.addListener(tab => { if (tab?.id != null) chrome.tabs.sendMessage(tab.id, { type: 'snip' }).catch(() => {}); });
+chrome.action.onClicked.addListener(tab => tell(tab, { type: 'snip' }));
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg?.type !== 'lens') return;
