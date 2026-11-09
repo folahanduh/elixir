@@ -147,7 +147,7 @@ function upsertSession(m) {
   s.el.querySelector('.plat').textContent = s.platform || s.kind;
   const st = s.el.querySelector('.st');
   st.textContent = s.status;
-  st.className = 'st ' + (/error|missing|not installed|failed|exited|ERROR/i.test(s.status) ? 'bad' : /live|listening|receiving/.test(s.status) ? 'live' : '');
+  st.className = 'st ' + (/error|missing|not installed|failed|exited|refused|rejected|out of credit|can't|couldn't|speech-to-text: off/i.test(s.status) ? 'bad' : /live|listening|receiving/.test(s.status) ? 'live' : '');
   const open = s.el.querySelector('.open');
   const e = s.embed;
   open.hidden = !(e && e.open);
