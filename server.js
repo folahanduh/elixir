@@ -851,8 +851,22 @@ function readBody(req) {
   });
 }
 
+// Websites you visit must not be able to drive Elixir on your PC (change keys, read the feed).
+// Only Elixir's own pages (and, for a few endpoints, browser extensions: the Elixir mascot and the
+// X bridge) may call the API. DNS-rebinding is blocked by only answering to localhost host names.
+const EXT_OK = new Set(['/api/lens', '/api/ingest', '/api/bridge-ping', '/api/ping']);
+function allowed(req, url) {
+  const host = String(req.headers.host || '').toLowerCase();
+  if (!/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host)) return false;
+  const origin = req.headers.origin;
+  if (!origin || req.method === 'GET') return true; // no Origin = not a browser page (curl, the server itself)
+  if (/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(origin)) return true;
+  return /^(chrome|moz|safari-web)-extension:\/\//i.test(origin) && EXT_OK.has(url.pathname);
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
+  if (!allowed(req, url)) { res.writeHead(403, { 'content-type': 'text/plain' }); return res.end('Elixir only answers its own pages.'); }
   try {
     if (req.method === 'GET' && url.pathname === '/api/events') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
@@ -1096,6 +1110,17 @@ const server = http.createServer(async (req, res) => {
           }
         } catch (e) { return json(res, 400, { error: e.message }); }
         return json(res, 404, { error: 'not found' });
+      }
+      // The mascot: research the coin in whatever the user boxed or highlighted
+      if (url.pathname === '/api/lens') {
+        const input = { text: String(body.text || '').slice(0, 4000), mints: (Array.isArray(body.mints) ? body.mints : []).map(String).filter(m => isWallet(m)).slice(0, 10) };
+        try {
+          const out = await require('./lib/lens').lens(input, {
+            getConfig: () => cfg, radar, risk, kols, whales, pageUrl: /^https?:\/\//.test(String(body.pageUrl || '')) ? String(body.pageUrl).slice(0, 300) : '',
+            rpc: cfg.keys.solanaRpc ? (m, p) => whales.rpc(m, p) : null,
+          });
+          return json(res, 200, { ...out, ai: out.ai || null, aiAvailable: Boolean(cfg.keys.anthropic) });
+        } catch (e) { return json(res, 500, { error: e.message }); }
       }
       if (url.pathname === '/api/sol') {
         const range = ['1h', '1d', '7d'].includes(body.range) ? body.range : '1d';

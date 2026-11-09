@@ -298,6 +298,7 @@
   solEl.addEventListener('click', openSolPop);
 
   { const ts = document.createElement('script'); ts.src = '/trade.js'; ts.defer = true; document.body.append(ts); }
+  { const ms = document.createElement('script'); ms.src = '/mascot.js'; ms.defer = true; document.body.append(ms); }
   // Text size (A− / A / A+): scales the whole page, remembered per browser.
   const ZOOMS = [0.9, 1, 1.1, 1.2, 1.32];
   const applyZoom = z => { document.documentElement.style.zoom = String(z); };
