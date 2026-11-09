@@ -22,6 +22,7 @@ const { padsFrom, classify } = require('./lib/launchpads');
 const { KolWatcher, isWallet, parseWalletList } = require('./lib/kols');
 const { WhaleWatcher } = require('./lib/whales');
 const { LaunchRadar } = require('./lib/radar');
+const solPrice = require('./lib/solprice');
 const { RiskEngine } = require('./lib/risk');
 const updater = require('./lib/update');
 const kw = require('./lib/keywords');
@@ -286,7 +287,7 @@ function send(event, data) {
   const mux = `data: {"e":${JSON.stringify(event)},"d":${json}}\n\n`; // one stream shared by every Elixir window
   for (const res of clients) res.write(res.mux ? mux : named);
 }
-const helloPayload = () => ({ version: VERSION, config: publicConfig(), status: statusPayload(), items: items.slice(-150), trends: trendsSnapshot(), streams: streams.snapshot(), plays: plays.list(), playStats: plays.stats(), kols: kols.snapshot(), whales: whales.snapshot(), radar: radar.snapshot(), riskMemory: risk.memorySummary() });
+const helloPayload = () => ({ version: VERSION, config: publicConfig(), status: statusPayload(), items: items.slice(-150), trends: trendsSnapshot(), streams: streams.snapshot(), plays: plays.list(), playStats: plays.stats(), kols: kols.snapshot(), whales: whales.snapshot(), radar: radar.snapshot(), solPrice: solPrice.snapshot(), riskMemory: risk.memorySummary() });
 
 // Same word looked up again within a minute: reuse the answer. Max 4 lookups at a time.
 const lookupCache = new Map();
@@ -1070,6 +1071,10 @@ const server = http.createServer(async (req, res) => {
         }
         return json(res, 200, { ...whales.snapshot(), settings: whales.cfg, labels: whales.cfg.labels || {} });
       }
+      if (url.pathname === '/api/sol') {
+        const range = ['1h', '1d', '7d'].includes(body.range) ? body.range : '1d';
+        return json(res, 200, { ...solPrice.snapshot(), range, points: await solPrice.history(range) });
+      }
       if (url.pathname === '/api/radar') {
         if (body.mint) return json(res, 200, radar.get(String(body.mint)) || { error: 'not on the watchlist any more' });
         if (body.op === 'settings') {
@@ -1223,6 +1228,7 @@ server.listen(cfg.port, '127.0.0.1', () => {
     const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]] : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
     try { require('child_process').spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref(); } catch {}
   }
+  if (!process.env.CI) solPrice.start(send);
   require('./lib/stream/capture').refreshTools();
   if (!DEMO && !process.env.CI) require('./lib/bin').ensureTools().then(() => require('./lib/stream/capture').refreshTools());
   // Right after an update there's nothing new to fetch: skip the start check.

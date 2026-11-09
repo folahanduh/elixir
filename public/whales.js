@@ -45,10 +45,10 @@
       <span class="muted">${ageH == null ? 'no market yet' : ageH < 1 ? Math.max(0, Math.round(ageH * 60)) + 'm old' : ageH.toFixed(1) + 'h old'}</span>
       <span class="lks"><a href="${esc(e.links?.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${esc(e.links?.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${esc(e.links?.dexscreener)}" target="_blank" rel="noopener">Chart</a><a href="#" data-map="${esc(e.mint)}">Bubble map</a></span></div>
       <div class="ca"><span>CA</span><code>${esc(e.mint)}</code><button class="ghost small cp" data-copy="${esc(e.mint)}">Copy</button></div>` : '';
-    const what = e.kind === 'fund' ? `<span class="muted">sent ${e.sol.toFixed(1)} SOL to a fresh wallet ${chip(e.to, '')}</span>` : '';
+    const what = e.kind === 'fund' ? `<span class="muted">sent ${solHTML(e.sol.toFixed(1))} to a fresh wallet ${chip(e.to, '')}</span>` : '';
     return `<div class="whev ${esc(e.kind)}"><span class="whk">${kind}</span>
       <div class="whmain"><div class="whchain">${chain}</div>${what}${coin}</div>
-      <div class="whside">${e.sol && e.kind !== 'fund' ? `<span class="sol">${e.sol.toFixed(2)} SOL</span>` : e.kind === 'fund' ? `<span class="sol">${e.sol.toFixed(1)} SOL</span>` : ''}<span title="${esc(new Date(e.at).toLocaleString())}">${clock(e.at)}</span><span class="lks"><a href="${esc(e.links?.tx)}" target="_blank" rel="noopener">tx</a></span></div></div>`;
+      <div class="whside">${e.sol && e.kind !== 'fund' ? `<span class="sol">${solHTML(e.sol.toFixed(2))}</span>` : e.kind === 'fund' ? `<span class="sol">${solHTML(e.sol.toFixed(1))}</span>` : ''}<span title="${esc(new Date(e.at).toLocaleString())}">${clock(e.at)}</span><span class="lks"><a href="${esc(e.links?.tx)}" target="_blank" rel="noopener">tx</a></span></div></div>`;
   }
   /** Big whale volume into a brand-new coin: the CA, front and centre. */
   function hotHTML(e) {
@@ -56,7 +56,7 @@
     return `<div class="whhot">
       <div class="hh-top">${e.image ? `<img src="${esc(e.image)}" alt="" onerror="this.remove()">` : ''}<div class="grow"><span class="whk">WHALE VOLUME</span> <b>${e.symbol ? '$' + esc(e.symbol) : 'New coin'}</b> ${e.name ? `<span class="muted">${esc(e.name)}</span>` : ''}
         <div class="muted small">${ageH == null ? 'no market yet' : ageH < 1 ? Math.max(0, Math.round(ageH * 60)) + 'm old' : ageH.toFixed(1) + 'h old'}${e.marketCap ? ' · mc ' + usd(e.marketCap) : ''} · ${clock(e.at)}</div></div>
-        <div class="hh-sol">${Math.round(e.sol).toLocaleString()} SOL<span>from ${(e.wallets || []).length} tracked wallet${(e.wallets || []).length > 1 ? 's' : ''}</span></div></div>
+        <div class="hh-sol">${solHTML(Math.round(e.sol).toLocaleString())}<span>from ${(e.wallets || []).length} tracked wallet${(e.wallets || []).length > 1 ? 's' : ''}</span></div></div>
       <div class="ca big"><span>CA</span><code>${esc(e.mint)}</code><button class="small cp" data-copy="${esc(e.mint)}">Copy CA</button></div>
       <div class="hh-w">${(e.wallets || []).slice(0, 6).map(w => `${chip(w.wallet, w.name)} <span class="muted">${w.sol.toFixed(1)}</span>`).join(' · ')}</div>
       <div class="lks"><a href="${esc(e.links?.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${esc(e.links?.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${esc(e.links?.dexscreener)}" target="_blank" rel="noopener">Chart</a><a href="#" data-map="${esc(e.mint)}">Bubble map</a></div>
@@ -95,7 +95,7 @@
     const steps = r.steps.map((s, i) => `<div class="tstep ${s.known ? 'known' : ''}">
       <div>${i ? '<span class="muted small">funded by </span>' : ''}${chip(s.wallet, s.name)}${s.label ? `<span class="tag">${esc(s.label)}</span>` : ''}${(s.tags || []).slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join('')}
         <span class="lks" style="margin-left:8px"><a href="https://solscan.io/account/${esc(s.wallet)}" target="_blank" rel="noopener">Solscan</a><a href="https://gmgn.ai/sol/address/${esc(s.wallet)}" target="_blank" rel="noopener">GMGN</a></span></div>
-      <div class="meta">${s.txs != null ? `${esc(s.txs)} transactions` : ''}${s.txs !== '50+' && s.txs != null && s.txs <= 10 ? ' · <b style="color:var(--vip)">fresh wallet</b>' : ''}${s.fundedBy ? ` · first funded ${s.fundSol ? s.fundSol.toFixed(2) + ' SOL ' : ''}${ago(s.fundAt)}${s.fundTx ? ` · <a href="https://solscan.io/tx/${esc(s.fundTx)}" target="_blank" rel="noopener">tx</a>` : ''}` : ''}${s.oldWallet ? ' · old wallet with thousands of transactions: first funder not looked up (add a Solscan key)' : ''}</div></div>`).join('');
+      <div class="meta">${s.txs != null ? `${esc(s.txs)} transactions` : ''}${s.txs !== '50+' && s.txs != null && s.txs <= 10 ? ' · <b style="color:var(--vip)">fresh wallet</b>' : ''}${s.fundedBy ? ` · first funded ${s.fundSol ? solHTML(s.fundSol.toFixed(2)) + ' ' : ''}${ago(s.fundAt)}${s.fundTx ? ` · <a href="https://solscan.io/tx/${esc(s.fundTx)}" target="_blank" rel="noopener">tx</a>` : ''}` : ''}${s.oldWallet ? ' · old wallet with thousands of transactions: first funder not looked up (add a Solscan key)' : ''}</div></div>`).join('');
     const last = r.steps[r.steps.length - 1];
     const end = last.known ? `Trail ends at a wallet you know: <b>${esc(last.name)}</b>.` : last.fundedBy ? 'Stopped after 4 hops. Click the last wallet to keep going.' : 'No earlier funder found.';
     return `<div class="tsteps">${steps}</div><p class="tnote">${end} Click any wallet to trace from it, or name it: <a href="#" data-label="${esc(r.wallet)}">name this wallet</a> · <a href="#" data-watch="${esc(r.wallet)}">watch as whale</a></p>`;
@@ -106,7 +106,7 @@
       <td class="num">${b.sol.toFixed(2)}</td><td>${b.fundedBy ? chip(b.fundedBy, b.funderName) + (b.funderKnown ? ' <span class="tag">known</span>' : '') : '<span class="muted">—</span>'}</td><td class="muted">${clock(b.firstAt)}</td></tr>`).join('');
     const groups = (r.shared || []).map(g => `<div class="tgroup"><b>${g.wallets.length} of the top buyers were funded by the same wallet</b> ${chip(g.funder, g.name)}: one group buying through several wallets.</div>`).join('');
     return `<div class="tnote" style="margin:0 0 8px">${r.creator ? `Created by ${chip(r.creator, r.creatorName)} ${ago(r.createdAt)} · ` : ''}biggest buyers in the first ${r.txsRead} transactions</div>
-      <table class="tbuyers"><thead><tr><th>#</th><th>Buyer</th><th class="num">SOL</th><th>Funded by</th><th>First buy</th></tr></thead><tbody>${rows}</tbody></table>${groups}
+      <table class="tbuyers"><thead><tr><th>#</th><th>Buyer</th><th class="num"><i class="sol-i" title="SOL"></i></th><th>Funded by</th><th>First buy</th></tr></thead><tbody>${rows}</tbody></table>${groups}
       <p class="tnote">Click a buyer or funder to trace it. A funder you recognise (a whale, a KOL, the team) is the signal; add them under Whales you watch.</p>`;
   }
   $('#whTraceForm').onsubmit = e => { e.preventDefault(); trace($('#whQ').value); };
@@ -161,7 +161,8 @@
 
   // ---------- bubble map: a coin's holders, or one wallet's connections ----------
   const ROLE = { center: '#a7b1ff', funder: '#ffb547', out: '#32d296', in: '#4cc3d1', known: '#e879a6', contract: '#565b68' };
-  const solS = s => s == null ? '—' : (s >= 1000 ? (s / 1000).toFixed(1) + 'K' : s >= 10 ? Math.round(s).toLocaleString() : s >= 1 ? s.toFixed(2) : s.toFixed(3)) + ' SOL';
+  const solN = s => (s >= 1000 ? (s / 1000).toFixed(1) + 'K' : s >= 10 ? Math.round(s).toLocaleString() : s >= 1 ? s.toFixed(2) : s.toFixed(3));
+  const solS = s => s == null ? '—' : solHTML(solN(s));
   const pctS = p => (p >= 10 ? p.toFixed(1) : p >= 1 ? p.toFixed(2) : p.toFixed(3)) + '%';
   const dur = ms => { const m = Math.abs(ms) / 60000; return m < 1 ? Math.round(Math.abs(ms) / 1000) + 's' : m < 90 ? Math.round(m) + 'm' : m < 2880 ? (m / 60).toFixed(1) + 'h' : Math.round(m / 1440) + 'd'; };
   const when = t => t ? `${new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} · ${ago(t)}` : '—';
@@ -177,7 +178,7 @@
           const role = n.role === 'center' ? 'center' : n.program ? 'contract' : n.known && n.role !== 'center' ? 'known' : n.role;
           return { ...n, center: n.role === 'center', kind: n.program ? 'contract' : 'holder', color: ROLE[role] || '#5a5f6d',
             r: n.role === 'center' ? 46 : Math.max(9, 12 + Math.sqrt((n.vol || 0) / max) * 40),
-            t1: n.label || (n.name && n.name !== short(n.id) ? n.name : short(n.id)), t2: n.solBalance != null ? solS(n.solBalance) : '' };
+            t1: n.label || (n.name && n.name !== short(n.id) ? n.name : short(n.id)), t2: n.solBalance != null ? solN(n.solBalance) : '', t2Sol: n.solBalance != null };
         }),
         links: d.links, spread: 90,
       };
@@ -223,7 +224,7 @@
     if (compact) return `<div class="ct"><b>${esc(title)}</b>${badges.map(b => `<span class="bdg">${esc(b)}</span>`).join('')}</div>${stats}<div class="a">${esc(n.wallet)}</div><div class="muted small">click for details · double-click to open its connections</div>`;
     const ls = d.links.filter(l => l.a === n.id || l.b === n.id);
     const nm = w => { const x = d.nodes.find(y => y.id === w); return x ? (x.label || x.name || short(w)) : short(w); };
-    const what = { funded: 'funded', token: 'token', sol: 'SOL', bundle: 'same-tx buy' };
+    const what = { funded: 'funded', token: 'token', sol: '<i class="sol-i" title="SOL sent" style="margin:0"></i>', bundle: 'same-tx buy' };
     const conns = ls.slice(0, 20).map(l => {
       const out = l.a === n.id, o = out ? l.b : l.a;
       return `<div class="cn"><span class="lt ${esc(l.type)}">${what[l.type] || l.type}</span><span class="dir">${l.type === 'bundle' ? '↔' : out ? '→' : '←'}</span><a href="#" data-bmsel="${esc(o)}">${esc(nm(o))}</a><span class="grow"></span><span class="muted">${l.sol ? solS(l.sol) : ''}${l.count > 1 ? ` · ${l.count}×` : ''}${l.last ? ' · ' + ago(l.last) : ''}</span></div>`;
@@ -320,7 +321,7 @@
   // ---------- live watchlist (launch radar) ----------
   const radarItems = new Map();
   let rdFilter = 'all', rdSel = null, solUsd = null;
-  const solTxt = s => (s >= 100 ? Math.round(s).toLocaleString() : s >= 10 ? s.toFixed(1) : s.toFixed(2)) + ' SOL';
+  const solTxt = s => solHTML(s >= 100 ? Math.round(s).toLocaleString() : s >= 10 ? s.toFixed(1) : s.toFixed(2));
   const age = t => { const m = Math.max(0, (Date.now() - t) / 60000); return m < 1 ? Math.round(m * 60) + 's' : m < 90 ? Math.round(m) + 'm' : (m / 60).toFixed(1) + 'h'; };
   const initialOf = it => esc((it.symbol || '?')[0]);
   function rdHTML(it) {

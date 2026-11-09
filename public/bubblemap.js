@@ -9,6 +9,14 @@
   const short = w => (w ? w.slice(0, 4) + '…' + w.slice(-4) : '');
   const hexA = (hex, a) => { const n = parseInt(String(hex).slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
   const colorOf = n => n.color || (n.kind === 'contract' ? '#565b68' : n.cluster ? COLORS[(n.cluster - 1) % COLORS.length] : '#5a5f6d');
+  const SOL_IMG = new Image(); SOL_IMG.src = '/sol.svg';
+  /** Text with the Solana mark in front, centred on (x, y). */
+  function solText(ctx, txt, x, y, size) {
+    const w = ctx.measureText(txt).width, iw = size * 1.15, gap = size * 0.3, total = iw + gap + w;
+    if (SOL_IMG.complete && SOL_IMG.naturalWidth) ctx.drawImage(SOL_IMG, x - total / 2, y - size * 0.45, iw, size * 0.9);
+    ctx.textAlign = 'left'; ctx.fillText(txt, x - total / 2 + iw + gap, y); ctx.textAlign = 'center';
+    return total;
+  }
   const solS = s => (s >= 1000 ? (s / 1000).toFixed(1) + 'K' : s >= 10 ? Math.round(s) : s >= 1 ? s.toFixed(1) : s.toFixed(2));
 
   window.BubbleMap = function BubbleMap(canvas, { onSelect = () => {}, onHover = () => {}, onOpen = () => {} } = {}) {
@@ -120,13 +128,13 @@
         // amounts on the selected wallet's lines
         if (focus && (l.sol || l.mint) && labelSet.has(l)) {
           const mx = (l.s.x + l.t.x) / 2, my = (l.s.y + l.t.y) / 2;
-          const txt = l.sol ? solS(l.sol) + ' SOL' : 'token';
+          const txt = l.sol ? solS(l.sol) : 'token';
           ctx.font = `600 ${11 / view.k}px "IBM Plex Sans", system-ui`;
-          const tw = ctx.measureText(txt).width + 10 / view.k;
+          const tw = ctx.measureText(txt).width + (l.sol ? 16 : 10) / view.k;
           ctx.fillStyle = '#0b0c10'; ctx.globalAlpha = 0.92;
           ctx.fillRect(mx - tw / 2, my - 9 / view.k, tw, 18 / view.k);
           ctx.globalAlpha = 1; ctx.fillStyle = c; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(txt, mx, my);
+          if (l.sol) solText(ctx, txt, mx, my, 11 / view.k); else ctx.fillText(txt, mx, my);
         }
       }
       ctx.globalAlpha = 1;
@@ -175,7 +183,8 @@
           if (px >= 30 && n.t2) {
             ctx.font = `500 ${10 / view.k}px "IBM Plex Sans", system-ui`;
             ctx.fillStyle = 'rgba(255,255,255,.72)';
-            const t = String(n.t2); ctx.fillText(t.length > 15 ? t.slice(0, 14) + '…' : t, n.x, n.y + 9 / view.k);
+            const t = String(n.t2), tt = t.length > 15 ? t.slice(0, 14) + '…' : t;
+            if (n.t2Sol) solText(ctx, tt, n.x, n.y + 9 / view.k, 10 / view.k); else ctx.fillText(tt, n.x, n.y + 9 / view.k);
           }
         } else if (view.k >= 1.6 && n.t1) {
           ctx.font = `500 ${10 / view.k}px "IBM Plex Sans", system-ui`; ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.textAlign = 'center';

@@ -79,6 +79,8 @@
     key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M14 9l2 2"/>',
     side: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
   };
+  // SOL amounts everywhere: the Solana mark, then the number.
+  window.solHTML = v => `<span class="solv"><i class="sol-i" title="SOL" aria-label="SOL"></i>${v}</span>`;
   const svg = (k, s = 16) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ico[k]}</svg>`;
 
   // ---- sidebar ----
@@ -220,7 +222,72 @@
   const bar = document.createElement('footer');
   bar.className = 'sbar';
   bar.innerHTML = `<span class="sbar-live"><i></i><b>Connecting…</b></span><span class="sbar-items"></span><span class="sbar-upd"></span><span class="grow"></span>
-    <span class="sbar-zoom" title="Text size"><button type="button" data-z="-1">A−</button><button type="button" data-z="0" title="Reset">A</button><button type="button" data-z="1">A+</button></span><a href="https://x.com" target="_blank" rel="noopener" class="sbar-l">X</a><span class="sbar-tg"></span><span class="sbar-l sbar-clock"></span>`;
+    <span class="sbar-sol" title="SOL price">…</span><span class="sbar-zoom" title="Text size"><button type="button" data-z="-1">A−</button><button type="button" data-z="0" title="Reset">A</button><button type="button" data-z="1">A+</button></span><a href="https://x.com" target="_blank" rel="noopener" class="sbar-l">X</a><span class="sbar-tg"></span><span class="sbar-l sbar-clock"></span>`;
+  // SOL price: green when up over 24h, red when down; hover for the chart.
+  const solEl = bar.querySelector('.sbar-sol');
+  const paintSol = d => {
+    if (!d || !d.price) return;
+    const up = (d.ch24 ?? 0) >= 0;
+    solEl.className = 'sbar-sol ' + (up ? 'up' : 'down');
+    solEl.innerHTML = `<i class="sol-i"></i><span class="p">$${d.price >= 100 ? d.price.toFixed(2) : d.price.toFixed(3)}</span>${d.ch24 != null ? `<span class="c">${up ? '+' : ''}${Number(d.ch24).toFixed(2)}%</span>` : ''}`;
+    solEl.title = '';
+    window.__sol = d;
+  };
+  es.addEventListener('sol-price', e => paintSol(JSON.parse(e.data)));
+  es.addEventListener('hello', e => { try { paintSol(JSON.parse(e.data).solPrice); } catch {} });
+  let solPop = null, solRange = '1d', solHideT = null;
+  const solChart = async () => {
+    if (!solPop) return;
+    let d; try { d = await fetch('/api/sol', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ range: solRange }) }).then(r => r.json()); } catch { return; }
+    if (!solPop) return;
+    const pts = (d.points || []).filter(p => p[1] > 0);
+    const head = solPop.querySelector('.sp-head');
+    const first = pts[0]?.[1], last = pts[pts.length - 1]?.[1] ?? d.price;
+    const ch = first ? ((last - first) / first) * 100 : d.ch24;
+    const up = (ch ?? 0) >= 0;
+    head.innerHTML = `<i class="sol-i" style="width:16px;height:13px"></i><b>$${(last || 0).toFixed(2)}</b><span class="c ${up ? 'up' : 'down'}">${ch != null ? (up ? '+' : '') + ch.toFixed(2) + '%' : ''}</span><span class="grow"></span><span class="sp-r">${['1h', '1d', '7d'].map(r => `<button type="button" data-r="${r}" class="${r === solRange ? 'on' : ''}">${r.toUpperCase()}</button>`).join('')}</span>`;
+    const box = solPop.querySelector('.sp-box');
+    if (pts.length < 2) { box.innerHTML = '<div class="muted" style="padding:30px 0;text-align:center">No history yet. It fills in as Elixir runs.</div>'; return; }
+    const W = 312, H = 120, xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), lo = Math.min(...ys), hi = Math.max(...ys), pad = (hi - lo) * 0.08 || 1;
+    const X = t => ((t - x0) / (x1 - x0 || 1)) * W, Y = v => H - ((v - lo + pad) / (hi - lo + pad * 2)) * H;
+    const line = pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join(' ');
+    const col = up ? '#2fd18b' : '#f2496a';
+    const fmtT = t => solRange === '7d' ? new Date(t).toLocaleDateString([], { weekday: 'short', day: 'numeric' }) : new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    box.innerHTML = `<svg class="sp-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <defs><linearGradient id="spg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".28"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${line} L${W} ${H} L0 ${H} Z" fill="url(#spg)"/><path d="${line}" fill="none" stroke="${col}" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+      <line class="sp-x" x1="0" x2="0" y1="0" y2="${H}" stroke="rgba(255,255,255,.25)" stroke-width="1" vector-effect="non-scaling-stroke" visibility="hidden"/></svg>
+      <div class="sp-foot"><span>${fmtT(x0)}</span><span>low $${lo.toFixed(2)} · high $${hi.toFixed(2)}</span><span>${fmtT(x1)}</span></div><span class="sp-hover"></span>`;
+    const svgEl = box.querySelector('svg'), xl = box.querySelector('.sp-x'), hv = box.querySelector('.sp-hover');
+    svgEl.addEventListener('mousemove', ev => {
+      const r = svgEl.getBoundingClientRect(), t = x0 + ((ev.clientX - r.left) / r.width) * (x1 - x0);
+      let best = pts[0]; for (const p of pts) if (Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p;
+      xl.setAttribute('x1', X(best[0])); xl.setAttribute('x2', X(best[0])); xl.setAttribute('visibility', 'visible');
+      hv.textContent = `$${best[1].toFixed(2)} · ${fmtT(best[0])}`;
+    });
+    svgEl.addEventListener('mouseleave', () => { xl.setAttribute('visibility', 'hidden'); hv.textContent = ''; });
+  };
+  const openSolPop = () => {
+    clearTimeout(solHideT);
+    if (solPop) return;
+    solPop = document.createElement('div');
+    solPop.className = 'solpop';
+    solPop.innerHTML = '<div class="sp-head"><i class="sol-i"></i><b>SOL</b></div><div class="sp-box"><div class="muted" style="padding:30px 0;text-align:center">Loading chart…</div></div>';
+    document.body.append(solPop);
+    const r = solEl.getBoundingClientRect();
+    solPop.style.left = Math.max(8, Math.min(window.innerWidth - 350, r.left + r.width / 2 - 170)) + 'px';
+    solPop.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+    solPop.addEventListener('mouseenter', () => clearTimeout(solHideT));
+    solPop.addEventListener('mouseleave', closeSolPop);
+    solPop.addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (b) { solRange = b.dataset.r; solChart(); } });
+    solChart();
+  };
+  const closeSolPop = () => { clearTimeout(solHideT); solHideT = setTimeout(() => { solPop?.remove(); solPop = null; }, 250); };
+  solEl.addEventListener('mouseenter', openSolPop);
+  solEl.addEventListener('mouseleave', closeSolPop);
+  solEl.addEventListener('click', openSolPop);
+
   // Text size (A− / A / A+): scales the whole page, remembered per browser.
   const ZOOMS = [0.9, 1, 1.1, 1.2, 1.32];
   const applyZoom = z => { document.documentElement.style.zoom = String(z); };

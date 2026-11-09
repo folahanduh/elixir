@@ -137,7 +137,7 @@
       <span class="s">${side}</span>
       <span class="c">${pending ? `<span class="muted">${h(ev.venue)} · landing…</span>` : `<b data-word="${h(ev.symbol || '')}" title="${h(ev.name || ev.mint || '')}">${coin}</b>`}</span>
       ${cluster}
-      <span class="n">${ev.sol ? ev.sol.toFixed(2) + ' SOL' : ''}</span>
+      <span class="n">${ev.sol ? solHTML(ev.sol.toFixed(2)) : ''}</span>
       <span class="n">${ev.marketCap ? 'mc ' + usd(ev.marketCap) : ''}</span>
       <span class="l">${ev.links?.gmgn ? `<a target="_blank" rel="noopener" href="${h(ev.links.gmgn)}">GMGN</a>` : ''}${ev.links?.axiom ? `<a target="_blank" rel="noopener" href="${h(ev.links.axiom)}">AX</a>` : ''}${ev.links?.solscan ? `<a target="_blank" rel="noopener" href="${h(ev.links.solscan)}" title="Transaction ${lat}">tx</a>` : ''}</span>
     </div>`;

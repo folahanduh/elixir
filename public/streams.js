@@ -241,7 +241,7 @@ function cmRow(c) {
     <b class="cm-t" data-word="${esc(c.symbol || '')}" title="${esc(c.name || '')}">$${esc(c.symbol || '?')}</b>
     ${c.name ? `<span class="cm-n">${esc(c.name)}</span>` : ''}
     <span class="cm-mc">${esc(mc$(c.marketCap))}</span>
-    <span class="cm-age">${c.bought ? `bought ${c.sol ? esc(c.sol.toFixed(2)) + ' SOL ' : ''}${esc(age$(c.ageMin))} ago` : `${esc(age$(c.ageMin))}${c.pad ? ' · ' + esc(c.pad) : ''}`}</span>
+    <span class="cm-age">${c.bought ? `bought ${c.sol ? solHTML(esc(c.sol.toFixed(2))) + ' ' : ''}${esc(age$(c.ageMin))} ago` : `${esc(age$(c.ageMin))}${c.pad ? ' · ' + esc(c.pad) : ''}`}</span>
     <span class="cm-l"><a href="${esc(c.links.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${esc(c.links.gmgn)}" target="_blank" rel="noopener">GMGN</a><button type="button" class="cm-fomo" data-ca="${esc(c.mint)}" title="Copy the contract address and open Fomo">Fomo</button>${c.links.tx ? `<a href="${esc(c.links.tx)}" target="_blank" rel="noopener" title="The buy transaction">tx</a>` : ''}</span>
   </div>`;
 }
