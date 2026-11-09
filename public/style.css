@@ -1092,3 +1092,10 @@ html.qb-off .qb { display: none !important; }
 .mx-card .mx-body { overflow: auto; flex: 1 1 auto; min-height: 0; margin-right: -6px; padding-right: 6px; }
 .mx-x { z-index: 2; border-radius: 7px !important; top: 5px !important; right: 6px !important; width: 28px !important; height: 28px !important; }
 .mx-x:hover { background: var(--panel-3) !important; }
+
+/* risk block: rows still being checked, bold lead-ins; on-chain rows in the timeline */
+.mx-risk li.wait { color: var(--muted); }
+.mx-risk li.wait::before { animation: mxDot 1s infinite ease-in-out; }
+.mx-risk li b { color: #ff8da2; font-weight: 600; }
+.mx-tw.chain { border-color: rgba(124, 109, 255, .28); background: rgba(124, 109, 255, .06); }
+.mx-tw.chain em { color: var(--brand-2) !important; }

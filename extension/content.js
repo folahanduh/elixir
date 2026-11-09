@@ -4,7 +4,11 @@
   if (window.top !== window) return;                                        // not inside iframes
   // Elixir has its own mascot: just tell its pages the extension is here (so they can say so), then stop.
   if (/^(localhost|127\.0\.0\.1|penguin\.linux\.test):8787$/.test(location.host)) { document.documentElement.setAttribute('data-elixir-ext', chrome.runtime.getManifest().version); return; }
-  if (document.getElementById('elixir-mascot-host')) return;
+  // After the extension updates itself, the new version takes over the tab: the old mascot is removed.
+  const VERSION = chrome.runtime.getManifest().version;
+  const old = document.getElementById('elixir-mascot-host');
+  if (old && old.dataset.v === VERSION) return;
+  old?.remove();
 
   const h = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const usd = n => (n == null ? '' : n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n / 1e3).toFixed(1) + 'K' : '$' + Math.round(n));
@@ -12,6 +16,9 @@
 
   const host = document.createElement('div');
   host.id = 'elixir-mascot-host';
+  host.dataset.v = VERSION;
+  // A newer version replaced this one (auto-update): stay quiet from then on.
+  const alive = () => { try { return host.isConnected && Boolean(chrome.runtime?.id); } catch { return false; } };
   host.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;';
   const root = host.attachShadow({ mode: 'closed' });
   const sheet = new CSSStyleSheet();
@@ -112,6 +119,9 @@
     .grip { position: absolute; top: 0; left: 0; right: 36px; height: 14px; cursor: move; display: flex; justify-content: center; align-items: center; touch-action: none; }
     .grip i { width: 34px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.14); transition: background .15s; }
     .grip:hover i, .card.moving .grip i { background: #9a8fff; }
+    ul.risk li.wait { color: #8b909c; } ul.risk li.wait::before { animation: dot 1s infinite ease-in-out; }
+    ul.risk li b { color: #ff8da2; font-weight: 600; }
+    .tw.chain { border-color: rgba(124,109,255,.28); background: rgba(124,109,255,.06); } .tw.chain em { color: #9a8fff; }
     @media (prefers-reduced-motion: reduce) { .legs, .legs .r { animation: none; } }
   `);
   root.adoptedStyleSheets = [sheet];
@@ -160,7 +170,7 @@
 
   // Eyes follow the mouse, it blinks now and then
   let raf = 0, mouse = null;
-  document.addEventListener('mousemove', e => { mouse = [e.clientX, e.clientY]; if (!raf) raf = requestAnimationFrame(look); }, { passive: true });
+  document.addEventListener('mousemove', e => { if (!alive()) return; mouse = [e.clientX, e.clientY]; if (!raf) raf = requestAnimationFrame(look); }, { passive: true });
   function look() {
     raf = 0;
     if (!mouse || mx.classList.contains('thinking')) return;
@@ -239,6 +249,7 @@
   });
   // Fallback if the browser's shortcut is taken by something else
   document.addEventListener('keydown', e => {
+    if (!alive()) return;
     if (e.key === 'Escape') { if (veil) endSnip(); else close(); return; }
     if (e.altKey && !e.ctrlKey && !e.metaKey && e.shiftKey && e.code === 'KeyX') { e.preventDefault(); flip(); return; }
     if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyX') { e.preventDefault(); if (mx.classList.contains('hidden')) setHidden(false); start(); }
@@ -358,15 +369,17 @@
     // All three at once (Elixir shares the work): quick = instant market read, risk = rug + holder checks,
     // full = X search + AI. Whichever is furthest along when it arrives is what you see.
     const RANK = { quick: 0, risk: 1, full: 2 };
-    let shown = -1;
+    const pendingOf = r => Boolean(r.facts?.checking?.bundle || r.facts?.checking?.holders);
+    let shown = -1, polls = 0;
     const show = res => {
       if (id !== askId || !card) return;
       mx.classList.remove('thinking');
       if (!res) { if (shown < 0) fill('<div class="sum">Couldn\'t reach Elixir. Reload this tab and try again.</div>'); return; }
       if (!res.ok) { if (shown < 0) fill(`<div class="sum">${h(res.error)}</div>`); return; }
-      if (!res.data.found) { if (shown < 0) { shown = 9; fill(`<div class="sum">${h(res.data.message)}</div>`); } return; }
-      if (RANK[res.data.stage] <= shown) return;
-      shown = RANK[res.data.stage]; render(res.data, res.base, secs());
+      if (!res.data.found) { if (shown < 0) { shown = 99; fill(`<div class="sum">${h(res.data.message)}</div>`); } return; }
+      const r = res.data, key = RANK[r.stage] * 10 + (pendingOf(r) ? 0 : 5);
+      if (key > shown) { shown = key; render(r, res.base, secs()); }
+      if (r.stage === 'full' && pendingOf(r) && polls++ < 10) setTimeout(() => { if (id === askId && card) call('full').then(show); }, 2000);
     };
     call('quick').then(show);
     call('risk').then(show);
@@ -378,6 +391,7 @@
   // stayed on the page for 3 seconds. Nothing runs while the mascot is hidden.
   let pageCoin = '', pageT = [];
   function pagePrefetch() {
+    if (!alive()) return;
     const a = (location.pathname + location.search).match(/[1-9A-HJ-NP-Za-km-z]{32,44}/)?.[0] || '';
     if (a === pageCoin) return;
     pageCoin = a; pageT.forEach(clearTimeout); pageT = [];
@@ -391,7 +405,7 @@
   let askId = 0;
   const sec = ms => (ms == null ? '–' : ms < 50 ? 'instant' : (ms / 1000).toFixed(1) + 's');
   const tmg = r => (r.timing ? ` (coin ${sec(r.timing.find)} · checks ${sec(r.timing.checks)} · AI ${sec(r.timing.ai)})` : '');
-  const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'] };
+  const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'], unknown: ['Story not checked', 'm'] };
   const vsLaunch = m => (m == null ? '' : Math.abs(m) <= 1 ? 'at launch' : `${Math.abs(m) < 60 ? Math.abs(m) + 'm' : (Math.abs(m) / 60).toFixed(1) + 'h'} ${m < 0 ? 'before' : 'after'} launch`);
   const afterTxt = s => (Math.abs(s) < 90 ? Math.round(Math.abs(s)) + 's' : Math.abs(s) < 5400 ? Math.round(Math.abs(s) / 60) + 'm' : (Math.abs(s) / 3600).toFixed(1) + 'h');
   const fol = n => (!n ? '' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n));
@@ -402,7 +416,7 @@
     if (!s) return '';
     const [label, cls] = NARR[r.ai?.narrative?.verdict || s.verdict] || NARR.unclear;
     const o = s.origin, tw = s.tweets; // oldest first: how it built up
-    const row = t => `<a class="tw ${t.promo ? 'promo' : ''}" href="${h(safe(t.url))}" target="_blank" rel="noopener"><span class="tw-h"><b>@${h(t.author)}</b>${t.followers ? `<em>${fol(t.followers)}</em>` : ''}${t.verified ? '<em>✓</em>' : ''}${t.vip ? '<em>tracked</em>' : ''}<span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="tw-t">${h(t.text)}</span></a>`;
+    const row = t => t.via === 'chain' ? `<a class="tw chain" href="${h(safe(t.url))}" target="_blank" rel="noopener"><span class="tw-h"><b>${h(t.author)}</b><em>on-chain</em><span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="tw-t">${h(t.text)}</span></a>` : `<a class="tw ${t.promo ? 'promo' : ''}" href="${h(safe(t.url))}" target="_blank" rel="noopener"><span class="tw-h"><b>@${h(t.author)}</b>${t.followers ? `<em>${fol(t.followers)}</em>` : ''}${t.verified ? '<em>✓</em>' : ''}${t.vip ? '<em>tracked</em>' : ''}<span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="tw-t">${h(t.text)}</span></a>`;
     return `<div class="sec">WHY IT'S MOVING</div>
       <div class="narr ${cls}"><b>${label}</b><span>${h(r.ai?.narrative?.reason || s.reasons[0] || '')}</span></div>
       ${s.reasons.slice(1, 3).map(x => `<div class="reason">${h(x)}</div>`).join('')}
@@ -432,21 +446,33 @@
   const RISKY = /rugged|authority|bundle|holds \d|Top 10 holders own|Rug checks clean|Spread out: top 10/i;
   const notRisk = t => !RISKY.test(t);
   function riskHTML(r) {
-    const f = r.facts, k = f.risk, hd = f.holders;
-    if (!k && !hd && r.stage === 'quick') return '<div class="sec">RISK</div><div class="rwait"><i></i><i></i><i></i>Checking mint / freeze authority, bundles, dev history, top holders…</div>';
+    const f = r.facts, k = f.risk, hd = f.holders, chk = f.checking || {};
+    if (!k && !hd && r.stage === 'quick') return `<div class="sec">RISK</div><div class="rwait"><i></i><i></i><i></i>Checking mint / freeze authority, the launch block for bundles and snipers, the dev's bag, top holders…</div>`;
     const flags = (k?.flags || []).map(x => { const [lvl, ...rest] = x.split(': '); return { lvl, label: rest.join(': ') }; });
-    const highs = flags.filter(x => x.lvl === 'high').length;
+    const sn = f.snipers, kols = f.trackedWallets?.kolBuys || 0;
+    const reds = flags.filter(x => x.lvl === 'high').length + (f.chart?.natural === false && !flags.some(x => /bundle/i.test(x.label)) ? 1 : 0) + (sn?.wallets >= 5 ? 1 : 0);
     const hot = (hd?.top1 >= 15) || (hd?.top10 >= 45);
-    const [chip, cls] = !k && !hd ? ['Unavailable', 'm'] : highs ? [`${highs} red flag${highs > 1 ? 's' : ''}`, 'b'] : flags.length || hot ? ['Some risk', 'm'] : ['Clean', 'g'];
+    const scanning = f.bundleScan === 'running' || chk.holders;
+    // "Clean" only when everything was actually checked and nothing was found
+    const [chip, cls] = reds ? [`${reds} red flag${reds > 1 ? 's' : ''}`, 'b'] : scanning ? ['Checking…', 'm'] : !k && !hd ? ['Unavailable', 'm']
+      : f.bundleScan !== 'done' ? ['Not fully checked', 'm'] : flags.length || hot || sn?.wallets >= 3 ? ['Some risk', 'm'] : ['Clean', 'g'];
+    const li = (c, t) => `<li class="${c}">${t}</li>`;
     const rows = [
-      ...flags.slice(0, 5).map(x => `<li class="${x.lvl === 'high' ? 'b' : 'm'}">${h(x.label)}</li>`),
-      ...(k && !flags.length ? ['<li class="g">Mint & freeze authority revoked, no bundle or rug flags</li>'] : []),
-      ...(hd ? [`<li class="${hot ? 'b' : hd.top10 <= 25 ? 'g' : 'm'}">${hd.top1 != null ? `Top holder ${hd.top1.toFixed(1)}% · ` : ''}Top 10 hold ${hd.top10?.toFixed?.(0) ?? '?'}%${f.holderCount ? ` · ${f.holderCount.toLocaleString('en')} holders` : ''}</li>`] : []),
-      ...(f.bondingCurvePct != null && !f.graduated ? [`<li class="m">On ${h(f.launchpad || 'the launchpad')}'s bonding curve · ${Math.round(f.bondingCurvePct)}% to graduation</li>`] : []),
-      ...(f.liquidity != null ? [`<li class="${f.liquidity < 5000 ? 'b' : f.liquidity >= 50000 ? 'g' : 'm'}">Liquidity ${usd(f.liquidity)}</li>`] : []),
+      ...(f.chart?.natural === false ? [li('b', `<b>Not a natural chart:</b> ${h(f.chart.why.slice(0, 3).join('; '))}`)] : []),
+      ...flags.slice(0, 5).map(x => li(x.lvl === 'high' ? 'b' : 'm', h(x.label))),
+      ...(k && !flags.some(x => /mint authority|freeze/i.test(x.label)) && !k.failed ? [li('g', 'Mint &amp; freeze authority revoked')] : []),
+      ...(f.bundleScan === 'running' ? [li('m wait', 'Scanning the launch block for bundles…')] : f.bundleScan === 'done' && f.bundle && f.bundle.wallets < 2 && f.bundle.pct < 5 ? [li('g', `No bundle in the launch block${f.bundle.wallets ? ` (${f.bundle.wallets} other wallet, ${f.bundle.pct}%)` : ''}`)] : f.bundleScan === 'unavailable' ? [li('m', "Bundle check didn't finish: not checked")] : []),
+      ...(sn ? [sn.wallets >= 3 ? li('b', `${sn.wallets} snipers in the first ${sn.secs}s (${sn.sol.toFixed(1)} SOL)`) : li('g', `No sniper rush (${sn.wallets} wallet${sn.wallets === 1 ? '' : 's'} in the first ${sn.secs}s)`)] : []),
+      ...(f.dev?.holdPct != null && !flags.some(x => /dev/i.test(x.label)) ? [li(f.dev.holdPct >= 5 ? 'm' : 'g', `Dev holds ${f.dev.holdPct}%${f.dev.soldPct != null && f.dev.boughtPct >= 0.5 ? ` (sold ${f.dev.soldPct}% of the launch buy)` : ''}`)] : []),
+      ...(f.chart?.natural === true ? [li('g', 'Chart looks natural: no bundle, sniper rush or bot buys')] : []),
+      ...(chk.holders && !hd ? [li('m wait', 'Counting top holders…')] : hd ? [li(hot ? 'b' : hd.top10 <= 25 ? 'g' : 'm', `${hd.top1 != null ? `Top holder ${hd.top1.toFixed(1)}% · ` : ''}Top 10 hold ${hd.top10?.toFixed?.(0) ?? '?'}%${f.holderCount ? ` · ${f.holderCount.toLocaleString('en')} holders` : ''}`)] : []),
+      li(kols ? 'g' : 'm', kols ? `${kols} buy${kols > 1 ? 's' : ''} from your KOL wallets (${h((f.trackedWallets.kolNames || []).join(', '))})` : 'No tracked KOL wallets in it'),
+      ...(f.bondingCurvePct != null && !f.graduated ? [li('m', `On ${h(f.launchpad || 'the launchpad')}'s bonding curve · ${Math.round(f.bondingCurvePct)}% to graduation`)] : []),
+      ...(f.liquidity != null ? [li(f.liquidity < 5000 ? 'b' : f.liquidity >= 50000 ? 'g' : 'm', `Liquidity ${usd(f.liquidity)}`)] : []),
     ];
-    return `<div class="sec">RISK <span class="chip ${cls}">${chip}</span></div><ul class="risk">${rows.join('') || '<li class="m">Rug check service didn\'t answer in time</li>'}</ul>`;
+    return `<div class="sec">RISK <span class="chip ${cls}">${chip}</span></div><ul class="risk">${rows.join('')}</ul>`;
   }
+
   function openCard(html) {
     card?.remove();
     card = document.createElement('div'); card.className = 'card';

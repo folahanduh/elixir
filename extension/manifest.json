@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Elixir Mascot",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "description": "The Elixir mascot on every tab. Press Alt+X, box a coin anywhere, and it tells you if it looks good (asks the Elixir app running on your PC).",
   "icons": {
     "16": "icons/16.png",
@@ -21,7 +21,8 @@
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "alarms"
   ],
   "host_permissions": [
     "<all_urls>"

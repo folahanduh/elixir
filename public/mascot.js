@@ -266,13 +266,16 @@
     // All three at once (the server shares the work): quick = instant market read, risk = rug + holder checks,
     // full = X search + Claude. Whichever is furthest along when it arrives is what you see.
     const RANK = { quick: 0, risk: 1, full: 2 };
-    let shown = -1;
+    const pendingOf = r => Boolean(r.facts?.checking?.bundle || r.facts?.checking?.holders);
+    let shown = -1, polls = 0;
     const show = r => {
       if (id !== askId || !card) return;
       mx.classList.remove('thinking');
-      if (!r.found) { if (shown < 0) { shown = 9; fill(`<div class="mx-msg">${h(r.message)}</div>`); } return; }
-      if (RANK[r.stage] <= shown) return;
-      shown = RANK[r.stage]; render(r, secs());
+      if (!r.found) { if (shown < 0) { shown = 99; fill(`<div class="mx-msg">${h(r.message)}</div>`); } return; }
+      const key = RANK[r.stage] * 10 + (pendingOf(r) ? 0 : 5);
+      if (key > shown) { shown = key; render(r, secs()); }
+      // bundle scan / holders still running: ask again until they're in (the answer then updates itself)
+      if (r.stage === 'full' && pendingOf(r) && polls++ < 10) setTimeout(() => { if (id === askId && card) call('full').then(show).catch(() => {}); }, 2000);
     };
     call('quick').then(show).catch(e => { if (id === askId && shown < 0) { mx.classList.remove('thinking'); fill(`<div class="mx-msg">${h(e.message)}</div>`); } });
     call('risk').then(show).catch(() => {});
@@ -299,7 +302,7 @@
   // Where the time went: finding the coin, the rug + holder checks, the AI write-up (0 = reused)
   const sec = ms => (ms == null ? '–' : ms < 50 ? 'instant' : (ms / 1000).toFixed(1) + 's');
   const tmg = r => (r.timing ? ` (coin ${sec(r.timing.find)} · checks ${sec(r.timing.checks)} · AI ${sec(r.timing.ai)})` : '');
-  const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'] };
+  const NARR = { real: ['Real story', 'g'], unclear: ['Story unclear', 'm'], manufactured: ['Looks manufactured', 'b'], unknown: ['Story not checked', 'm'] };
   const vsLaunch = m => (m == null ? '' : Math.abs(m) <= 1 ? 'at launch' : `${Math.abs(m) < 60 ? Math.abs(m) + 'm' : (Math.abs(m) / 60).toFixed(1) + 'h'} ${m < 0 ? 'before' : 'after'} launch`);
   const afterTxt = s => (Math.abs(s) < 90 ? Math.round(Math.abs(s)) + 's' : Math.abs(s) < 5400 ? Math.round(Math.abs(s) / 60) + 'm' : (Math.abs(s) / 3600).toFixed(1) + 'h');
   const fol = n => (!n ? '' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n));
@@ -311,7 +314,7 @@
     const reason = r.ai?.narrative?.reason || s.reasons[0] || '';
     const o = s.origin;
     const tw = s.tweets; // oldest first: how it built up
-    const row = t => `<a class="mx-tw ${t.promo ? 'promo' : ''}" href="${h(/^https:\/\//.test(t.url || '') ? t.url : '#')}" target="_blank" rel="noopener"><span class="mx-tw-h"><b>@${h(t.author)}</b>${t.followers ? ` <em>${fol(t.followers)}</em>` : ''}${t.verified ? ' <em>✓</em>' : ''}${t.vip ? ' <em>tracked</em>' : ''}<span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="mx-tw-t">${h(t.text)}</span></a>`;
+    const row = t => t.via === 'chain' ? `<a class="mx-tw chain" href="${h(/^https:\/\//.test(t.url || '') ? t.url : '#')}" target="_blank" rel="noopener"><span class="mx-tw-h"><b>${h(t.author)}</b> <em>on-chain</em><span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="mx-tw-t">${h(t.text)}</span></a>` : `<a class="mx-tw ${t.promo ? 'promo' : ''}" href="${h(/^https:\/\//.test(t.url || '') ? t.url : '#')}" target="_blank" rel="noopener"><span class="mx-tw-h"><b>@${h(t.author)}</b>${t.followers ? ` <em>${fol(t.followers)}</em>` : ''}${t.verified ? ' <em>✓</em>' : ''}${t.vip ? ' <em>tracked</em>' : ''}<span class="grow"></span><i>${h(vsLaunch(t.vsLaunchMin))}</i></span><span class="mx-tw-t">${h(t.text)}</span></a>`;
     return `<div class="mx-sec">WHY IT'S MOVING</div>
       <div class="mx-narr ${cls}"><b>${label}</b><span>${h(reason)}</span></div>
       ${s.reasons.slice(1, 3).map(x => `<div class="mx-reason">${h(x)}</div>`).join('')}
@@ -348,21 +351,33 @@
   const RISKY = /rugged|authority|bundle|holds \d|Top 10 holders own|Rug checks clean|Spread out: top 10/i;
   const notRisk = t => !RISKY.test(t);
   function riskHTML(r) {
-    const f = r.facts, k = f.risk, hd = f.holders;
-    if (!k && !hd && r.stage === 'quick') return `<div class="mx-sec">RISK</div><div class="mx-risk wait"><div class="mx-research-wait"><span></span><span></span><span></span> Checking mint / freeze authority, bundles, dev history, top holders…</div></div>`;
+    const f = r.facts, k = f.risk, hd = f.holders, chk = f.checking || {};
+    if (!k && !hd && r.stage === 'quick') return `<div class="mx-sec">RISK</div><div class="mx-research-wait"><span></span><span></span><span></span> Checking mint / freeze authority, the launch block for bundles and snipers, the dev's bag, top holders…</div>`;
     const flags = (k?.flags || []).map(x => { const [lvl, ...rest] = x.split(': '); return { lvl, label: rest.join(': ') }; });
-    const highs = flags.filter(x => x.lvl === 'high').length;
+    const sn = f.snipers, kols = f.trackedWallets?.kolBuys || 0;
+    const reds = flags.filter(x => x.lvl === 'high').length + (f.chart?.natural === false && !flags.some(x => /bundle/i.test(x.label)) ? 1 : 0) + (sn?.wallets >= 5 ? 1 : 0);
     const hot = (hd?.top1 >= 15) || (hd?.top10 >= 45);
-    const [chip, cls] = !k && !hd ? ['Unavailable', 'm'] : highs ? [`${highs} red flag${highs > 1 ? 's' : ''}`, 'b'] : flags.length || hot ? ['Some risk', 'm'] : ['Clean', 'g'];
+    const scanning = f.bundleScan === 'running' || chk.holders;
+    // "Clean" only when everything was actually checked and nothing was found
+    const [chip, cls] = reds ? [`${reds} red flag${reds > 1 ? 's' : ''}`, 'b'] : scanning ? ['Checking…', 'm'] : !k && !hd ? ['Unavailable', 'm']
+      : f.bundleScan !== 'done' ? ['Not fully checked', 'm'] : flags.length || hot || sn?.wallets >= 3 ? ['Some risk', 'm'] : ['Clean', 'g'];
+    const li = (c, t) => `<li class="${c}">${t}</li>`;
     const rows = [
-      ...flags.slice(0, 5).map(x => `<li class="${x.lvl === 'high' ? 'b' : 'm'}">${h(x.label)}</li>`),
-      ...(k && !flags.length ? ['<li class="g">Mint & freeze authority revoked, no bundle or rug flags</li>'] : []),
-      ...(hd ? [`<li class="${hd.top1 >= 15 || hd.top10 >= 45 ? 'b' : hd.top10 <= 25 ? 'g' : 'm'}">${hd.top1 != null ? `Top holder ${hd.top1.toFixed(1)}% · ` : ''}Top 10 hold ${hd.top10?.toFixed?.(0) ?? '?'}%${f.holderCount ? ` · ${f.holderCount.toLocaleString('en')} holders` : ''}</li>`] : []),
-      ...(f.bondingCurvePct != null && !f.graduated ? [`<li class="m">On ${h(f.launchpad || 'the launchpad')}'s bonding curve · ${Math.round(f.bondingCurvePct)}% to graduation</li>`] : []),
-      ...(f.liquidity != null ? [`<li class="${f.liquidity < 5000 ? 'b' : f.liquidity >= 50000 ? 'g' : 'm'}">Liquidity ${usd(f.liquidity)}</li>`] : []),
+      ...(f.chart?.natural === false ? [li('b', `<b>Not a natural chart:</b> ${h(f.chart.why.slice(0, 3).join('; '))}`)] : []),
+      ...flags.slice(0, 5).map(x => li(x.lvl === 'high' ? 'b' : 'm', h(x.label))),
+      ...(k && !flags.some(x => /mint authority|freeze/i.test(x.label)) && !k.failed ? [li('g', 'Mint &amp; freeze authority revoked')] : []),
+      ...(f.bundleScan === 'running' ? [li('m wait', 'Scanning the launch block for bundles…')] : f.bundleScan === 'done' && f.bundle && f.bundle.wallets < 2 && f.bundle.pct < 5 ? [li('g', `No bundle in the launch block${f.bundle.wallets ? ` (${f.bundle.wallets} other wallet, ${f.bundle.pct}%)` : ''}`)] : f.bundleScan === 'unavailable' ? [li('m', "Bundle check didn't finish: not checked")] : []),
+      ...(sn ? [sn.wallets >= 3 ? li('b', `${sn.wallets} snipers in the first ${sn.secs}s (${sn.sol.toFixed(1)} SOL)`) : li('g', `No sniper rush (${sn.wallets} wallet${sn.wallets === 1 ? '' : 's'} in the first ${sn.secs}s)`)] : []),
+      ...(f.dev?.holdPct != null && !flags.some(x => /dev/i.test(x.label)) ? [li(f.dev.holdPct >= 5 ? 'm' : 'g', `Dev holds ${f.dev.holdPct}%${f.dev.soldPct != null && f.dev.boughtPct >= 0.5 ? ` (sold ${f.dev.soldPct}% of the launch buy)` : ''}`)] : []),
+      ...(f.chart?.natural === true ? [li('g', 'Chart looks natural: no bundle, sniper rush or bot buys')] : []),
+      ...(chk.holders && !hd ? [li('m wait', 'Counting top holders…')] : hd ? [li(hot ? 'b' : hd.top10 <= 25 ? 'g' : 'm', `${hd.top1 != null ? `Top holder ${hd.top1.toFixed(1)}% · ` : ''}Top 10 hold ${hd.top10?.toFixed?.(0) ?? '?'}%${f.holderCount ? ` · ${f.holderCount.toLocaleString('en')} holders` : ''}`)] : []),
+      li(kols ? 'g' : 'm', kols ? `${kols} buy${kols > 1 ? 's' : ''} from your KOL wallets (${h((f.trackedWallets.kolNames || []).join(', '))})` : 'No tracked KOL wallets in it'),
+      ...(f.bondingCurvePct != null && !f.graduated ? [li('m', `On ${h(f.launchpad || 'the launchpad')}'s bonding curve · ${Math.round(f.bondingCurvePct)}% to graduation`)] : []),
+      ...(f.liquidity != null ? [li(f.liquidity < 5000 ? 'b' : f.liquidity >= 50000 ? 'g' : 'm', `Liquidity ${usd(f.liquidity)}`)] : []),
     ];
-    return `<div class="mx-sec">RISK <span class="mx-chip ${cls}">${chip}</span></div><ul class="mx-risk">${rows.join('') || '<li class="m">Rug check service didn\'t answer in time</li>'}</ul>`;
+    return `<div class="mx-sec">RISK <span class="mx-chip ${cls}">${chip}</span></div><ul class="mx-risk">${rows.join('')}</ul>`;
   }
+
   function openCard(html) {
     closeCard(true);
     card = document.createElement('div');

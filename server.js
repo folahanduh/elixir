@@ -578,7 +578,7 @@ kols.onBuy = ev => whales.kolBuy(ev).catch(() => {});
 
 // The mascot's research context (shared by /api/lens and the pre-warming of hot coins)
 const lensCtx = () => ({ getConfig: () => cfg, radar, risk, kols, whales, rpc: cfg.keys.solanaRpc ? (m, p) => whales.rpc(m, p) : null,
-  items: () => items, plays: () => plays.list(), tioKey: cfg.keys.twitterapiIo || '' });
+  items: () => items, plays: () => plays.list(), tioKey: cfg.keys.twitterapiIo || '', tioKeys: cfg.keys.twitterapiIos || [], xBearers: cfg.keys.xBearers || [] });
 
 // ---------- Launch radar: big money into brand-new coins (live watchlist next to the bubble map) ----------
 const radar = new LaunchRadar({
@@ -860,7 +860,9 @@ function readBody(req) {
 // Websites you visit must not be able to drive Elixir on your PC (change keys, read the feed).
 // Only Elixir's own pages (and, for a few endpoints, browser extensions: the Elixir mascot and the
 // X bridge) may call the API. DNS-rebinding is blocked by only answering to localhost host names.
-const EXT_OK = new Set(['/api/lens', '/api/ingest', '/api/bridge-ping', '/api/ping']);
+const EXT_OK = new Set(['/api/lens', '/api/ingest', '/api/bridge-ping', '/api/ping', '/api/ext-version']);
+/** The extension version in this Elixir folder (read fresh: Elixir's updates bring new extension files). */
+function extVersion() { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'extension', 'manifest.json'), 'utf8')).version || null; } catch { return null; } }
 function allowed(req, url) {
   const host = String(req.headers.host || '').toLowerCase();
   if (!/^(localhost|127\.0\.0\.1|\[::1\]|penguin\.linux\.test)(:\d+)?$/.test(host)) return false; // penguin.linux.test = Chromebook's Linux
@@ -1120,6 +1122,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 404, { error: 'not found' });
       }
       // The mascot: research the coin in whatever the user boxed or highlighted
+      if (url.pathname === '/api/ext-version') return json(res, 200, { version: extVersion() });
       if (url.pathname === '/api/lens') {
         const input = { text: String(body.text || '').slice(0, 4000), mints: (Array.isArray(body.mints) ? body.mints : []).map(String).filter(m => isWallet(m)).slice(0, 10) };
         try {
@@ -1128,7 +1131,7 @@ const server = http.createServer(async (req, res) => {
           // stage "quick": an answer in a fraction of a second; "full": + rug/holder checks and the AI write-up
           const L = require('./lib/lens');
           const out = await (body.stage === 'quick' ? L.quick : body.stage === 'risk' ? L.risk : L.full)(input, { ...lensCtx(), pageUrl: input.pageUrl });
-          return json(res, 200, { ...out, ai: out.ai || null, aiAvailable: Boolean(cfg.keys.anthropic) });
+          return json(res, 200, { ...out, ai: out.ai || null, aiAvailable: Boolean(cfg.keys.anthropic), extVersion: extVersion() });
         } catch (e) { return json(res, 500, { error: e.message }); }
       }
       if (url.pathname === '/api/sol') {
