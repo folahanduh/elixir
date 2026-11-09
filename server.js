@@ -197,7 +197,7 @@ function publicConfig() {
   return {
     provider: DEMO ? 'demo' : activeProvider(),
     accounts: cfg.accounts, vip: cfg.vip, watchlist: cfg.watchlist, ignore: cfg.ignore,
-    pollSeconds: cfg.pollSeconds, chains: cfg.chains, includeReplies: cfg.includeReplies,
+    pollSeconds: cfg.pollSeconds, chains: cfg.chains, includeReplies: cfg.includeReplies, openBrowser: cfg.openBrowser !== false,
     links: { fomo: (cfg.links && cfg.links.fomo) || '' }, notify: cfg.notify === 'all' ? 'all' : 'important', keywords: cfg.keywords, trend: cfg.trend, telegram: Boolean(cfg.telegram.botToken && cfg.telegram.chatId), discord: Boolean(cfg.discordWebhook),
     streams: { highlightScore: cfg.streams.highlightScore, pingScore: cfg.streams.pingScore, watch: cfg.streams.watch, language: cfg.streams.language },
     filter: activePreset(cfg),
@@ -950,6 +950,7 @@ const server = http.createServer(async (req, res) => {
         }
         if ('pollSeconds' in body) disk.pollSeconds = Math.max(2, Math.min(300, Number(body.pollSeconds) || 10));
         if ('includeReplies' in body) disk.includeReplies = Boolean(body.includeReplies);
+        if ('openBrowser' in body) disk.openBrowser = Boolean(body.openBrowser);
         if ('notify' in body) disk.notify = body.notify === 'all' ? 'all' : 'important';
         if ('chains' in body) disk.chains = clean(body.chains);
         if (body.filter && typeof body.filter === 'object') {
@@ -1299,8 +1300,9 @@ server.listen(cfg.port, '127.0.0.1', () => {
   console.log(`\n  Elixir → http://localhost:${cfg.port}   (tweet source: ${p})`);
   if (p === 'bridge-only') console.log('  No API key set — tweets come from the X browser bridge (userscript) or manual paste. See README.');
   console.log(`  Tracking ${cfg.accounts.length} accounts, ${cfg.watchlist.length} watch words. Ctrl+C to stop.\n`);
-  // Open the page in the default browser (skip with NO_OPEN=1, e.g. on a server or in CI).
-  if (process.env.NO_OPEN !== '1' && !process.env.CI) {
+  // Open the page in the default browser. Off with: Settings → "Open my browser when Elixir starts",
+  // NO_OPEN=1 (in .env or the shell), or ./start.sh --no-open. Never on a server / in CI.
+  if (cfg.openBrowser !== false && process.env.NO_OPEN !== '1' && !process.argv.includes('--no-open') && !process.env.CI) {
     const url = `http://localhost:${cfg.port}`;
     const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]] : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
     try { require('child_process').spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref(); } catch {}

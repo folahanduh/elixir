@@ -396,3 +396,12 @@ Issues and pull requests are welcome.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+### Stop Elixir opening your browser on start
+
+By default Elixir opens a tab in your default browser (Brave, Chrome…) every time you start it. To stop that, do any one of these:
+- In Elixir, open **Settings**, untick **Open my browser when Elixir starts** and press **Save**.
+- Start it with `./start.sh --no-open` (just for that run).
+- Add a line `NO_OPEN=1` to the `.env` file in the Elixir folder.
+
+Then open `http://localhost:8787` yourself whenever you want it.

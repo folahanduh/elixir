@@ -626,6 +626,7 @@ $('#settingsBtn').onclick = () => {
   f.pollSeconds.value = c.pollSeconds || 8;
   f.chains.value = (c.chains || []).join(', ');
   f.includeReplies.checked = !!c.includeReplies;
+  f.openBrowser.checked = c.openBrowser !== false;
   f.notify.value = c.notify || 'important';
   const fp = c.filter || {};
   f.fLabel.value = fp.label || '';
@@ -646,7 +647,7 @@ $('#settingsForm').addEventListener('submit', async e => {
   const f = e.target;
   state.config = await api('/api/config', {
     ignore: f.ignore.value,
-    pollSeconds: f.pollSeconds.value, chains: f.chains.value, includeReplies: f.includeReplies.checked, notify: f.notify.value,
+    pollSeconds: f.pollSeconds.value, chains: f.chains.value, includeReplies: f.includeReplies.checked, openBrowser: f.openBrowser.checked, notify: f.notify.value,
     ...(state.resetFilter ? { filterReset: true } : { filter: { label: f.fLabel.value, npAge: f.npAge.value, npVol: f.npVol.value, fsMcap: f.fsMcap.value, fsVol: f.fsVol.value, fsAge: f.fsAge.value, grFees: f.grFees.value } }),
   });
   state.resetFilter = false;
