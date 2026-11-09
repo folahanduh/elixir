@@ -576,12 +576,17 @@ const whales = new WhaleWatcher({
 kols.onOther = (wallet, sig, logs) => whales.fromKol(wallet, sig, logs);
 kols.onBuy = ev => whales.kolBuy(ev).catch(() => {});
 
+// The mascot's research context (shared by /api/lens and the pre-warming of hot coins)
+const lensCtx = () => ({ getConfig: () => cfg, radar, risk, kols, whales, rpc: cfg.keys.solanaRpc ? (m, p) => whales.rpc(m, p) : null });
+
 // ---------- Launch radar: big money into brand-new coins (live watchlist next to the bubble map) ----------
 const radar = new LaunchRadar({
   getConfig: () => cfg,
   send,
   demo: DEMO,
   onAlert(it, title, important) {
+    // Hot coin: get the mascot's checks ready now, so boxing it answers instantly
+    try { require('./lib/lens').warm(it.mint, lensCtx()); } catch {}
     alert({ kind: 'radar', title, important, item: { id: 'radar-' + it.mint + '-' + title.slice(0, 14), source: 'radar', author: it.symbol ? '$' + it.symbol : 'launch', text: title, url: `https://axiom.trade/meme/${it.mint}` } });
   },
 });
@@ -1115,10 +1120,10 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/lens') {
         const input = { text: String(body.text || '').slice(0, 4000), mints: (Array.isArray(body.mints) ? body.mints : []).map(String).filter(m => isWallet(m)).slice(0, 10) };
         try {
-          const out = await require('./lib/lens').lens(input, {
-            getConfig: () => cfg, radar, risk, kols, whales, pageUrl: /^https?:\/\//.test(String(body.pageUrl || '')) ? String(body.pageUrl).slice(0, 300) : '',
-            rpc: cfg.keys.solanaRpc ? (m, p) => whales.rpc(m, p) : null,
-          });
+          input.pageUrl = /^https?:\/\//.test(String(body.pageUrl || '')) ? String(body.pageUrl).slice(0, 300) : '';
+          // stage "quick": an answer in a fraction of a second; "full": + rug/holder checks and the AI write-up
+          const L = require('./lib/lens');
+          const out = await (body.stage === 'quick' ? L.quick : L.full)(input, { ...lensCtx(), pageUrl: input.pageUrl });
           return json(res, 200, { ...out, ai: out.ai || null, aiAvailable: Boolean(cfg.keys.anthropic) });
         } catch (e) { return json(res, 500, { error: e.message }); }
       }

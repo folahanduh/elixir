@@ -221,20 +221,32 @@
     mx.classList.add('thinking');
     if (rect) { const m = mx.getBoundingClientRect(); mx.style.transform = `translate(${Math.min(window.innerWidth - 60, rect.right + 12) - m.left}px, ${Math.max(0, rect.top - 10) - m.top}px) scale(1.2)`; }
     openCard('<div class="wait"><i></i><i></i><i></i>Researching…</div>');
-    chrome.runtime.sendMessage({ type: 'lens', input: { ...input, pageUrl: location.href } }, res => {
+    const id = ++askId, t0 = performance.now();
+    const call = stage => new Promise(resolve => chrome.runtime.sendMessage({ type: 'lens', input: { ...input, pageUrl: location.href, stage } }, res => resolve(chrome.runtime.lastError ? null : res)));
+    const secs = () => ((performance.now() - t0) / 1000).toFixed(1);
+    // 1) quick answer straight away
+    call('quick').then(res => {
+      if (id !== askId) return;
       mx.classList.remove('thinking');
-      if (chrome.runtime.lastError || !res) return fill('<div class="sum">Couldn\'t reach Elixir. Reload this tab and try again.</div>');
+      if (!res) return fill('<div class="sum">Couldn\'t reach Elixir. Reload this tab and try again.</div>');
       if (!res.ok) return fill(`<div class="sum">${h(res.error)}</div>`);
-      const r = res.data, base = res.base;
-      if (!r.found) return fill(`<div class="sum">${h(r.message)}</div>`);
-      const f = r.facts, v = r.ai || r.rules, lbl = { good: 'Looks good', mixed: 'Mixed', avoid: 'Avoid' }[v.verdict];
-      const pts = (a, c) => (a || []).slice(0, 4).map(t => `<li class="${c}">${h(t)}</li>`).join('');
-      fill(`<div class="head">${/^https:\/\//.test(f.image || '') ? `<img src="${h(f.image)}" alt="">` : ''}<div class="grow"><b>${f.symbol ? '$' + h(f.symbol) : 'Coin'}</b><div class="sub">${h(f.name || '')}${f.marketCap ? ' · mc ' + usd(f.marketCap) : ''}${f.liquidity ? ' · liq ' + usd(f.liquidity) : ''}</div></div><span class="v ${h(v.verdict)}">${lbl}<em>${h(r.rules.score)}</em></span></div>
-        ${r.ai?.headline ? `<div class="hl">${h(r.ai.headline)}</div>` : ''}<p class="sum">${h(v.summary)}</p><ul>${pts(v.good, 'g')}${pts(v.bad, 'b')}</ul>
-        ${r.rules.info?.length ? `<div class="info">${r.rules.info.slice(0, 3).map(h).join(' · ')}</div>` : ''}
-        <div class="links"><a href="${h(base)}/whales.html?view=map&map=${encodeURIComponent(f.mint)}" target="_blank" rel="noopener">Open in Elixir</a><a href="${h(r.links.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${h(r.links.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${h(r.links.rugcheck)}" target="_blank" rel="noopener">RugCheck</a><a href="${h(r.links.solscan)}" target="_blank" rel="noopener">Solscan</a></div>
-        <div class="foot">${r.ai ? 'Written by Claude from live data.' : 'Rule-based summary (add an Anthropic key in Elixir for an AI verdict).'} Not financial advice.</div>`);
+      if (!res.data.found) return fill(`<div class="sum">${h(res.data.message)}</div>`);
+      render(res.data, res.base, secs());
+      // 2) full answer (rug + holder checks, AI) replaces it
+      call('full').then(full => { if (id === askId && card && full?.ok && full.data.found) render(full.data, full.base, secs()); });
     });
+  }
+  let askId = 0;
+  function render(r, base, secs) {
+    const f = r.facts, v = r.ai || r.rules, lbl = { good: 'Looks good', mixed: 'Mixed', avoid: 'Avoid' }[v.verdict];
+    const pts = (a, c) => (a || []).slice(0, 4).map(t => `<li class="${c}">${h(t)}</li>`).join('');
+    const foot = r.stage === 'quick' ? `Answered in ${h(secs)}s · checking rugs, holders and writing the AI verdict…`
+      : `${r.ai ? `Claude's verdict from live data · ${h(secs)}s.` : `Rule-based · ${h(secs)}s (add an Anthropic key in Elixir for an AI verdict).`} Not financial advice.`;
+    fill(`<div class="head">${/^https:\/\//.test(f.image || '') ? `<img src="${h(f.image)}" alt="">` : ''}<div class="grow"><b>${f.symbol ? '$' + h(f.symbol) : 'Coin'}</b><div class="sub">${h(f.name || '')}${f.marketCap ? ' · mc ' + usd(f.marketCap) : ''}${f.liquidity ? ' · liq ' + usd(f.liquidity) : ''}</div></div><span class="v ${h(v.verdict)}">${lbl}<em>${h(r.rules.score)}</em></span></div>
+      ${r.ai?.headline ? `<div class="hl">${h(r.ai.headline)}</div>` : ''}<p class="sum">${h(v.summary)}</p><ul>${pts(v.good, 'g')}${pts(v.bad, 'b')}</ul>
+      ${r.rules.info?.length ? `<div class="info">${r.rules.info.slice(0, 3).map(h).join(' · ')}</div>` : ''}
+      <div class="links"><a href="${h(base)}/whales.html?view=map&map=${encodeURIComponent(f.mint)}" target="_blank" rel="noopener">Open in Elixir</a><a href="${h(r.links.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${h(r.links.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${h(r.links.rugcheck)}" target="_blank" rel="noopener">RugCheck</a><a href="${h(r.links.solscan)}" target="_blank" rel="noopener">Solscan</a></div>
+      <div class="foot">${foot}</div>`);
   }
   function openCard(html) {
     card?.remove();
@@ -256,5 +268,5 @@
     let top = Math.max(8, m.top + 10); if (top + card.offsetHeight > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - card.offsetHeight);
     card.style.left = left + 'px'; card.style.top = top + 'px';
   }
-  function close() { card?.remove(); card = null; mx.style.transform = ''; mx.classList.remove('thinking'); }
+  function close() { card?.remove(); card = null; askId++; mx.style.transform = ''; mx.classList.remove('thinking'); }
 })();

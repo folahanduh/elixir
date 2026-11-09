@@ -24,13 +24,16 @@ chrome.commands.onCommand.addListener(async cmd => {
 });
 chrome.action.onClicked.addListener(tab => tell(tab, { type: 'snip' }));
 
+let lastGood = null;
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg?.type !== 'lens') return;
   (async () => {
-    for (const base of BASES) {
+    const order = lastGood ? [lastGood, ...BASES.filter(b => b !== lastGood)] : BASES; // the one that worked last time first
+    for (const base of order) {
       try {
         const r = await fetch(base + '/api/lens', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(msg.input), signal: AbortSignal.timeout(45000) });
         const j = await r.json();
+        lastGood = base;
         return reply(r.ok ? { ok: true, data: j, base } : { ok: false, error: j.error || 'Elixir returned an error' });
       } catch {}
     }

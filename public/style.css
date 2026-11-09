@@ -1024,3 +1024,6 @@ html.qb-off .qb { display: none !important; }
 .mascot.dragging { cursor: grabbing !important; transition: none !important; animation: none !important; }
 .mascot.held { scale: 1.12; filter: drop-shadow(0 10px 18px rgba(124, 109, 255, .65)) !important; }
 .mascot { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+.mx-live { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); }
+.mx-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-2); animation: mxDot 1s infinite ease-in-out; }

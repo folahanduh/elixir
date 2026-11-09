@@ -186,19 +186,34 @@
       mx.style.transform = `translate(${x - hr.left}px, ${y - hr.top}px) scale(1.25)`;
     }
     openCard('<div class="mx-wait"><span></span><span></span><span></span> Researching…</div>');
-    let r;
+    const id = ++askId, t0 = performance.now();
+    const call = stage => fetch('/api/lens', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...input, stage }) })
+      .then(async res => { const j = await res.json(); if (!res.ok) throw new Error(j.error || 'Research failed'); return j; });
+    // 1) quick answer (market data + what Elixir already knows): on screen in a fraction of a second
     try {
-      const res = await fetch('/api/lens', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) });
-      r = await res.json();
-      if (!res.ok) throw new Error(r.error || 'Research failed');
-    } catch (e) { mx.classList.remove('thinking'); return fill(`<div class="mx-msg">${h(e.message)}</div>`); }
-    mx.classList.remove('thinking');
-    if (!r.found) return fill(`<div class="mx-msg">${h(r.message)}</div>`);
+      const q = await call('quick');
+      if (id !== askId) return;
+      mx.classList.remove('thinking');
+      if (!q.found) return fill(`<div class="mx-msg">${h(q.message)}</div>`);
+      render(q, ((performance.now() - t0) / 1000).toFixed(1));
+    } catch (e) { if (id === askId) { mx.classList.remove('thinking'); fill(`<div class="mx-msg">${h(e.message)}</div>`); } return; }
+    // 2) full answer (rug + holder checks, Claude's write-up) replaces it when ready
+    try {
+      const f = await call('full');
+      if (id !== askId || !card) return;
+      if (f.found) render(f, ((performance.now() - t0) / 1000).toFixed(1));
+    } catch {}
+  }
+  let askId = 0;
+  function render(r, secs) {
     const f = r.facts, v = r.ai || r.rules;
     const verdict = v.verdict;
     mx.dataset.mood = verdict;
     const lbl = { good: 'Looks good', mixed: 'Mixed', avoid: 'Avoid' }[verdict];
     const pts = (arr, cls) => (arr || []).slice(0, 4).map(t => `<li class="${cls}">${h(t)}</li>`).join('');
+    const quick = r.stage === 'quick';
+    const foot = quick ? `<span class="mx-live"><i></i>Answered in ${h(secs)}s · checking rugs, holders${r.aiAvailable !== false ? ' and writing the AI verdict' : ''}…</span>`
+      : `${r.ai ? `Claude's verdict from live data · ${h(secs)}s.` : r.aiAvailable ? `Rule-based (Claude was unavailable) · ${h(secs)}s.` : `Rule-based · ${h(secs)}s. Add an Anthropic key in API keys for a written AI verdict.`} Not financial advice.`;
     fill(`<div class="mx-head">
         <img src="${h(window.coinImg ? window.coinImg(f.mint, f.image) : f.image || '')}" alt="" onerror="this.remove()">
         <div class="grow"><b>${f.symbol ? '$' + h(f.symbol) : 'Coin'}</b>${window.qbHTML ? window.qbHTML(f.mint, f.symbol) : ''}<div class="mx-sub">${h(f.name || '')}${f.marketCap ? ' · mc ' + usd(f.marketCap) : ''}${f.liquidity ? ' · liq ' + usd(f.liquidity) : ''}</div></div>
@@ -208,7 +223,7 @@
       <ul class="mx-pts">${pts(v.good, 'g')}${pts(v.bad, 'b')}</ul>
       ${r.rules.info?.length ? `<div class="mx-info">${r.rules.info.slice(0, 3).map(h).join(' · ')}</div>` : ''}
       <div class="mx-links"><a href="#" data-map="${h(f.mint)}" data-mxmap="${h(f.mint)}">Bubble map</a><a href="${h(r.links.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${h(r.links.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${h(r.links.rugcheck)}" target="_blank" rel="noopener">RugCheck</a><a href="${h(r.links.solscan)}" target="_blank" rel="noopener">Solscan</a></div>
-      <div class="mx-foot">${r.ai ? 'Written by Claude from live data.' : r.aiAvailable ? 'Rule-based (Claude was unavailable).' : 'Rule-based summary. Add an Anthropic key in API keys for a written AI verdict.'} Not financial advice.</div>`);
+      <div class="mx-foot">${foot}</div>`);
   }
   function openCard(html) {
     closeCard(true);
@@ -232,6 +247,7 @@
   }
   function closeCard(keepMascot) {
     card?.remove(); card = null;
+    if (!keepMascot) askId++; // a late answer for a closed card is dropped
     if (!keepMascot) { mx.style.transform = ''; mx.classList.remove('out', 'thinking'); delete mx.dataset.mood; }
   }
   // "Bubble map" from the card: on the map page map it here, elsewhere open the map page.
