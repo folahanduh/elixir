@@ -17,7 +17,7 @@ Spots memecoin plays the moment they happen, on X and on live streams, then chec
 
 ## Quick start (about 2 minutes)
 
-1. **Install Node.js 22 or newer** from https://nodejs.org (the LTS button).
+1. **Install Node.js 22 or newer** from https://nodejs.org (the LTS button). On Windows you can skip this: if Node.js isn't installed, `start.bat` downloads a portable copy into the Elixir folder by itself, with no admin rights needed.
 2. **Get the code:** on GitHub click the green **Code** button, then **Download ZIP**, and unzip it. With git: `git clone https://github.com/folahanduh/elixir`
 3. **Double-click to start:**
 
@@ -28,6 +28,8 @@ Spots memecoin plays the moment they happen, on X and on live streams, then chec
    | Linux | `./start.sh` | `./start.sh demo` |
 
    The page opens by itself at **http://localhost:8787**. Use Chrome or Edge. Close the window, or press Ctrl+C, to stop it.
+
+   **Windows PowerShell:** type `.\start.bat`, with the `.\` in front. PowerShell doesn't run files from the current folder without it. Double-clicking `start.bat` in File Explorer works too.
 
    On a Mac, the first time macOS may say the file is from an unidentified developer. Right-click it, choose **Open**, then **Open** again.
 
