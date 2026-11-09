@@ -1018,3 +1018,9 @@ html.qb-off .qb { display: none !important; }
 .mx-scope.on { color: var(--accent); }
 .mx-scope b { color: #c9ccd5; margin: 0; }
 .mx-hint { white-space: normal; max-width: 560px; text-align: center; }
+
+/* mascot: free position after you drag it */
+.mascot.free { position: fixed !important; left: var(--x); top: var(--y); margin: 0 !important; z-index: 70; }
+.mascot.dragging { cursor: grabbing !important; transition: none !important; animation: none !important; }
+.mascot.held { scale: 1.12; filter: drop-shadow(0 10px 18px rgba(124, 109, 255, .65)) !important; }
+.mascot { touch-action: none; user-select: none; -webkit-user-select: none; }

@@ -28,7 +28,7 @@
   const mx = document.createElement('button');
   mx.type = 'button';
   mx.className = 'mascot';
-  mx.title = 'Ask Elixir (Alt+X): box a coin anywhere on the page and I\'ll tell you if it looks good';
+  mx.title = 'Ask Elixir (tap or Alt+X): box a coin and I\'ll tell you if it looks good · hold and drag to move me · right-click: back to the header';
   mx.innerHTML = SVG;
   const home = document.querySelector('.top');
   if (!home) return;
@@ -52,7 +52,55 @@
 
   // ---------- snipping ----------
   let veil = null, box = null, start = null;
+  // Hold it and drag it anywhere on the screen; double-click puts it back in the header.
+  const POS_KEY = 'nr.mascot.pos';
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  let pos = null; try { pos = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch {}
+  function applyPos() {
+    // Out of the header while it's free: the header's blur effect would otherwise pin it inside the header.
+    if (!pos) { mx.classList.remove('free', 'float'); mx.style.removeProperty('--x'); mx.style.removeProperty('--y'); if (mx.parentNode !== home) home.append(mx); return; }
+    if (mx.parentNode !== document.body) document.body.append(mx);
+    const w = mx.offsetWidth || 40, hh = mx.offsetHeight || 44;
+    const x = clamp(pos.fx * window.innerWidth, 0, window.innerWidth - w), y = clamp(pos.fy * window.innerHeight, 0, window.innerHeight - hh);
+    mx.classList.add('free'); mx.style.setProperty('--x', x + 'px'); mx.style.setProperty('--y', y + 'px');
+  }
+  applyPos(); window.addEventListener('resize', applyPos);
+  let drag = null, swallowClick = false;
+  mx.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const r = mx.getBoundingClientRect();
+    drag = { sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, t: Date.now(), moved: false };
+    drag.hold = setTimeout(() => drag && mx.classList.add('held'), 220);
+    mx.setPointerCapture(e.pointerId);
+  });
+  mx.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 4) {
+      drag.moved = true; mx.classList.add('free', 'dragging', 'held'); if (card) closeCard();
+      if (mx.parentNode !== document.body) { document.body.append(mx); mx.setPointerCapture(e.pointerId); }
+    }
+    if (!drag.moved) return;
+    const w = mx.offsetWidth, hh = mx.offsetHeight;
+    mx.style.setProperty('--x', clamp(e.clientX - drag.ox, 0, window.innerWidth - w) + 'px');
+    mx.style.setProperty('--y', clamp(e.clientY - drag.oy, 0, window.innerHeight - hh) + 'px');
+  });
+  mx.addEventListener('pointerup', () => {
+    if (!drag) return;
+    clearTimeout(drag.hold);
+    const { moved, t } = drag; drag = null;
+    mx.classList.remove('dragging', 'held');
+    if (moved) {
+      const r = mx.getBoundingClientRect();
+      pos = { fx: r.left / window.innerWidth, fy: r.top / window.innerHeight };
+      try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch {}
+      applyPos(); swallowClick = true;           // the click that follows a drag isn't a tap
+    } else if (Date.now() - t >= 350) swallowClick = true; // held and let go: just put it down
+  });
+  // Right-click: back to its spot in the header
+  mx.addEventListener('contextmenu', e => { e.preventDefault(); pos = null; try { localStorage.removeItem(POS_KEY); } catch {} applyPos(); closeCard(); });
+
   mx.addEventListener('click', () => {
+    if (swallowClick) { swallowClick = false; return; }
     if (card) return closeCard();
     // Something already highlighted? Research that straight away.
     const sel = window.getSelection();

@@ -18,9 +18,13 @@
   sheet.replaceSync(`
     :host { all: initial; }
     * { box-sizing: border-box; font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    .mx { position: fixed; top: -4px; right: var(--right, 120px); width: var(--s, 46px); height: calc(var(--s, 46px) * 1.45); cursor: grab; user-select: none; filter: drop-shadow(0 4px 10px rgba(91, 77, 240, .45)); transition: filter .2s, transform .45s cubic-bezier(.3, 1.4, .5, 1); }
+    .mx { position: fixed; left: var(--x, calc(100vw - 170px)); top: var(--y, -4px); width: var(--s, 46px); height: calc(var(--s, 46px) * 1.45); cursor: grab; user-select: none; filter: drop-shadow(0 4px 10px rgba(91, 77, 240, .45)); transition: filter .2s, transform .45s cubic-bezier(.3, 1.4, .5, 1); }
     .mx:hover { filter: drop-shadow(0 6px 16px rgba(124, 109, 255, .75)); }
     .mx.drag { cursor: grabbing; transition: none; }
+    .mx.held { scale: 1.12; filter: drop-shadow(0 10px 18px rgba(91, 77, 240, .6)); }
+    .mx.held .legs { animation-duration: .5s; }
+    .mx.float:not(.drag) { animation: bob 3.2s ease-in-out infinite; }
+    @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
     .mx svg { width: 100%; height: 100%; overflow: visible; display: block; }
     .legs { transform-origin: 32px 58px; animation: swing 2.4s ease-in-out infinite; }
     .legs .r { animation: swing2 2.4s ease-in-out infinite; transform-origin: 37px 58px; }
@@ -67,7 +71,7 @@
   `);
   root.adoptedStyleSheets = [sheet];
   root.innerHTML = `
-  <div class="mx" title="Elixir · Alt+X: box a coin · drag me along the top">
+  <div class="mx" title="Elixir · tap or Alt+X: box a coin · hold and drag to move me · right-click: back to the top">
     <svg viewBox="0 0 64 92" aria-hidden="true">
       <defs>
         <linearGradient id="b" x1="20" y1="2" x2="44" y2="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#c3cbff"/><stop offset=".4" stop-color="#8b86ff"/><stop offset=".78" stop-color="#5b4df0"/><stop offset="1" stop-color="#3a2bc4"/></linearGradient>
@@ -91,7 +95,22 @@
   // Size follows the window: smaller windows get a smaller mascot, still sitting on the top edge.
   const size = () => { const w = window.innerWidth; mx.style.setProperty('--s', (w < 600 ? 28 : w < 1000 ? 36 : 46) + 'px'); };
   size(); window.addEventListener('resize', size);
-  chrome.storage.local.get(['right', 'hidden'], v => { if (v.right != null) mx.style.setProperty('--right', v.right + 'px'); if (v.hidden) mx.classList.add('hidden'); });
+  // Where it sits: anywhere you drop it (saved as a share of the window, so it survives resizing).
+  let pos = null; // {fx, fy} or null = home (top edge, right side)
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function apply() {
+    const w = mx.offsetWidth || 46, hh = mx.offsetHeight || 66;
+    let x, y;
+    if (pos) { x = pos.fx * window.innerWidth; y = pos.fy < 0 ? -4 : pos.fy * window.innerHeight; }
+    else { x = window.innerWidth - 120 - w; y = -4; }
+    x = clamp(x, 0, window.innerWidth - w); y = clamp(y, -4, window.innerHeight - hh);
+    mx.style.setProperty('--x', x + 'px'); mx.style.setProperty('--y', y + 'px');
+    mx.classList.toggle('float', y > 24); // near the top edge it sits, elsewhere it floats
+  }
+  const savePos = () => chrome.storage.local.set({ pos });
+  chrome.storage.local.get(['pos', 'hidden'], v => { if (v.pos && typeof v.pos.fx === 'number') pos = v.pos; if (v.hidden) mx.classList.add('hidden'); apply(); });
+  window.addEventListener('resize', apply);
+  apply();
 
   // Eyes follow the mouse, it blinks now and then
   let raf = 0, mouse = null;
@@ -108,21 +127,38 @@
   }
   (function blink() { setTimeout(() => { mx.classList.add('blink'); setTimeout(() => mx.classList.remove('blink'), 140); blink(); }, 2600 + Math.random() * 3800); })();
 
-  // Drag it along the top edge; a click (no drag) starts boxing
+  // Hold it and drag it anywhere on the screen. A quick tap starts boxing; double-click sends it home.
   let drag = null;
-  mx.addEventListener('pointerdown', e => { drag = { x: e.clientX, right: parseFloat(getComputedStyle(mx).right) || 120, moved: false }; mx.setPointerCapture(e.pointerId); });
+  mx.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const r = mx.getBoundingClientRect();
+    drag = { sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, t: Date.now(), moved: false };
+    drag.hold = setTimeout(() => drag && mx.classList.add('held'), 220); // picked up
+    mx.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
   mx.addEventListener('pointermove', e => {
     if (!drag) return;
-    const dx = e.clientX - drag.x;
-    if (Math.abs(dx) > 4) { drag.moved = true; mx.classList.add('drag'); }
-    if (drag.moved) mx.style.setProperty('--right', Math.max(4, Math.min(window.innerWidth - 60, drag.right - dx)) + 'px');
+    if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 4) { drag.moved = true; mx.classList.add('drag', 'held'); close(); }
+    if (!drag.moved) return;
+    const w = mx.offsetWidth, hh = mx.offsetHeight;
+    const x = clamp(e.clientX - drag.ox, 0, window.innerWidth - w), y = clamp(e.clientY - drag.oy, -4, window.innerHeight - hh);
+    mx.style.setProperty('--x', x + 'px'); mx.style.setProperty('--y', y + 'px');
+    mx.classList.toggle('float', y > 24);
   });
-  mx.addEventListener('pointerup', () => {
+  mx.addEventListener('pointerup', e => {
     if (!drag) return;
-    const moved = drag.moved; drag = null; mx.classList.remove('drag');
-    if (moved) chrome.storage.local.set({ right: parseFloat(getComputedStyle(mx).right) || 120 });
-    else start();
+    clearTimeout(drag.hold);
+    const { moved, t } = drag; drag = null;
+    mx.classList.remove('drag', 'held');
+    if (moved) {
+      const r = mx.getBoundingClientRect();
+      pos = { fx: r.left / window.innerWidth, fy: r.top <= 24 ? -1 : r.top / window.innerHeight }; // dropped near the top: sits on the edge
+      apply(); savePos();
+    } else if (Date.now() - t < 350) start(); // a tap
   });
+  // Right-click: back to its home spot on the top edge
+  mx.addEventListener('contextmenu', e => { e.preventDefault(); pos = null; apply(); savePos(); close(); });
 
   chrome.runtime.onMessage.addListener(msg => {
     if (msg?.type === 'snip') { mx.classList.remove('hidden'); start(); }
