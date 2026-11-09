@@ -40,7 +40,7 @@
     const kind = { buy: 'BUY', deploy: 'DEPLOY', fund: 'FUNDED' }[e.kind] || e.kind;
     const chain = (e.chain || []).map(c => chip(c.wallet, c.name)).join('<span class="ar">→</span>');
     const ageH = e.pairCreatedAt ? (e.at - e.pairCreatedAt) / 3600000 : null;
-    const coin = e.mint ? `<div class="whcoin"><img src="${esc(coinImg(e.mint, e.image))}" alt="" loading="lazy" onerror="this.remove()"><b>${e.symbol ? '$' + esc(e.symbol) : esc(short(e.mint))}</b>
+    const coin = e.mint ? `<div class="whcoin"><img src="${esc(coinImg(e.mint, e.image))}" alt="" loading="lazy" onerror="this.remove()"><b>${e.symbol ? '$' + esc(e.symbol) : esc(short(e.mint))}</b>${qbHTML(e.mint, e.symbol)}
       ${e.name ? `<span class="muted">${esc(e.name)}</span>` : ''}${e.marketCap ? `<span>mc ${usd(e.marketCap)}</span>` : ''}
       <span class="muted">${ageH == null ? 'no market yet' : ageH < 1 ? Math.max(0, Math.round(ageH * 60)) + 'm old' : ageH.toFixed(1) + 'h old'}</span>
       <span class="lks"><a href="${esc(e.links?.axiom)}" target="_blank" rel="noopener">Axiom</a><a href="${esc(e.links?.gmgn)}" target="_blank" rel="noopener">GMGN</a><a href="${esc(e.links?.dexscreener)}" target="_blank" rel="noopener">Chart</a><a href="#" data-map="${esc(e.mint)}">Bubble map</a></span></div>
@@ -54,7 +54,7 @@
   function hotHTML(e) {
     const ageH = e.pairCreatedAt ? (e.at - e.pairCreatedAt) / 3600000 : null;
     return `<div class="whhot">
-      <div class="hh-top"><img src="${esc(coinImg(e.mint, e.image))}" alt="" onerror="this.remove()"><div class="grow"><span class="whk">WHALE VOLUME</span> <b>${e.symbol ? '$' + esc(e.symbol) : 'New coin'}</b> ${e.name ? `<span class="muted">${esc(e.name)}</span>` : ''}
+      <div class="hh-top"><img src="${esc(coinImg(e.mint, e.image))}" alt="" onerror="this.remove()"><div class="grow"><span class="whk">WHALE VOLUME</span> <b>${e.symbol ? '$' + esc(e.symbol) : 'New coin'}</b>${qbHTML(e.mint, e.symbol)} ${e.name ? `<span class="muted">${esc(e.name)}</span>` : ''}
         <div class="muted small">${ageH == null ? 'no market yet' : ageH < 1 ? Math.max(0, Math.round(ageH * 60)) + 'm old' : ageH.toFixed(1) + 'h old'}${e.marketCap ? ' · mc ' + usd(e.marketCap) : ''} · ${clock(e.at)}</div></div>
         <div class="hh-sol">${solHTML(Math.round(e.sol).toLocaleString())}<span>from ${(e.wallets || []).length} tracked wallet${(e.wallets || []).length > 1 ? 's' : ''}</span></div></div>
       <div class="ca big"><span>CA</span><code>${esc(e.mint)}</code><button class="small cp" data-copy="${esc(e.mint)}">Copy CA</button></div>
@@ -300,13 +300,13 @@
         <div class="bm-legend2"><span><i style="background:${ACT.center}"></i>this wallet</span><span><i style="background:${ACT.active}"></i>active this week</span><span><i style="background:${ACT.quiet}"></i>quiet (history)</span><span><i style="background:${ACT.known}"></i>known</span><span>arrows = which way money went</span></div>`;
       if (!sel) html += `<div class="bm-sec">TRANSFER HISTORY</div><div class="hist" data-hist="${esc(d.wallet)}">${histHTML(d.wallet)}</div>`;
       if (sel) html += cardHTML(sel, false);
-      if (d.buys?.length) html += `<div class="bm-sec">COINS IT BOUGHT LATELY</div>` + d.buys.map(b => `<div class="bm-buy"><img src="${esc(coinImg(b.mint, b.image))}" alt="" loading="lazy" onerror="this.remove()"><div class="grow"><b>${b.symbol ? '$' + esc(b.symbol) : esc(short(b.mint))}</b> <span class="muted">${solS(b.sol)} · ${ago(b.at)}${b.marketCap ? ' · mc ' + usd(b.marketCap) : ''}</span><div class="addr"><code>${esc(b.mint)}</code>${copyBtn(b.mint, 'Copy CA')}</div></div><a class="lk" href="#" data-map="${esc(b.mint)}">Map</a></div>`).join('');
+      if (d.buys?.length) html += `<div class="bm-sec">COINS IT BOUGHT LATELY</div>` + d.buys.map(b => `<div class="bm-buy"><img src="${esc(coinImg(b.mint, b.image))}" alt="" loading="lazy" onerror="this.remove()"><div class="grow"><b>${b.symbol ? '$' + esc(b.symbol) : esc(short(b.mint))}</b>${qbHTML(b.mint, b.symbol)} <span class="muted">${solS(b.sol)} · ${ago(b.at)}${b.marketCap ? ' · mc ' + usd(b.marketCap) : ''}</span><div class="addr"><code>${esc(b.mint)}</code>${copyBtn(b.mint, 'Copy CA')}</div></div><a class="lk" href="#" data-map="${esc(b.mint)}">Map</a></div>`).join('');
       html += `<div class="bm-sec">WALLETS</div>` + d.nodes.filter(n => n.role !== 'center').sort((a, b) => (b.vol || 0) - (a.vol || 0)).map(n => `<div class="bm-row ${sel === n ? 'on' : ''}" data-bmsel="${esc(n.id)}"><span class="dot" style="background:${ACT[actKey(n)]}"></span><span class="grow">${esc(n.label || n.name)}${ctxPct(n.id) != null ? ` <span class="muted">· ${pctS(ctxPct(n.id))}</span>` : ''}${n.fresh ? ' <span class="muted">· fresh</span>' : ''}</span><span class="pct">${n.vol ? solS(n.vol) : ''}</span><a class="ss" href="https://solscan.io/account/${esc(n.id)}" target="_blank" rel="noopener" title="Open on Solscan">Solscan ↗</a></div>`).join('');
       $('#bmSide').innerHTML = html;
       return;
     }
     if (d.stage === 'instant') {
-      html += `<div class="bm-coin"><img src="${esc(coinImg(d.mint, d.image))}" alt="" onerror="this.remove()"><div class="grow"><b>${d.symbol ? '$' + esc(d.symbol) : 'Coin'}</b> ${d.name ? `<span class="muted">${esc(d.name)}</span>` : ''}<div class="addr"><code>${esc(d.mint)}</code>${copyBtn(d.mint, 'Copy CA')}</div></div></div>
+      html += `<div class="bm-coin"><img src="${esc(coinImg(d.mint, d.image))}" alt="" onerror="this.remove()"><div class="grow"><b>${d.symbol ? '$' + esc(d.symbol) : 'Coin'}</b>${qbHTML(d.mint, d.symbol)} ${d.name ? `<span class="muted">${esc(d.name)}</span>` : ''}<div class="addr"><code>${esc(d.mint)}</code>${copyBtn(d.mint, 'Copy CA')}</div></div></div>
         <div class="muted small">Loading holders and connections…</div>`;
       if (sel) html += cardHTML(sel, false);
       html += radarSection(d.mint);
@@ -316,7 +316,7 @@
     const col = c => bm.colors[(c - 1) % bm.colors.length];
     const top10 = d.nodes.filter(n => n.kind === 'holder').slice(0, 10).reduce((s, n) => s + n.pct, 0);
     const big = d.clusters[0];
-    html += `<div class="bm-coin"><img src="${esc(coinImg(d.mint, d.image))}" alt="" onerror="this.remove()"><div class="grow"><b>${d.symbol ? '$' + esc(d.symbol) : 'Coin'}</b> ${d.name ? `<span class="muted">${esc(d.name)}</span>` : ''}<div class="muted small">${d.holderCount.toLocaleString()} holders${d.partial ? '+' : ''}${d.marketCap ? ' · mc ' + usd(d.marketCap) : ''}${d.createdAt ? ' · launched ' + ago(d.createdAt) : ''}</div><div class="addr"><code>${esc(d.mint)}</code>${copyBtn(d.mint, 'Copy CA')}</div></div></div>
+    html += `<div class="bm-coin"><img src="${esc(coinImg(d.mint, d.image))}" alt="" onerror="this.remove()"><div class="grow"><b>${d.symbol ? '$' + esc(d.symbol) : 'Coin'}</b>${qbHTML(d.mint, d.symbol)} ${d.name ? `<span class="muted">${esc(d.name)}</span>` : ''}<div class="muted small">${d.holderCount.toLocaleString()} holders${d.partial ? '+' : ''}${d.marketCap ? ' · mc ' + usd(d.marketCap) : ''}${d.createdAt ? ' · launched ' + ago(d.createdAt) : ''}</div><div class="addr"><code>${esc(d.mint)}</code>${copyBtn(d.mint, 'Copy CA')}</div></div></div>
       <div class="bm-sum">
         <div class="${d.clusteredPct >= 20 ? 'warn' : ''}"><b>${pctS(d.clusteredPct)}</b><span>held by connected wallets</span></div>
         <div class="${big && big.pct >= 10 ? 'warn' : ''}"><b>${big ? pctS(big.pct) : '—'}</b><span>biggest cluster${big ? ` (${big.wallets.length} wallets)` : ''}</span></div>
@@ -431,7 +431,7 @@
     const pic = `<img src="${esc(coinImg(it.mint, it.image))}" alt="" loading="lazy" data-fallback="${initialOf(it)}">`;
     return `<div class="rd-it ${it.hot ? 'hot' : ''} ${rdSel === it.mint ? 'sel' : ''}" data-rd="${esc(it.mint)}">
       <div class="rd-top">${pic}
-        <div class="grow"><div class="rd-name"><b>${it.symbol ? '$' + esc(it.symbol) : 'Unnamed'}</b>${it.hot ? '<span class="rd-major">MAJOR</span>' : ''}</div>
+        <div class="grow"><div class="rd-name"><b>${it.symbol ? '$' + esc(it.symbol) : 'Unnamed'}</b>${qbHTML(it.mint, it.symbol)}${it.hot ? '<span class="rd-major">MAJOR</span>' : ''}</div>
           <div class="rd-sub">${esc(it.name || '')}${it.name ? ' · ' : ''}${esc(it.pad || '')} · ${age(it.createdAt)} old${it.mcUsd ? ' · mc ' + usd(it.mcUsd) : ''}</div></div>
         <div class="rd-sol">${big}</div></div>
       <div class="rd-meta">${meta}</div>

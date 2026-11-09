@@ -1073,6 +1073,27 @@ const server = http.createServer(async (req, res) => {
         }
         return json(res, 200, { ...whales.snapshot(), settings: whales.cfg, labels: whales.cfg.labels || {} });
       }
+      // ---- quick buy / sell: Elixir builds the swap, the user's wallet signs it (no private keys here) ----
+      if (url.pathname.startsWith('/api/trade/')) {
+        const trade = require('./lib/trade');
+        const rpcUrl = cfg.keys.solanaRpc;
+        if (!rpcUrl) return json(res, 400, { error: 'Add a Solana RPC (Helius) in API keys first' });
+        try {
+          if (url.pathname === '/api/trade/build') return json(res, 200, await trade.build(rpcUrl, body));
+          if (url.pathname === '/api/trade/status') return json(res, 200, await trade.status(rpcUrl, String(body.sig || '')));
+          if (url.pathname === '/api/trade/balance') return json(res, 200, { sol: await trade.balance(rpcUrl, String(body.wallet || '')) });
+          if (url.pathname === '/api/trade/positions') {
+            const mints = (Array.isArray(body.mints) ? body.mints : []).filter(m => isWallet(m)).slice(0, 30);
+            const out = await Promise.all(mints.map(async m => {
+              const b = await trade.tokenBalance(rpcUrl, String(body.wallet || ''), m).catch(() => null);
+              const info = await dex.tokenInfo(m).catch(() => null);
+              return { mint: m, ui: b ? b.ui : 0, symbol: info?.symbol || null, marketCap: info?.marketCap ?? null };
+            }));
+            return json(res, 200, { positions: out.filter(p => p.ui > 0) });
+          }
+        } catch (e) { return json(res, 400, { error: e.message }); }
+        return json(res, 404, { error: 'not found' });
+      }
       if (url.pathname === '/api/sol') {
         const range = ['1h', '1d', '7d'].includes(body.range) ? body.range : '1d';
         return json(res, 200, { ...solPrice.snapshot(), range, points: await solPrice.history(range) });

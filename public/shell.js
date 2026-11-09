@@ -82,6 +82,13 @@
   // SOL amounts everywhere: the Solana mark, then the number.
   // Coin pictures go through Elixir, which finds one that loads (IPFS gateways, pump.fun, DexScreener…) and caches it.
   window.coinImg = (mint, hint) => (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint || '') ? `/img/coin/${mint}${hint ? '?u=' + encodeURIComponent(hint) : ''}` : hint || '');
+  // ⚡ quick-buy button beside a ticker (trade.js does the buying). Amount comes from the wallet menu.
+  window.qbHTML = (mint, sym) => {
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint || '')) return '';
+    let amt = 0.5; try { amt = Number(JSON.parse(localStorage.getItem('nr.trade') || '{}').amount) || 0.5; } catch {}
+    const a = String(+amt.toFixed(3)), s = String(sym || '').replace(/[^\w$.-]/g, '').slice(0, 20);
+    return `<button type="button" class="qb" data-qb="${mint}" data-sym="${s}" title="Quick buy ${a} SOL of ${s ? '$' + s : 'this coin'} (approve in your wallet)">⚡<span class="qb-a">${a}</span></button>`;
+  };
   window.solHTML = v => `<span class="solv"><i class="sol-i" title="SOL" aria-label="SOL"></i>${v}</span>`;
   const svg = (k, s = 16) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ico[k]}</svg>`;
 
@@ -290,6 +297,7 @@
   solEl.addEventListener('mouseleave', closeSolPop);
   solEl.addEventListener('click', openSolPop);
 
+  { const ts = document.createElement('script'); ts.src = '/trade.js'; ts.defer = true; document.body.append(ts); }
   // Text size (A− / A / A+): scales the whole page, remembered per browser.
   const ZOOMS = [0.9, 1, 1.1, 1.2, 1.32];
   const applyZoom = z => { document.documentElement.style.zoom = String(z); };

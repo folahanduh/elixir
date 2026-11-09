@@ -130,6 +130,7 @@ function candChip(it, c) {
     else {
       const t = r.top[0];
       st = `<span class="st ${r.status}" title="${r.count} matching token(s)">${r.status === 'fresh' ? 'NEW ' + fmtAge(r.newestAgeMin) : r.count + '×'} ${fmtUsd(t?.marketCap)}</span>`;
+      if (t?.address) links += qbHTML(t.address, t.symbol);
       if (t?.links.gmgn) links += `<a class="lk" target="_blank" rel="noopener" href="${esc(t.links.gmgn)}">GMGN</a>`;
       if (t?.links.axiom) links += `<a class="lk" target="_blank" rel="noopener" href="${esc(t.links.axiom)}">Axiom</a>`;
       if (t?.links.dexscreener) links += `<a class="lk" target="_blank" rel="noopener" href="${esc(t.links.dexscreener)}">DS</a>`;
@@ -214,7 +215,7 @@ function liveCoinHTML(p, top) {
   const pairId = top.pairAddress || top.address;
   return `<div class="livecoin">
     <span class="lc-img">${top.image || top.address ? `<img src="${esc(coinImg(top.address, top.image))}" alt="" loading="lazy" onerror="this.remove()">` : ''}<i>${esc((top.symbol || '?').slice(0, 2))}</i></span>
-    <div class="lc-main"><b>$${esc(top.symbol)}</b><span class="muted">${esc(top.name || '')} · ${esc(top.padLabel || '')} · ${esc(top.orderLabel || '')} deploy</span></div>
+    <div class="lc-main"><b>$${esc(top.symbol)}</b>${qbHTML(top.address, top.symbol)}<span class="muted">${esc(top.name || '')} · ${esc(top.padLabel || '')} · ${esc(top.orderLabel || '')} deploy</span></div>
     <div class="lc-stat"><b>${fmtUsd(top.marketCap)}</b><span>mcap${top.change5m != null ? ` · <i class="${top.change5m >= 0 ? 'pos' : 'neg'}">${top.change5m >= 0 ? '+' : ''}${top.change5m}%</i> 5m` : ''}</span></div>
     <div class="lc-stat"><b>${fmtUsd(v5)}</b><span>vol 5m · ${tr} trades</span></div>
     <span class="lc-verdict ${verdict[0]}">${verdict[1]}</span>

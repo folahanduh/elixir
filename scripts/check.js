@@ -45,7 +45,7 @@ setTimeout(() => { console.error('server did not start in 15 s'); done(1); }, 15
 srv.stdout.on('data', async d => {
   if (!String(d).includes('Elixir →')) return;
   try {
-    for (const p of ['/api/ping', '/', '/streams.html', '/shell.js', '/kol.js', '/logo.svg', '/logo-512.png', '/settings.html', '/settings.js', '/settings.css', '/plays.html', '/plays.js', '/plays.css', '/whales.html', '/whales.js', '/whales.css', '/bubblemap.js', '/sol.svg']) {
+    for (const p of ['/api/ping', '/', '/streams.html', '/shell.js', '/kol.js', '/logo.svg', '/logo-512.png', '/settings.html', '/settings.js', '/settings.css', '/plays.html', '/plays.js', '/plays.css', '/whales.html', '/whales.js', '/whales.css', '/bubblemap.js', '/sol.svg', '/trade.js', '/vendor/solana-web3-1.98.4.min.js']) {
       const r = await fetch(`http://127.0.0.1:${port}${p}`);
       assert.equal(r.status, 200, p);
     }

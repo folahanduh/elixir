@@ -135,7 +135,7 @@
       <span class="t">${hhmmss(ev.seenAt)}</span>
       <a class="k" href="https://solscan.io/account/${h(ev.wallet)}" target="_blank" rel="noopener" title="${h(ev.wallet)} · open on Solscan"${color}>${ev.emoji ? h(ev.emoji) + ' ' : ''}${h(ev.kol)}${back}</a>
       <span class="s">${side}</span>
-      <span class="c">${pending ? `<span class="muted">${h(ev.venue)} · landing…</span>` : `<b data-word="${h(ev.symbol || '')}" title="${h(ev.name || ev.mint || '')}">${coin}</b>`}</span>
+      <span class="c">${pending ? `<span class="muted">${h(ev.venue)} · landing…</span>` : `<b data-word="${h(ev.symbol || '')}" title="${h(ev.name || ev.mint || '')}">${coin}</b>${ev.mint && ev.side === 'buy' ? qbHTML(ev.mint, ev.symbol) : ''}`}</span>
       ${cluster}
       <span class="n">${ev.sol ? solHTML(ev.sol.toFixed(2)) : ''}</span>
       <span class="n">${ev.marketCap ? 'mc ' + usd(ev.marketCap) : ''}</span>
