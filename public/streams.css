@@ -277,3 +277,16 @@ mark.k.name { font-weight: 500; background: transparent; text-decoration: underl
 .wl-wallet { font-size: 11.5px !important; padding: 2px 8px !important; }
 .wl-wallet.on { color: var(--accent) !important; }
 .wl { grid-template-columns: auto minmax(0, 1fr) auto auto auto !important; }
+
+/* stream card header: name and status stacked in one block that never gets squeezed to nothing */
+.sess-id { display: flex; flex-direction: column; gap: 1px; min-width: 180px; flex: 0 1 auto; }
+.sess-id h3 { min-width: 0; }
+.sess-id h3 .nm { max-width: 240px; }
+.sess-id .st { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
+.sess-head { flex-wrap: wrap !important; row-gap: 8px; }
+/* row 1: who + elapsed + menu; row 2: the action toolbar */
+.sess-head > .elapsed { order: 1; margin-left: auto; }
+.sess-head > .more { order: 2; }
+.sess-head > .grow { order: 3; flex: 1 0 100%; height: 0; }
+.sess-head > button, .sess-head > a.lk { order: 4; }
+.sess.folded .sess-head > button:not(.collapse):not(.restart), .sess.folded .sess-head > a.lk { display: none; }

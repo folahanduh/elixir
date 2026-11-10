@@ -148,6 +148,9 @@ function chipsHTML(it) {
   return (it.candidates || []).filter(c => c.score >= 2 || c.watch || weak++ < 2).map(c => candChip(it, c)).join('');
 }
 
+/** A stable colour per account (same handle, same colour), for its avatar ring. */
+const hueOf = name => { let h = 0; for (const c of String(name || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 360; };
+
 function cardHTML(it) {
   const initial = esc((it.author || '?')[0].toUpperCase());
   const av = it.avatar ? `<img src="${esc(it.avatar)}" alt="" loading="lazy">` : initial;
@@ -161,7 +164,7 @@ function cardHTML(it) {
     .find(u => /twitch\.tv\/|youtube\.com\/(watch|live|@)|youtu\.be\/|kick\.com\/|(x|twitter)\.com\/i\/(broadcasts|spaces)\//i.test(u));
   return `<div class="tw">
     <div class="meta">
-      <span class="av">${it.source === 'stream' ? 'S' : av}</span>${who}
+      <span class="av" style="--h:${hueOf(it.author)}">${it.source === 'stream' ? 'S' : av}</span>${who}
       ${it.vip ? '<span class="badge vip">VIP</span>' : ''}
       ${it.watch?.length ? '<span class="badge watch">WATCH</span>' : ''}
       <span class="spacer"></span>${lat}

@@ -1115,3 +1115,125 @@ html.qb-off .qb { display: none !important; }
 /* KOL rows: quick buy as a compact icon button (the amount is in its tooltip) */
 .kolp-ev .c .qb { padding: 0 6px !important; min-width: 0; }
 .kolp-ev .c .qb .qb-a { display: none; }
+
+/* =====================================================================
+   v4 design: premium terminal. Layered surfaces with a soft top light,
+   one violet brand glow, colour still reserved for data. Text meets 4.5:1,
+   controls have 3:1 edges, borders stay real (forced-colors safe).
+   ===================================================================== */
+:root {
+  --bg: #060609;
+  --panel: #0e0f14;
+  --panel-2: #14151c;
+  --panel-3: #1b1d25;
+  --line: rgba(255, 255, 255, .075);
+  --line-2: rgba(255, 255, 255, .13);
+  --ctl-line: #5a5e6b;           /* button / input edges: 3:1 on the panels */
+  --muted: #9095a2;
+  --dim: #7a7f8d;                /* small text: 4.5:1 on the panels */
+  --brand: #7c6dff;
+  --brand-2: #a99fff;
+  --glow: rgba(124, 109, 255, .16);
+  --surface: linear-gradient(180deg, rgba(255, 255, 255, .028), rgba(255, 255, 255, 0) 120px), var(--panel);
+  --lift: inset 0 1px 0 rgba(255, 255, 255, .045), 0 10px 30px rgba(0, 0, 0, .35);
+  --radius: 14px;
+}
+body {
+  background:
+    radial-gradient(900px 420px at 30% -160px, var(--glow), transparent 70%),
+    radial-gradient(700px 380px at 100% 0, rgba(47, 209, 139, .045), transparent 70%),
+    var(--bg) fixed;
+}
+
+/* controls */
+button { border-radius: 9px; font-weight: 600; }
+/* primary buttons (the plain ones, and form submits): a lit gradient */
+button:not([class]), button[type=submit]:not(.ghost):not(.small), button.primary {
+  background: linear-gradient(180deg, #8b7dff, #6d5ef2); border: 1px solid #6d5ef2; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 6px 18px rgba(109, 94, 242, .28); }
+button:not([class]):hover, button[type=submit]:not(.ghost):not(.small):hover, button.primary:hover { background: linear-gradient(180deg, #998cff, #7a6cf6); }
+button.ghost { background: rgba(255, 255, 255, .03); border: 1px solid var(--ctl-line); color: #e4e5ea; box-shadow: none; }
+button.ghost:hover { background: rgba(255, 255, 255, .07); border-color: #7d8190; }
+.lk, a.lk { border-color: var(--ctl-line); color: #c9ccd5; border-radius: 7px; }
+.lk:hover { border-color: #8a8e9c; }
+input, select, textarea { background: #0a0b10; border-color: var(--ctl-line); border-radius: 9px; }
+input:focus, textarea:focus, select:focus { border-color: var(--brand-2); box-shadow: 0 0 0 3px rgba(124, 109, 255, .25); }
+
+/* sidebar */
+.sb { background: linear-gradient(180deg, #0c0d12, #08090c); border-right: 1px solid var(--line); }
+.sb-brand b { font-size: 16px; font-weight: 700; letter-spacing: -.3px; }
+.sb-brand img, .sb-brand svg { filter: drop-shadow(0 3px 10px rgba(124, 109, 255, .55)); }
+.sb-search { background: rgba(255, 255, 255, .03); border-color: var(--line-2); border-radius: 10px; }
+.sb-nav a { position: relative; border-radius: 9px; color: #b3b7c2; }
+.sb-nav a.on { background: linear-gradient(90deg, rgba(124, 109, 255, .2), rgba(124, 109, 255, .05)); color: #fff; box-shadow: inset 0 0 0 1px rgba(154, 143, 255, .22); }
+.sb-nav a.on::after { content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--brand); box-shadow: 0 0 12px var(--brand); }
+.sb-nav a.on svg { color: var(--brand-2); }
+.sb-it { border: 1px solid transparent; }
+.sb-it:hover { border-color: var(--line); }
+.sb-wallets { background: var(--surface); border-color: var(--line-2); border-radius: 12px; box-shadow: var(--lift); }
+
+/* header */
+.top { background: rgba(6, 6, 9, .72); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); }
+.ptitle b { font-size: 16px; font-weight: 700; }
+.pills { gap: 8px; }
+.stat { border: 1px solid var(--line) !important; border-radius: 10px; background: rgba(255, 255, 255, .025); height: 40px; padding: 0 14px !important; min-width: 74px; }
+.stat b { font-size: 15px !important; font-weight: 700; }
+.stat span { font-size: 11px !important; letter-spacing: .02em; }
+
+/* surfaces */
+.panel, .card, .sess, .whcard, section.whcol:first-child, .pcard, .kolp {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--lift);
+}
+dialog { background: var(--panel); border-radius: 16px; }
+.panel > .panel-head, .panel > summary > .panel-head, .kolp-head { background: rgba(255, 255, 255, .018); }
+.panel-head h2, h2, .kolp-head b { font-size: 14px; font-weight: 700; letter-spacing: -.15px; }
+
+/* feed cards */
+.feed { gap: 12px; }
+.card { padding: 15px 18px; }
+.card:hover { border-color: rgba(255, 255, 255, .14); }
+.card.watch { border-color: rgba(242, 73, 106, .45); box-shadow: var(--lift), 0 0 0 1px rgba(242, 73, 106, .12); }
+.card.vip { border-color: rgba(240, 184, 74, .35) !important; }
+.av { width: 32px; height: 32px; color: #fff; font-weight: 700; font-size: 13px;
+  background: radial-gradient(circle at 30% 25%, hsl(var(--h, 250) 70% 62%), hsl(calc(var(--h, 250) + 40) 60% 34%));
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px hsl(var(--h, 250) 70% 60% / .55); }
+.handle { font-size: 14.5px; font-weight: 700; }
+.lat { padding: 2px 7px; border-radius: 999px; background: rgba(47, 209, 139, .1); }
+.lat.slow { background: rgba(255, 255, 255, .05); }
+.card .text { font-size: 15px; color: #eceef2; }
+.cand { background: linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .015)); border-color: var(--line-2); border-radius: 10px; padding: 4px 4px 4px 8px; }
+.cand .w { font-size: 14px; }
+.cand .cimg { width: 22px; height: 22px; }
+
+/* KOL panel rows */
+.kolp-ev { height: 40px; }
+.kolp-ev.buy { box-shadow: inset 2px 0 0 rgba(47, 209, 139, .55); }
+.kolp-ev.sell { box-shadow: inset 2px 0 0 rgba(242, 73, 106, .6); }
+.kolp-ev.clustered { box-shadow: inset 2px 0 0 var(--vip); }
+.kolp-ev .s { border-radius: 6px; padding: 3px 0; }
+.kolp-ev .c b { font-weight: 700; }
+
+/* right column lists */
+.al { padding: 10px 4px 10px 16px !important; }
+.al::before { box-shadow: 0 0 8px currentColor; }
+
+/* status bar + toasts */
+.sbar { background: rgba(6, 6, 9, .82); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.toast { background: rgba(17, 18, 24, .9); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .05); }
+
+/* stream sessions */
+.sess-head { background: rgba(255, 255, 255, .018); }
+
+/* a little lift on hover, only for people who don't mind motion */
+@media (prefers-reduced-motion: no-preference) {
+  .card, .cand, .sb-nav a, button { transition: border-color .15s, background .15s, transform .15s, box-shadow .15s; }
+  .card:hover { transform: translateY(-1px); }
+}
+/* High-contrast / forced colours: keep every edge visible with system colours */
+@media (forced-colors: active) {
+  .panel, .card, .sess, .kolp, .cand, .stat, button, .lk { border: 1px solid CanvasText; }
+  .sb-nav a.on { outline: 2px solid Highlight; }
+}
+
+/* v4 fixes: plain buttons inside the status bar / menus stay quiet */
+.sbar-zoom button { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+.sbar-zoom button:hover { background: rgba(255, 255, 255, .06) !important; }

@@ -74,11 +74,11 @@ function upsertSession(m) {
     s.el.dataset.pop = 'stream-' + m.id; s.el.dataset.popLabel = m.label || 'Stream'; s.el.dataset.popSize = '680x820';
     s.el.innerHTML = `
       <div class="sess-head">
-        <span class="sess-av"></span><h3><span class="nm"></span><span class="plat"></span><span class="rec"></span></h3>
-        <span class="st"></span><span class="grow"></span>
+        <span class="sess-av"></span><div class="sess-id"><h3><span class="nm"></span><span class="plat"></span><span class="rec"></span></h3>
+        <span class="st"></span></div><span class="grow"></span>
         <span class="muted small elapsed"></span>
         <button class="ghost small watch" hidden>Watch</button>
-        <button class="small pa" hidden title="Transcribe what the player on this page is saying: Chrome shares this tab's sound with Elixir. Use it when the stream won't transcribe on its own">🎙 Transcribe the player</button>
+        <button class="small pa" hidden title="Transcribe what the player on this page is saying: Chrome shares this tab's sound with Elixir. Use it when the stream won't transcribe on its own">🎙 Transcribe player</button>
         <a class="lk open" target="_blank" rel="noopener">open ↗</a>
         <button class="ghost small clipnow" hidden title="Clip the last ~30 seconds">Clip</button>
         <button class="ghost small collapse" title="Fold this stream away. It keeps transcribing and pinging">Hide</button>
@@ -157,7 +157,7 @@ function upsertSession(m) {
   s.el.querySelector('.watch').hidden = !(e && e.src);
   const pa = s.el.querySelector('.pa');
   pa.hidden = !(e && e.src) || (S.local && S.local.id !== s.id);
-  pa.textContent = S.local?.id === s.id ? 'Stop transcribing the player' : '🎙 Transcribe the player';
+  pa.textContent = S.local?.id === s.id ? 'Stop player audio' : '🎙 Transcribe player';
   s.el.querySelector('.clipnow').hidden = !s.canClip || Boolean(s.endedAt);
   for (const c of (m.clips || []).slice().reverse()) addClip(c, true);
   s.el.querySelector('.restart').hidden = live;
