@@ -1142,7 +1142,7 @@ body {
   background:
     radial-gradient(900px 420px at 30% -160px, var(--glow), transparent 70%),
     radial-gradient(700px 380px at 100% 0, rgba(47, 209, 139, .045), transparent 70%),
-    var(--bg) fixed;
+    var(--bg);
 }
 
 /* controls */
