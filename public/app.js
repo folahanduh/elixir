@@ -137,7 +137,9 @@ function candChip(it, c) {
     }
   } else if (!(c.watch || c.score >= (it.source === 'stream' ? 3 : 2))) st = '';
   links += `<a class="lk" target="_blank" rel="noopener" href="${xSearch(word)}" title="Search this word on X (live)">X ↗</a>`;
-  return `<span class="cand ${c.watch ? 'watch' : ''}" data-word="${esc(word)}"><span class="w" title="Click to copy, then paste into Axiom / GMGN search">${esc(c.display)}</span>${st}${links}</span>`;
+  const t0 = r && r.status !== 'none' && !r.error ? r.top?.[0] : null;
+  const img = t0?.address && window.coinImg ? `<img class="cimg" src="${esc(window.coinImg(t0.address, t0.image || t0.imageUrl || ''))}" alt="" loading="lazy" onerror="this.remove()">` : '';
+  return `<span class="cand ${c.watch ? 'watch' : ''}" data-word="${esc(word)}">${img}<span class="w" title="Click to copy, then paste into Axiom / GMGN search">${esc(c.display)}</span>${st}${links}</span>`;
 }
 
 // Strong candidates always show; plain lowercase words are capped at two so the row stays readable.
